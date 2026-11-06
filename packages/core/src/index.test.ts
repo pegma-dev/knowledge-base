@@ -383,6 +383,19 @@ describe("immutable drafts and publication", () => {
     }
   });
 
+  it("guards malformed published revision parents before verifying them", async () => {
+    const approved = await published();
+    for (const malformed of [null, undefined, {}, [], "invalid"]) {
+      const unsafe = {
+        ...approved,
+        published: { ...approved.published!, revision: malformed },
+      } as unknown as Article;
+      await expect(
+        isPublicationBoundToCurrentPolicies(unsafe, collection(), policy),
+      ).rejects.toMatchObject({ name: "KnowledgeBaseError" });
+    }
+  });
+
   it("guards published approval parents before reading a binding", async () => {
     const approved = await published();
     await expect(

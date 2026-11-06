@@ -349,6 +349,13 @@ export function immutable<T>(value: T): T {
 }
 
 export async function verifyRevision(revision: ArticleRevision): Promise<void> {
+  if (
+    revision === null ||
+    typeof revision !== "object" ||
+    Array.isArray(revision)
+  ) {
+    invalid("articleRevision", "Revision must be an object");
+  }
   const { contentHash, ...fields } = revision;
   validateRevisionFields(fields);
   hash(contentHash, "contentHash");
