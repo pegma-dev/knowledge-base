@@ -338,6 +338,78 @@ describe("collection audience changes", () => {
 });
 
 describe("immutable drafts and publication", () => {
+  it.each(["buildId", "locale"] as const)(
+    "rejects supplied approval applicability.%s before comparison",
+    async (field) => {
+      const inReview = await reviewed();
+      await expect(
+        publishArticle(inReview, {
+          expectedRevision: 1,
+          binding: {
+            ...inReview.review!,
+            applicability: {
+              ...inReview.review!.applicability,
+              [field]: undefined,
+            } as ArticleDraft["applicability"],
+          },
+          reviewerId: "staff/reviewer",
+          context: reviewContext(),
+        }),
+      ).rejects.toMatchObject({ field: "applicability." + field });
+    },
+  );
+
+  it.each(["buildId", "locale"] as const)(
+    "rejects stored review applicability.%s before comparison",
+    async (field) => {
+      const inReview = await reviewed();
+      const malformed = {
+        ...inReview,
+        review: {
+          ...inReview.review!,
+          applicability: {
+            ...inReview.review!.applicability,
+            [field]: undefined,
+          } as ArticleDraft["applicability"],
+        },
+      };
+      await expect(
+        publishArticle(malformed, {
+          expectedRevision: 1,
+          binding: inReview.review!,
+          reviewerId: "staff/reviewer",
+          context: reviewContext(),
+        }),
+      ).rejects.toMatchObject({ field: "applicability." + field });
+    },
+  );
+
+  it.each(["buildId", "locale"] as const)(
+    "rejects published binding applicability.%s before policy comparison",
+    async (field) => {
+      const approved = await published();
+      const malformed = {
+        ...approved,
+        published: {
+          ...approved.published!,
+          approval: {
+            ...approved.published!.approval,
+            binding: {
+              ...approved.published!.approval.binding,
+              applicability: {
+                ...approved.published!.approval.binding.applicability,
+                [field]: undefined,
+              } as ArticleDraft["applicability"],
+            },
+          },
+        },
+      };
+      await expect(
+        isPublicationBoundToCurrentPolicies(malformed, collection(), policy),
+      ).rejects.toMatchObject({ field: "applicability." + field });
+    },
+  );
+
   it("computes hashes, snapshots caller input, and freezes nested revisions", async () => {
     const input = structuredClone(draft);
     const pending = createArticle({
@@ -593,6 +665,50 @@ describe("immutable drafts and publication", () => {
 });
 
 describe("bound evidence and article-appropriate checks", () => {
+  it.each(["buildId", "locale"] as const)(
+    "rejects submitted evidence applicability.%s before hashing",
+    async (field) => {
+      const current = await article();
+      const evidence = submission(current);
+      await expect(
+        recordEvidence(current, {
+          evidence: {
+            ...evidence,
+            applicability: {
+              ...evidence.applicability,
+              [field]: undefined,
+            } as EvidenceSubmission["applicability"],
+          },
+          attestation,
+          context: reviewContext(),
+        }),
+      ).rejects.toMatchObject({ field: "applicability." + field });
+    },
+  );
+
+  it.each(["buildId", "locale"] as const)(
+    "rejects stored evidence applicability.%s before review hashing",
+    async (field) => {
+      const verified = await checks(await article());
+      const malformed = {
+        ...verified,
+        evidence: verified.evidence.map((evidence) => ({
+          ...evidence,
+          applicability: {
+            ...evidence.applicability,
+            [field]: undefined,
+          } as VerificationEvidence["applicability"],
+        })),
+      };
+      await expect(
+        submitForReview(malformed, {
+          expectedRevision: 1,
+          context: reviewContext(),
+        }),
+      ).rejects.toMatchObject({ field: "applicability." + field });
+    },
+  );
+
   it("walkthroughs need workflow evidence in addition to a content check", async () => {
     const current = await article("walkthrough");
     const contentOnly = await recordEvidence(current, {
@@ -735,6 +851,19 @@ describe("malformed and bounded source content", () => {
       productVersion: draft.applicability.productVersion,
     });
     expect(created.current.contentHash).toMatch(/^[a-f0-9]{64}$/u);
+    const verified = await checks(created);
+    expect(verified.evidence[0]?.applicability).toEqual(
+      created.current.applicability,
+    );
+    const inReview = await submitForReview(verified, {
+      expectedRevision: 1,
+      context: reviewContext(),
+    });
+    expect(inReview.state).toBe("in-review");
+    const approved = await published(inReview);
+    expect(
+      await isPublicationBoundToCurrentPolicies(approved, collection(), policy),
+    ).toBe(true);
   });
 
   it("rejects extra nested payloads instead of retaining unbounded unsupported fields", async () => {

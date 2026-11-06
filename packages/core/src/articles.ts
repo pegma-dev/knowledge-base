@@ -233,6 +233,7 @@ async function verifyEvidence(
     ],
     "evidence",
   );
+  validateApplicability(evidence.applicability);
   const now = validateReviewContext(context);
   text(evidence.id, "evidence.id");
   count(evidence.version, "evidence.version");
@@ -255,7 +256,6 @@ async function verifyEvidence(
       "evidence.binding",
       "Evidence does not bind the exact draft, policy, product, and staging build",
     );
-  validateApplicability(evidence.applicability);
   text(evidence.checkId, "evidence.checkId");
   text(evidence.testKind, "evidence.testKind", 64);
   text(evidence.stagingBuildId, "evidence.stagingBuildId");
@@ -393,6 +393,7 @@ export async function recordEvidence(
     ],
     "evidence",
   );
+  validateApplicability(request.evidence.applicability);
   usable(source);
   expectedRevision(source, request.evidence.articleRevision);
   await verifyContextBinding(source.current, request.context);
@@ -507,6 +508,8 @@ export async function publishArticle(
       "Publication requires a submitted review",
     );
   }
+  validateApplicability(source.review.applicability);
+  validateApplicability(request.binding.applicability);
   const binding = await approvalBinding(source, request.context);
   if (
     canonical(binding) !== canonical(source.review) ||
@@ -574,6 +577,7 @@ export async function isPublicationBoundToCurrentPolicies(
   const published = source.published;
   await verifyRevision(published.revision);
   const binding = published.approval.binding;
+  validateApplicability(binding.applicability);
   return (
     published.revision.articleId === source.id &&
     binding.articleId === source.id &&
