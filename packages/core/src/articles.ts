@@ -65,6 +65,29 @@ export type EvidenceSubmission = Omit<
   "version" | "hash" | "attestation"
 >;
 
+function validateBindingApplicability(
+  binding: ApprovalBinding,
+  field: "review" | "binding",
+): void {
+  const fields = [
+    "articleId",
+    "articleRevision",
+    "contentHash",
+    "collectionId",
+    "collectionPolicyVersion",
+    "collectionPolicyHash",
+    "applicability",
+    "validationPolicy",
+    "validationPolicyHash",
+    "evidence",
+  ] as const;
+  keys(binding, fields, field);
+  if (fields.some((key) => !Object.hasOwn(binding, key))) {
+    invalid(field, "Approval binding is missing required snapshot fields");
+  }
+  validateApplicability(binding.applicability);
+}
+
 function expectedRevision(article: Article, expected: number): void {
   keys(
     article,
@@ -501,15 +524,18 @@ export async function publishArticle(
   const request = structuredClone(input);
   expectedRevision(source, request.expectedRevision);
   text(request.reviewerId, "reviewerId");
-  if (source.state !== "in-review" || source.review === undefined) {
+  if (source.state !== "in-review") {
     throw new KnowledgeBaseError(
       "transition",
       "state",
       "Publication requires a submitted review",
     );
   }
-  validateApplicability(source.review.applicability);
-  validateApplicability(request.binding.applicability);
+  if (source.review === undefined) {
+    invalid("review", "Submitted review snapshot is missing");
+  }
+  validateBindingApplicability(source.review, "review");
+  validateBindingApplicability(request.binding, "binding");
   const binding = await approvalBinding(source, request.context);
   if (
     canonical(binding) !== canonical(source.review) ||
@@ -575,9 +601,30 @@ export async function isPublicationBoundToCurrentPolicies(
   await verifyCollection(currentCollection);
   validatePolicy(currentPolicy);
   const published = source.published;
-  await verifyRevision(published.revision);
+  keys(published, ["revision", "approval"], "published");
+  if (
+    !Object.hasOwn(published, "revision") ||
+    !Object.hasOwn(published, "approval")
+  ) {
+    invalid(
+      "published",
+      "Published snapshot must include revision and approval",
+    );
+  }
+  keys(
+    published.approval,
+    ["binding", "reviewerId", "reviewedAt"],
+    "published.approval",
+  );
+  if (!Object.hasOwn(published.approval, "binding")) {
+    invalid(
+      "published.approval",
+      "Published approval must include its binding",
+    );
+  }
   const binding = published.approval.binding;
-  validateApplicability(binding.applicability);
+  validateBindingApplicability(binding, "binding");
+  await verifyRevision(published.revision);
   return (
     published.revision.articleId === source.id &&
     binding.articleId === source.id &&

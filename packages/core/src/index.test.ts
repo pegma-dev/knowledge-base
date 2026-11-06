@@ -338,6 +338,74 @@ describe("collection audience changes", () => {
 });
 
 describe("immutable drafts and publication", () => {
+  it("rejects malformed stored review parents with a named domain failure", async () => {
+    const inReview = await reviewed();
+    for (const malformed of [null, undefined, {}, [], "invalid"]) {
+      const unsafe = { ...inReview, review: malformed } as unknown as Article;
+      await expect(
+        publishArticle(unsafe, {
+          expectedRevision: 1,
+          binding: inReview.review!,
+          reviewerId: "staff/reviewer",
+          context: reviewContext(),
+        }),
+      ).rejects.toMatchObject({ name: "KnowledgeBaseError", field: "review" });
+    }
+  });
+
+  it("rejects malformed supplied binding parents with a named domain failure", async () => {
+    const inReview = await reviewed();
+    for (const malformed of [null, undefined, {}, [], "invalid"]) {
+      await expect(
+        publishArticle(inReview, {
+          expectedRevision: 1,
+          binding: malformed as unknown as NonNullable<Article["review"]>,
+          reviewerId: "staff/reviewer",
+          context: reviewContext(),
+        }),
+      ).rejects.toMatchObject({ name: "KnowledgeBaseError", field: "binding" });
+    }
+  });
+
+  it("rejects malformed published binding parents with a named domain failure", async () => {
+    const approved = await published();
+    for (const malformed of [null, undefined, {}, [], "invalid"]) {
+      const unsafe = {
+        ...approved,
+        published: {
+          ...approved.published!,
+          approval: { ...approved.published!.approval, binding: malformed },
+        },
+      } as unknown as Article;
+      await expect(
+        isPublicationBoundToCurrentPolicies(unsafe, collection(), policy),
+      ).rejects.toMatchObject({ name: "KnowledgeBaseError", field: "binding" });
+    }
+  });
+
+  it("guards published approval parents before reading a binding", async () => {
+    const approved = await published();
+    await expect(
+      isPublicationBoundToCurrentPolicies(
+        { ...approved, published: null } as unknown as Article,
+        collection(),
+        policy,
+      ),
+    ).rejects.toMatchObject({ name: "KnowledgeBaseError", field: "published" });
+    for (const malformed of [null, undefined, {}, [], "invalid"]) {
+      const unsafe = {
+        ...approved,
+        published: { ...approved.published!, approval: malformed },
+      } as unknown as Article;
+      await expect(
+        isPublicationBoundToCurrentPolicies(unsafe, collection(), policy),
+      ).rejects.toMatchObject({
+        name: "KnowledgeBaseError",
+        field: "published.approval",
+      });
+    }
+  });
+
   it.each(["buildId", "locale"] as const)(
     "rejects supplied approval applicability.%s before comparison",
     async (field) => {
