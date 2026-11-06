@@ -127,6 +127,7 @@ dist
 
 # pnpm
 .pnpm-store
+.release/
 
 # yarn v3
 .pnp.*

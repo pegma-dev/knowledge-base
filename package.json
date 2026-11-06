@@ -1,0 +1,31 @@
+{
+  "name": "knowledge-base",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Composable product documentation and support knowledge for Pegma hosts.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "check": "tsc -b --pretty false && tsc -p tsconfig.test.json --pretty false",
+    "clean": "tsc -b --clean",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm run build && vitest run",
+    "release:check": "node scripts/release-packages.mjs check",
+    "release:pack": "node scripts/release-packages.mjs pack"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "prettier": "3.9.10",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "packageManager": "pnpm@10.34.5"
+}
