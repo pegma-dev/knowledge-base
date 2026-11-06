@@ -119,6 +119,14 @@ export function validateApplicability(value: Applicability): void {
     ["productId", "productVersion", "buildId", "locale"],
     "applicability",
   );
+  for (const field of ["buildId", "locale"] as const) {
+    if (Object.hasOwn(value, field) && value[field] === undefined) {
+      invalid(
+        "applicability." + field,
+        "Omit an absent optional field instead of setting undefined",
+      );
+    }
+  }
   text(value.productId, "applicability.productId");
   text(value.productVersion, "applicability.productVersion");
   if (value.buildId !== undefined) text(value.buildId, "applicability.buildId");

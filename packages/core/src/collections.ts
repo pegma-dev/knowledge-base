@@ -21,6 +21,7 @@ export interface CollectionPolicyPreview {
   readonly collectionId: string;
   readonly expectedRevision: number;
   readonly policy: CollectionPolicy;
+  /** Deterministic snapshot digest, not a signature, capability, or preview receipt. */
   readonly policyHash: string;
 }
 
@@ -147,7 +148,10 @@ export function createCollection(input: {
   });
 }
 
-/** A preview binds the proposed audience change to the exact current revision. */
+/**
+ * Compute an exact proposed snapshot. Its digest detects changed fields; it
+ * cannot prove this function was called or authenticate an actor or approval.
+ */
 export async function previewCollectionPolicy(
   collection: Collection,
   uses: { readonly portal: CollectionUse; readonly bot: CollectionUse },
@@ -169,7 +173,10 @@ export async function previewCollectionPolicy(
   });
 }
 
-/** The application must authorize both the actor and any public-policy reviewer. */
+/**
+ * The application must load the trusted current collection and authenticate
+ * and authorize both the actor and any public-policy reviewer/approval.
+ */
 export async function applyCollectionPolicy(
   collection: Collection,
   input: {

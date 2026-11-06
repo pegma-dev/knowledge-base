@@ -19,6 +19,9 @@ through Storage Core. Calling a pure function does not grant a permission.
   Its review time must fall between the source collection's latest update and
   application of the approved change; review and application can occur at
   different times.
+  The preview hash is a deterministic snapshot binding, not a signature,
+  capability, or proof that the preview function was called. The application
+  loads the trusted current collection and authenticates the actor and approval.
 - **createArticle** and **reviseArticle** compute SHA-256 over the complete numbered
   revision using canonical JSON and Web Crypto. A supplied hash is never
   accepted as content proof. Revision outputs and their nested values are
@@ -39,6 +42,8 @@ through Storage Core. Calling a pure function does not grant a permission.
   the authorized rejection reason in its command/audit transaction.
 - **retireArticle** removes the publication and pending review. Republishing a
   retired article requires creating a new draft revision and review.
+  Retirement retains the current private revision and evidence in the bounded
+  staff aggregate; it is not deletion or anonymization.
 
 An article has no access override. Its numbered revision names one collection.
 Moving a draft to another collection requires a new reviewed publication. An
@@ -60,7 +65,8 @@ to detect same-version mutation. It is only a policy-binding predicate. It does
 not authorize a read, authenticate external evidence, establish retained
 evidence availability/revocation, or implement customer retrieval. Never expose
 an aggregate or its private approval/evidence fields directly to customers or
-the model.
+the model. Never expose or log raw aggregates. Authorized DTO construction,
+evidence access, retention, and deletion belong to KB-02 and the host.
 
 All times, identities, and policies are explicit inputs. A **ReviewContext**
 must come from the trusted application: it supplies current collection and
@@ -73,6 +79,9 @@ and the evidence still satisfies its exact binding and freshness requirements.
 A caller inventing an attestation object has not produced verification proof.
 The later API/MCP boundary must verify receipts and authorize evidence
 submission before calling these transitions.
+
+A draft targeting a future build waits for matching verification or is revised;
+evidence for a different staging build fails closed.
 
 ## Source format and schema ceilings
 

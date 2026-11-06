@@ -38,6 +38,11 @@ pnpm test
 pnpm run release:check
 ```
 
+The npm and pnpm workspace declarations deliberately name the same two source
+packages: pnpm links them for development, while npm supplies artifact packing.
+The release check installs both tarballs in a consumer outside either workspace
+to verify dependency resolution without source links.
+
 The [approved enhancement plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
 defines KB-01 through KB-05 and the later Support Desk/host integrations.
 Its [P-00 handoff](https://github.com/pegma-dev/support-desk/pull/33) records

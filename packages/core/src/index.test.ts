@@ -569,6 +569,7 @@ describe("immutable drafts and publication", () => {
     const retired = retireArticle(await published(inReview), 1);
     expect(retired.state).toBe("retired");
     expect(retired).not.toHaveProperty("published");
+    expect(retired.evidence).toEqual(inReview.evidence);
     expect(
       await isPublicationBoundToCurrentPolicies(retired, collection(), policy),
     ).toBe(false);
@@ -698,6 +699,44 @@ describe("bound evidence and article-appropriate checks", () => {
 });
 
 describe("malformed and bounded source content", () => {
+  it.each(["buildId", "locale"] as const)(
+    "rejects explicit undefined at applicability.%s",
+    async (field) => {
+      await expect(
+        createArticle({
+          id: "article/undefined-applicability",
+          draft: {
+            ...draft,
+            applicability: {
+              ...draft.applicability,
+              [field]: undefined,
+            } as ArticleDraft["applicability"],
+          },
+          context: authorContext(),
+        }),
+      ).rejects.toMatchObject({ field: "applicability." + field });
+    },
+  );
+
+  it("accepts applicability with optional build and locale omitted", async () => {
+    const created = await createArticle({
+      id: "article/omitted-applicability",
+      draft: {
+        ...draft,
+        applicability: {
+          productId: draft.applicability.productId,
+          productVersion: draft.applicability.productVersion,
+        },
+      },
+      context: authorContext(),
+    });
+    expect(created.current.applicability).toEqual({
+      productId: draft.applicability.productId,
+      productVersion: draft.applicability.productVersion,
+    });
+    expect(created.current.contentHash).toMatch(/^[a-f0-9]{64}$/u);
+  });
+
   it("rejects extra nested payloads instead of retaining unbounded unsupported fields", async () => {
     await expect(
       createArticle({
