@@ -16,6 +16,9 @@ through Storage Core. Calling a pure function does not grant a permission.
   the current collection revision. **applyCollectionPolicy** rejects stale or
   changed previews. Anonymous use additionally requires explicit approval of
   that exact collection, policy version, and policy hash.
+  Its review time must fall between the source collection's latest update and
+  application of the approved change; review and application can occur at
+  different times.
 - **createArticle** and **reviseArticle** compute SHA-256 over the complete numbered
   revision using canonical JSON and Web Crypto. A supplied hash is never
   accepted as content proof. Revision outputs and their nested values are

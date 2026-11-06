@@ -280,6 +280,61 @@ describe("collection audience changes", () => {
       }),
     ).rejects.toMatchObject({ field: "preview" });
   });
+
+  it("rejects public approval predating the source policy but allows review before application", async () => {
+    const initial = collection();
+    const privatePreview = await previewCollectionPolicy(initial, {
+      portal: {
+        enabled: true,
+        audience: { kind: "permission", permission: "workshop.customer" },
+      },
+      bot: { enabled: false },
+    });
+    const updated = await applyCollectionPolicy(initial, {
+      preview: privatePreview,
+      actorId: "staff/admin",
+      at: at(10_000),
+    });
+    const publicPreview = await previewCollectionPolicy(updated, {
+      portal: { enabled: true, audience: { kind: "anonymous" } },
+      bot: { enabled: false },
+    });
+    const approval: PublicCollectionApproval = {
+      collectionId: updated.id,
+      policyVersion: publicPreview.policy.version,
+      policyHash: publicPreview.policyHash,
+      reviewerId: "staff/reviewer",
+      reviewedAt: at(5_000),
+    };
+    await expect(
+      applyCollectionPolicy(updated, {
+        preview: publicPreview,
+        actorId: "staff/admin",
+        at: at(20_000),
+        publicApproval: approval,
+      }),
+    ).rejects.toMatchObject({ field: "publicApproval.reviewedAt" });
+    const approved = await applyCollectionPolicy(updated, {
+      preview: publicPreview,
+      actorId: "staff/admin",
+      at: at(20_000),
+      publicApproval: { ...approval, reviewedAt: at(15_000) },
+    });
+    await expect(
+      applyCollectionPolicy(updated, {
+        preview: publicPreview,
+        actorId: "staff/admin",
+        at: at(20_000),
+        publicApproval: { ...approval, reviewedAt: at(25_000) },
+      }),
+    ).rejects.toMatchObject({ field: "publicApproval.reviewedAt" });
+    expect(approved.publicApproval?.reviewedAt).toBe(at(15_000));
+    expect(approved.updatedAt).toBe(at(20_000));
+    expect(approved.policy.portal).toEqual({
+      enabled: true,
+      audience: { kind: "anonymous" },
+    });
+  });
 });
 
 describe("immutable drafts and publication", () => {

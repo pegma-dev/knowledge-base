@@ -200,6 +200,17 @@ export async function applyCollectionPolicy(
     );
   }
   validateCollectionPolicy(change.preview.policy);
+  if (
+    isPublic(change.preview.policy) &&
+    change.publicApproval !== undefined &&
+    timestamp(change.publicApproval.reviewedAt, "publicApproval.reviewedAt") <
+      timestamp(source.updatedAt, "collection.updatedAt")
+  ) {
+    invalid(
+      "publicApproval.reviewedAt",
+      "Public approval cannot predate the source collection policy",
+    );
+  }
   count(source.revision + 1, "collection.revision");
   const next: Collection = {
     ...source,
