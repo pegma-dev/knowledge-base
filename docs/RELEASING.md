@@ -20,7 +20,9 @@ The temporary tarball consumer below is a packaging test only.
 
 ## Artifact checks
 
-Run the repository gate on Node 22 and 24 with the pinned pnpm version:
+Use Node 22.6.0+ or 24 for the repository gate and source example, with the
+pinned pnpm version. CI continues to track current Node 22 and 24; published
+package engines remain `>=22`.
 
 ```sh
 pnpm install --frozen-lockfile

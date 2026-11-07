@@ -32,7 +32,12 @@ repository pins, not a claim about the latest available versions:
 | Miniflare declaration dependency | `@cloudflare/workers-types@5.20260730.1` |
 | Locked native runtime            | `workerd@1.20260730.1` (transitive)      |
 | Local compatibility date         | `2026-07-28`                             |
-| Repository toolchain             | Node 22/24, `pnpm@10.34.5`               |
+| Repository toolchain             | Node 22.6.0+ or 24, `pnpm@10.34.5`       |
+
+The source example uses `node --experimental-strip-types`, introduced in
+[Node 22.6.0](https://nodejs.org/en/blog/release/v22.6.0). The root development
+engine floor is therefore `>=22.6.0`. Published package engines remain `>=22`;
+the CI matrix continues to track current Node 22 and 24.
 
 [test/d1.ts](../test/d1.ts) obtains Miniflare's real `getD1Database("DB")`
 binding and passes it directly to the released `createCloudflareD1Store`.

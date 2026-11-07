@@ -5,8 +5,12 @@ real memory Store. It demonstrates authoring, bound synthetic verification
 evidence, separate staff review/publication, bounded index repair, and bot-source
 retrieval followed immediately by citation confirmation.
 
-Run from the repository root on Node 22 or 24 after installing the repository's
+Run from the repository root on Node 22.6.0+ or 24 after installing the repository's
 pinned dependencies:
+
+The runner uses `--experimental-strip-types`, introduced in
+[Node 22.6.0](https://nodejs.org/en/blog/release/v22.6.0). This is a repository
+development requirement; published package engines remain `>=22`.
 
 ```sh
 pnpm run example

@@ -60,6 +60,7 @@ receipt registry matches exact immutable synthetic run bindings; it is not a
 production credential or staging-verification implementation. See the
 [example README](../examples/composition/README.md).
 
+Use Node 22.6.0+ or 24 for repository development and the TypeScript example.
 Run a focused application subset after building the workspace packages:
 
 ```sh

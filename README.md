@@ -58,7 +58,7 @@ demonstrates the public author/test/review/publish/retrieve flow with fictional
 trust inputs. Local emulators and that example establish neither live Workers
 deployment nor scoped API/MCP credentials, publication, or host acceptance.
 
-Develop on Node 22 or 24 with pnpm 10.34.5:
+Develop on Node 22.6.0+ or 24 with pnpm 10.34.5:
 
 ```sh
 pnpm install --frozen-lockfile

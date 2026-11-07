@@ -12,6 +12,7 @@ impacts. Explain any new host prerequisites or artifact/release consequences.
 - [ ] `pnpm run format:check`
 - [ ] `pnpm run check`
 - [ ] `pnpm test`
+- [ ] `pnpm example`
 - [ ] `pnpm run release:check`
 - [ ] Current-head Node 22/24, review, and security gates
 - [ ] No private host internals or real customer data

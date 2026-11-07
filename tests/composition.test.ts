@@ -17,12 +17,45 @@ for (const [name, createStore] of storeFactories) {
       const result = await runCompleteExampleFlow(c);
       expect(result.articleId).toBe(c.articleId);
       expect(result.revision).toBe(1);
-      expect(result.answerSources.sources).toHaveLength(1);
-      expect(result.answerSources.sources[0]?.citation).toEqual({
-        label: "Download a workspace export",
+      const expectedSources = [
+        {
+          reference: {
+            articleId: "article/fictional-export",
+            collectionId: "collection/fictional-workshop",
+            collectionPolicyVersion: 2,
+            articleRevision: 1,
+            contentHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+            applicationGeneration: 5,
+            governanceGeneration: 3,
+            validationGeneration: 1,
+          },
+          citation: { label: "Download a workspace export" },
+          title: "Download a workspace export",
+          summary: "Save a fictional workshop workspace as a CSV spreadsheet.",
+          content: {
+            format: "markdown",
+            text: "1. Open Workspace.\n2. Choose Export.\n3. Download the CSV spreadsheet.",
+          },
+          applicability: {
+            productId: "fictional-workshop",
+            productVersion: "1.0",
+            buildId: "synthetic-staging-42",
+            locale: "en-US",
+          },
+        },
+      ];
+      // Exact public shapes reject added fields, including private metadata
+      // nested in an otherwise legitimate source, reference, or content object.
+      expect(result.answerSources).toStrictEqual({
+        outcome: "results",
+        sources: expectedSources,
+        serializedSources: expect.any(String),
+        sourceTokens: expect.any(Number),
       });
-      expect(result.answerSources.serializedSources).toContain(
-        "3. Download the CSV spreadsheet.",
+      // Retrieval serializes the complete source array as canonical JSON. Test
+      // its decoded shape independently, so encoded evidence/artifacts fail too.
+      expect(JSON.parse(result.answerSources.serializedSources)).toStrictEqual(
+        expectedSources,
       );
       for (const privateValue of [
         "SYNTHETIC_PRIVATE_EVIDENCE",

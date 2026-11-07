@@ -63,6 +63,9 @@ Work on a `claude/*` branch and open a PR. Required checks are
 `pnpm run format:check`, `pnpm run check`, `pnpm test`, `pnpm example`, and
 `pnpm run release:check`, on Node 22 and 24. Run the applicable review/security
 checks for the current head. Do not bypass pending, skipped, or failing gates.
+Repository development and the TypeScript example require Node 22.6.0+ or 24.
+The root engine floor covers the example's `--experimental-strip-types` flag;
+published package engines remain `>=22`, and CI tracks current Node 22/24.
 
 Each published package needs its own README and MIT LICENSE, a build-on-prepack
 script, and compiled-test exclusion. Merging source does not publish packages.
