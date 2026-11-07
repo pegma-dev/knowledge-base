@@ -14,10 +14,10 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   optional `@pegma/knowledge-base-mcp` package for the shared five-operation
   dispatcher, versioned HTTP contract, and MCP transport. Live host interfaces
   remain host work; do not create later packages early.
-- Independent partial KB-05 source preparation adds local D1 conformance and
-  a public synthetic composition. It does not complete KB-04 credentials or
-  the full KB-05 release/publication task. KB-04 source is in progress; all four
-  packages remain unpublished at synchronized version `0.1.0`.
+- KB-04 source is merged. KB-05 source preparation adds local D1 conformance,
+  a public synthetic composition, and exact-artifact release tooling. All four
+  packages remain unpublished at synchronized version `0.1.0`; source readiness
+  does not complete first publication, registry verification, or host acceptance.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -87,8 +87,21 @@ published package engines remain `>=22`, and CI tracks current Node 22/24.
 
 Each published package needs its own README and MIT LICENSE, a build-on-prepack
 script, and compiled-test exclusion. Merging source does not publish packages.
-See [release operations](docs/RELEASING.md); first publication and external
-trusted-publisher configuration are separate maintainer operations.
+Release preparation requires a clean checkout at an approved signed annotated
+`vX.Y.Z` tag matching the synchronized version, exact event commit, and protected
+`origin/main` ancestry. A schema-2 manifest binds that identity and all four
+tarballs. Independently retain its SHA-256 digest; never trust a digest taken
+only from the downloaded artifact. Preflight all four registry versions before
+any publish, and recover only by accepting byte-identical existing artifacts.
+See [release operations](docs/RELEASING.md) and the
+[first-publication handoff](docs/BOOTSTRAP.md). Maintainer 2FA bootstrap and
+external package ownership, signer, tag, environment, and trusted-publisher
+settings remain separate gates. OIDC publishing receives only verified prepared
+artifacts; it installs nothing, rebuilds no packages, and has no token fallback.
+A separate unprivileged job installs registry packages in an isolated temporary
+consumer with lifecycle scripts disabled and verifies signatures/provenance.
+`pnpm test` includes `test:release`'s release identity, manifest, argument, and
+registry regressions; these must execute on both Node lanes.
 The protocol proof may build the reviewed, pinned public AUTH-01 source in an
 isolated temporary consumer with all four KB tarballs and the official SDK.
 That test-only exception never authorizes an unpublished production dependency.
@@ -109,5 +122,6 @@ layout before changing query work, citations, or repair.
 For KB-04, read the [agent API](docs/AGENT_API.md) and
 [agent workflow](docs/AGENT_WORKFLOW.md) before changing transport, credential,
 client, or evidence-proof boundaries.
-For partial KB-05, read [source preparation](docs/SOURCE_PREPARATION.md) before
-changing local D1 fixtures, synthetic composition, or release-readiness claims.
+For KB-05, read [source preparation](docs/SOURCE_PREPARATION.md) before changing
+local D1 fixtures, synthetic composition, or release-readiness claims, and
+[release operations](docs/RELEASING.md) before changing release tooling.
