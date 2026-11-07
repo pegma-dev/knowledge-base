@@ -20,6 +20,7 @@ import {
 import { resolveRetrievalLimits } from "./retrieval-limits.js";
 import {
   requireRetrievalHint,
+  retrievalRecords,
   type RetrievalHint,
   type RetrievalScope,
 } from "./retrieval-records.js";
@@ -28,7 +29,6 @@ import type {
   AnswerSourceDto,
   AnswerSourceReference,
   AnswerSourcesResult,
-  CandidateWork,
   KnowledgeRetrievalApplication,
   KnowledgeRetrievalOptions,
   PortalCollectionsResult,
@@ -61,6 +61,7 @@ interface AuthorizedScope {
 
 interface Candidate {
   readonly articleId: string;
+  readonly firstSeen: number;
   readonly terms: Set<string>;
   readonly hints: Map<string, RetrievalHint>;
 }
@@ -235,7 +236,7 @@ export function createRetrievalServices(input: {
       maxPostingEntries: limits.maxPostingEntries,
       maxCandidateHeads: limits.maxHeadProbes,
       maxConfirmations: limits.maxConfirmations,
-      indexCollectionName: "knowledge-base.retrieval.v1",
+      indexCollectionName: retrievalRecords.name,
     });
     const repository = createKnowledgeRepository(
       budget.store,
@@ -298,6 +299,7 @@ export function createRetrievalServices(input: {
           return;
         const candidate = candidates.get(hint.articleId) ?? {
           articleId: hint.articleId,
+          firstSeen: candidates.size,
           terms: new Set<string>(),
           hints: new Map<string, RetrievalHint>(),
         };
@@ -389,10 +391,11 @@ export function createRetrievalServices(input: {
         // Only the current checker establishes authority; hints identify it.
         if (generation !== null) current.push(candidate);
       }
-      return current.sort(
-        (left, right) =>
-          right.terms.size - left.terms.size ||
-          ordinal(left.articleId, right.articleId),
+      return current.sort((left, right) =>
+        candidateAdapter === undefined
+          ? right.terms.size - left.terms.size ||
+            ordinal(left.articleId, right.articleId)
+          : left.firstSeen - right.firstSeen,
       );
     }
 
@@ -417,8 +420,13 @@ export function createRetrievalServices(input: {
         scopes.push(authorized);
       }
       const candidates = await queryHints(scopes, terms);
-      const confirmed: { checked: CheckedPublication; score: number }[] = [];
-      // Bounded deterministic preselection, then ranking only approved metadata.
+      const confirmed: {
+        checked: CheckedPublication;
+        score: number;
+        firstSeen: number;
+      }[] = [];
+      // Adapter order is a relevance hint for bounded preselection only.
+      // Every candidate still needs current publication confirmation.
       for (const candidate of candidates.slice(0, limits.maxConfirmations)) {
         budget.confirmation();
         let checked: CheckedPublication;
@@ -445,15 +453,20 @@ export function createRetrievalServices(input: {
         )
           continue;
         const score = scoreConfirmedArticle(checked.article, terms);
-        if (score > 0) confirmed.push({ checked, score });
+        // An adapter may match approved body text or synonyms rather than the
+        // title/summary/tags used by the default lexical index.
+        if (score > 0 || candidateAdapter !== undefined)
+          confirmed.push({ checked, score, firstSeen: candidate.firstSeen });
       }
       confirmed.sort(
         (left, right) =>
           right.score - left.score ||
-          ordinal(
-            left.checked.article.articleId,
-            right.checked.article.articleId,
-          ),
+          (candidateAdapter === undefined
+            ? ordinal(
+                left.checked.article.articleId,
+                right.checked.article.articleId,
+              )
+            : left.firstSeen - right.firstSeen),
       );
       return confirmed.slice(0, resultLimit).map(({ checked }) => checked);
     }

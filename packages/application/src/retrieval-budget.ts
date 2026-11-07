@@ -4,10 +4,14 @@ import type {
   Store,
 } from "@pegma/storage-core";
 
-/** Internal control flow only; public retrieval returns a content-free outcome. */
+/** Internal diagnostic/control flow; public retrieval stays content-free. */
 export class RetrievalBudgetError extends Error {
-  constructor() {
-    super("Knowledge retrieval exhausted its bounded work allowance");
+  constructor(readonly reason: "work" | "operation" = "work") {
+    super(
+      reason === "operation"
+        ? "Knowledge retrieval cannot enumerate or mutate its request Store"
+        : "Knowledge retrieval exhausted its bounded work allowance",
+    );
     this.name = "RetrievalBudgetError";
   }
 }
@@ -38,9 +42,11 @@ export interface RetrievalReadBudget {
 }
 
 /**
- * A fresh wrapper belongs to exactly one read request. Reserve a physical read
- * before awaiting the adapter, so overlapping keyed reads cannot overspend.
- * Missing rows count too. The wrapper never owns or caches persistence.
+ * A fresh wrapper belongs to exactly one request. Each scoped Store keyed read
+ * reserves its allowance before awaiting the backing Store, including misses.
+ * External candidate calls are sequential: check allowance before dispatch,
+ * then charge their reported work with accountExternal after return. The
+ * wrapper never owns or caches persistence.
  */
 export function createRetrievalReadBudget(
   backing: Store,
@@ -93,7 +99,7 @@ export function createRetrievalReadBudget(
               return object.getVersioned(key);
             };
           // Retrieval must neither scan a corpus nor mutate its authority/hints.
-          throw new RetrievalBudgetError();
+          throw new RetrievalBudgetError("operation");
         },
       });
     },

@@ -102,6 +102,10 @@ The default lexical projection uses approved titles, summaries, and tags, not
 body text. Requests use only bounded keyed reads. Optional
 `retrieval.candidateAdapter` hints remain untrusted; the host adapter must
 report all physical work, including empty pages and discarded rows.
+Adapters may match approved body text/synonyms with zero metadata overlap;
+bounded preselection preserves their order, and confirmed metadata scores
+rank results with adapter-order ties. Hosts own relevance evaluation and
+provider data controls; current publication checks remain mandatory.
 `retrieval.tokenCounter` is a trusted local counter over the complete
 `serializedSources` returned with `sourceTokens`. Retrieval fits the largest
 ranked prefix of whole articles within aggregate byte/token budgets with a

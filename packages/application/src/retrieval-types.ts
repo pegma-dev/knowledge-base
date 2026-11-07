@@ -56,13 +56,20 @@ export interface CandidateSearchRequest {
 }
 
 export interface CandidateSearchPage {
+  /** First-seen order across pages supplies deterministic preselection rank. */
   readonly hints: readonly KnowledgeCandidateHint[];
   readonly nextCursor: string | null;
   /** pagesRead is at least one, including empty pages; entries precede filtering. */
   readonly work: CandidateWork;
 }
 
-/** Optional host search source. The default implementation uses keyed Store pages. */
+/**
+ * Optional host search source, responsible for stable relevance ordering across
+ * pages. Body or synonym matches need not overlap title/summary/tag terms.
+ * Ranking and matching never authorize content: every returned candidate still
+ * requires the current authoritative publication and audience checks.
+ * The default implementation uses keyed Store lexical pages.
+ */
 export interface KnowledgeCandidateAdapter {
   search(request: CandidateSearchRequest): Promise<CandidateSearchPage>;
 }

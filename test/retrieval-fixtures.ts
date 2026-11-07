@@ -198,6 +198,15 @@ export async function allRetrievalRows(
 export async function realBotHint(
   store: Store,
 ): Promise<KnowledgeCandidateHint> {
+  const hint = (await realBotHints(store))[0];
+  if (hint !== undefined) return hint;
+  throw new Error("Synthetic guide has no maintained bot posting hint");
+}
+
+export async function realBotHints(
+  store: Store,
+): Promise<readonly KnowledgeCandidateHint[]> {
+  const hints = new Map<string, KnowledgeCandidateHint>();
   for (const row of await allRetrievalRows(store)) {
     if (row.kind !== "page") continue;
     const page = row.data as {
@@ -206,8 +215,8 @@ export async function realBotHint(
         readonly projectionGeneration: number;
       }[];
     };
-    const entry = page.entries.find((entry) => entry.hint.use === "bot");
-    if (entry !== undefined) return entry.hint;
+    for (const entry of page.entries)
+      if (entry.hint.use === "bot") hints.set(entry.hint.articleId, entry.hint);
   }
-  throw new Error("Synthetic guide has no maintained bot posting hint");
+  return [...hints.values()];
 }

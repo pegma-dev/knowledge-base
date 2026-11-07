@@ -26,15 +26,20 @@ product applicability, or authority to a title, snippet, count, or citation.
 Request paths use keyed reads only. The lexical index uses approved titles,
 summaries, and tags, not article bodies or private material. Normalization
 folds accents/case, extracts Unicode letter/number terms, and removes common
-question words. Approved tags supply explicit aliases; there is no model
-query expansion. Confirmed metadata scores a title match at 12, tag match at
+question words. Approved tags supply explicit aliases; the default path has
+no model query expansion. Confirmed metadata scores a title match at 12, tag match at
 8, and summary match at 3 per query term. Semantic retrieval is not required
 by this task. See [COLLECTIONS.md](COLLECTIONS.md) for physical row families.
 
-Preselection considers at most eight candidates (or a lower configured bound)
-by matching-term count, then ordinal article ID. Confirmed results sort by
-score descending, then ordinal article ID. This ranks a bounded candidate
-window; it does not claim an exhaustive corpus-wide best match.
+Default Store preselection considers at most eight candidates (or a lower
+configured bound) by matching-term count, then ordinal article ID. Confirmed
+positive lexical matches sort by score descending, then ordinal article ID.
+With an optional adapter, preselection preserves first-seen response order
+across pages. The host supplies stable relevance ordering; it may match
+approved body text or synonyms with zero local
+metadata overlap; after confirmation, metadata score ranks those candidates
+and adapter order breaks equal-score ties. Both paths rank a bounded candidate
+window, without an exhaustive corpus-wide best-match claim.
 
 Every article candidate must pass the shared authoritative publication checker before
 any customer/model material is returned. The checker uses the exact current
@@ -74,7 +79,7 @@ ports and the following methods; there is no new package or HTTP endpoint.
 | `confirmAnswerSources`                                               | Same bot authority and exact current reference/applicability check before downstream use                          |
 | `repairArticleIndex`, `repairRetrievalPage`, `getArticleIndexStatus` | `indexManage`; staff-only maintenance/status DTOs                                                                 |
 
-Read results have `outcome: "results" | "no_result"` and no candidate totals.
+Customer retrieval results have `outcome: "results" | "no_result"` and no candidate totals.
 Search snippets are the confirmed approved summary, never posting text or
 truncated procedure steps.
 Applicability is an exact tuple, including absent build/locale; absence does
@@ -91,7 +96,7 @@ physical rows, posting entries, and pages, including empty pages, misses,
 duplicates, malformed, and filtered rows. The application validates and counts
 reported work before consuming hints; it cannot meter an external provider's
 unreported internal work. An adapter's ranking, hint, or count grants no
-authority. Hosts own any provider data controls.
+authority. Hosts own adapter relevance evaluation and provider data controls.
 
 ## Fixed ceilings
 
@@ -210,6 +215,9 @@ withdrawal is `ready` with `indexed: false`; ready does not necessarily mean
 there is a usable indexed publication. Terms, postings, hashes, and private
 sources are absent. Repair-page diagnostic counts and `nextCursor` are
 staff-only and never become customer search totals.
+Staff maintenance is not a customer no-result path: unexpected configuration,
+adapter, or storage errors remain visible exceptions. Supported admission and
+source-hold conditions retain their named status/withdrawal behavior.
 
 ## Evaluation and acceptance
 

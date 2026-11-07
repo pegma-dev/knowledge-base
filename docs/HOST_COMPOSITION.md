@@ -213,6 +213,12 @@ work is checked before hints are consumed; the library cannot meter hidden
 remote-provider work. Candidate IDs, ranking, and counts never authorize
 content. Current publication, policy, source eligibility, and applicability
 are independently confirmed by the shared checker.
+The application preserves first-seen adapter order for bounded preselection;
+host adapters supply stable ordering across pages and may return
+approved body/synonym matches with zero local metadata overlap. Confirmed
+metadata scores rank results, with adapter order breaking ties; the default
+Store lexical path retains ordinal ID ties. Hosts evaluate adapter relevance
+and own provider data controls.
 
 Citations contain a safe label and optional `portalArticle` ID/revision, never
 a URL. That browse reference exists only when the same customer independently
@@ -234,6 +240,9 @@ directory IDs do not grant access to their labels. Persist the actual
 backend cursor and repeat complete cycles; a single pass may leave pending
 work. Authoritative jobs remain hints rather than being acknowledged or
 deleted by repair.
+Unexpected configuration, adapter, or storage errors in staff maintenance
+fail visibly rather than becoming a customer `no_result`; documented admission
+and source-hold status paths remain in force.
 
 ## Replay, failure, and host operation
 

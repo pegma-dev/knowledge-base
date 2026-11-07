@@ -271,8 +271,29 @@ export function createRetrievalMaintenanceServices(
         false,
         "conflict",
       );
-    // Initial admission failures intentionally retain only a minimal marker,
-    // so their target set need not equal the plan that could not be admitted.
+    // Initial admission failures intentionally retain only a minimal marker.
+    // It remains useful only while a positive plan still needs admission;
+    // withdrawn or otherwise changed plans need cleanup instead of an old hold.
+    const same = sameTargets(state, plan);
+    const positiveAdmissionMarker =
+      state.status === "blocked" &&
+      state.reason === "capacity" &&
+      state.targets.length === 0 &&
+      state.knownScopes.length === 0 &&
+      state.pendingScopes.length === 0 &&
+      plan.targets.length > 0;
+    if (
+      (!same && !positiveAdmissionMarker) ||
+      (state.status === "blocked" && plan.targets.length === 0)
+    )
+      return status(
+        articleId,
+        plan.articleGeneration,
+        state,
+        "pending",
+        false,
+        plan.targets.length === 0 ? "source-unavailable" : "conflict",
+      );
     if (state.status === "blocked")
       return status(
         articleId,
@@ -281,15 +302,6 @@ export function createRetrievalMaintenanceServices(
         "blocked",
         false,
         state.reason,
-      );
-    if (!sameTargets(state, plan))
-      return status(
-        articleId,
-        plan.articleGeneration,
-        state,
-        "pending",
-        false,
-        "conflict",
       );
     return status(
       articleId,
@@ -395,17 +407,13 @@ export function createRetrievalMaintenanceServices(
             "capacity",
           );
         }
-        if (
-          error instanceof RepositoryConflictError ||
-          error instanceof KnowledgeBaseNotFoundError
-        ) {
-          await markBlocked(
-            articleId,
-            state,
-            error instanceof KnowledgeBaseNotFoundError
-              ? "source-unavailable"
-              : "conflict",
-          );
+        if (error instanceof RepositoryConflictError) {
+          // Contention is not a durable hold. A same-plan winner may still be
+          // advancing this exact generation; blocking it would stall recovery.
+          continue;
+        }
+        if (error instanceof KnowledgeBaseNotFoundError) {
+          await markBlocked(articleId, state, "source-unavailable");
           continue;
         }
         throw error;
