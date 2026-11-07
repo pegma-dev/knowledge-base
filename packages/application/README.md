@@ -1,22 +1,21 @@
 # @pegma/knowledge-base-application
 
-This unpublished KB-02/KB-03 source package composes contracts/core with
+This package composes contracts/core with
 host-supplied Storage Core, Authorization Core, Audit, and a clock. Source
 implementation and repository gates determine task completion; neither this
 package nor local tests establish a live host or production readiness.
 
-The [declared layout](https://github.com/pegma-dev/knowledge-base/blob/main/docs/COLLECTIONS.md) records the agreement made
-before durable operations. [Host composition](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md) describes the host
+The [declared layout](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/COLLECTIONS.md) records the agreement made
+before durable operations. [Host composition](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/HOST_COMPOSITION.md) describes the host
 authentication, current-resource authorization, verified-evidence, and privacy
-boundaries. [Retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
+boundaries. [Retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RETRIEVAL.md)
 documents bounded lexical lookup, authoritative confirmation, citations, and
 repair. The optional `@pegma/knowledge-base-mcp` package adds HTTP/MCP adapters
 over this API; it supplies no login or token issuer. Real-host acceptance and
 production activation remain separately gated.
 
-GitHub links in this unpublished README track development `main`; they are
-not frozen version documentation. KB-05 release preparation must pin those
-references to verified release source before first publication.
+GitHub documentation links target this package's release tag rather than
+development `main`.
 
 The application API owns authorized commands, application-generation CAS,
 bounded immutable revision/evidence history, exact review/publication,
@@ -39,7 +38,7 @@ or a support model.
 `limits`, `evidenceVerifier`, `privateSources`, and nested `retrieval` settings.
 Hosts authenticate callers
 and resolve current scoped `AccessContext` values. The
-[public types](https://github.com/pegma-dev/knowledge-base/blob/main/packages/application/src/types.ts) define commands and purpose-specific results;
+[public types](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/packages/application/src/types.ts) define commands and purpose-specific results;
 the package owns no HTTP routes or credentials.
 
 Creates use `expectedGeneration: 0`; later mutations use exact application
@@ -112,7 +111,7 @@ provider data controls; current publication checks remain mandatory.
 ranked prefix of whole articles within aggregate byte/token budgets with a
 positive local count; reconfirmation is exact and all-or-nothing.
 `retrieval.limits` can only lower fixed component ceilings.
-See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
+See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RETRIEVAL.md)
 for the exact API, limits, authority/reference fences, and evaluation boundary.
 
 `repairArticleIndex`, `repairRetrievalPage`, and `getArticleIndexStatus` require
@@ -129,13 +128,13 @@ causal jobs share one resource partition in `knowledge-base.records.v1`.
 Native flat chunk properties keep bounded rows compatible with the host's
 store adapter. The application separately bounds physical rows, encoded bytes,
 history, transaction work, retries, and control reserve. Read the
-[layout limits](https://github.com/pegma-dev/knowledge-base/blob/main/docs/COLLECTIONS.md#physical-representation-and-hard-bounds)
+[layout limits](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/COLLECTIONS.md#physical-representation-and-hard-bounds)
 before changing admission or retention; these are component safety bounds,
 not measured host throughput. No private persistence or parallel audit log is
 implemented here.
 
-Merging source does not publish a package. Hosts must wait for the exact public
-release and normal release/host activation gates. See
-[release operations](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RELEASING.md).
+Merging source does not publish a package. Hosts verify exact registry artifacts
+and provenance and complete their release/host activation gates. See
+[release operations](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RELEASING.md).
 
 Built in the open by RetireGolden, LLC.

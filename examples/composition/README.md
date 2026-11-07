@@ -19,8 +19,10 @@ pnpm run example
 [`composition.ts`](composition.ts) exports `createExampleComposition(store?)`
 and `runCompleteExampleFlow(composition)`. The optional Store defaults to
 `createMemoryStore()`; the example imports no test helpers. [`run.ts`](run.ts)
-prints a safe completion summary. These are workspace source examples; the KB
-packages remain unpublished and cannot yet be installed as production releases.
+prints a safe completion summary. These are workspace source examples. The KB
+`0.1.0` packages completed manual bootstrap without OIDC provenance; the
+`0.1.1` candidate remains unpublished and requires its own verified trusted
+release before production installation.
 
 The flow creates a fictional workshop collection with portal use disabled and a
 separate bot audience. A synthetic author creates a walkthrough, submits its

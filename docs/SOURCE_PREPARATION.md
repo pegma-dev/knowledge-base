@@ -43,24 +43,29 @@ review rounds; final round 3 is clean with zero open actionable findings.
 See the [final review](https://github.com/pegma-dev/knowledge-base/pull/6#pullrequestreview-5814111477)
 and the [security receipt](https://github.com/pegma-dev/knowledge-base/pull/6#issuecomment-6710997171).
 These are historical merged-source results; changed source requires fresh
-current-head gates. All four KB packages remain unpublished at synchronized
-source version `0.1.0` in the public registry snapshot below.
+current-head gates. The historical `0.1.0` absence snapshot below predates the
+completed manual bootstrap. All four exact `0.1.0` artifacts passed manual
+postflight at **2026-11-07T21:56:24Z**, without OIDC provenance; see the
+[operator-recorded bootstrap receipt](BOOTSTRAP.md#recorded-manual-bootstrap-receipt).
+Source `0.1.1` is a candidate for the first advertised trusted release, with
+its own review, current-head gates, publication, and strict registry/provenance
+verification pending.
 
-| Evidence area    | This source slice                                                        | Separate remaining proof                                                                          |
-| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1 | Production Azure/Workers configuration, operations, and host acceptance                           |
-| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow     | Real host identity, staging verification, existing-login/client acceptance, and UI                |
-| Artifacts        | Four-package checks and signed-tag preparation with a schema-2 manifest  | First publication, trusted-publisher setup, registry integrity/provenance, and released consumers |
-| Task readiness   | Current-head repository gates establish source readiness                 | Actual publication and two-host/client acceptance remain separately recorded                      |
+| Evidence area    | This source slice                                                                   | Separate remaining proof                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1            | Production Azure/Workers configuration, operations, and host acceptance                               |
+| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow                | Real host identity, staging verification, existing-login/client acceptance, and UI                    |
+| Artifacts        | Four-package checks, schema-2 preparation, and manual `0.1.0` exact-byte postflight | First advertised trusted release with its own registry/provenance verification and released consumers |
+| Task readiness   | Current-head repository gates establish source readiness                            | Verified trusted releases and two-host/client acceptance remain separately recorded                   |
 
 The merged-source results above do not certify this working tree. Record verified
 current-head gate results before treating changed source as validated.
 Local emulator and fixture results are not production or live Workers proof.
 
-## Public registry snapshot
+## Historical public registry snapshot
 
 At **2026-11-07T18:48:30Z**, unauthenticated exact-version GET requests to the
-public npm registry returned these results:
+public npm registry returned these results before the later manual bootstrap:
 
 | Package                             | Exact version | HTTP status |
 | ----------------------------------- | ------------- | ----------- |
@@ -100,8 +105,13 @@ for (const name of names) {
 Only HTTP 404 establishes absence of the public exact version. This snapshot
 proves no package-name availability, ownership, private registry state, or
 publication authority. Other statuses and transport errors are not absence.
-Repeat the probe before relying on availability or planning host activation;
-strict full-set release preflight remains authoritative for publication.
+The five `0.1.0` versions were subsequently uploaded and passed exact-byte
+postflight at **2026-11-07T21:56:24Z**. The normalized commands, verbatim manual
+stdout, preparation artifact identities, and independent digests are retained
+in the [bootstrap receipt](BOOTSTRAP.md#recorded-manual-bootstrap-receipt).
+This earlier 404 snapshot is not their current registry state. Repeat read-only
+inspection when needed; strict full-set release preflight remains authoritative
+for publication, and trusted-release verification still precedes host assembly.
 
 ## Pinned local D1 consumer
 
@@ -227,12 +237,29 @@ remain the evidence of execution.
 ## Separate authenticated transport proof
 
 The KB-05 composition above uses synthetic resolved contexts.
-KB-04's `pnpm run agent:proof` separately composes the real
+The historical KB-04 `pnpm run agent:proof` composed the real
 [AUTH-01 source](https://github.com/pegma-dev/agent-access/pull/1), pinned to
 reviewed public commit `a444e2113db98455b638b2ef8aa7c2faccb16b62`, with all four
 KB tarballs and official MCP SDK `1.32.2` in an isolated temporary consumer.
-The pinned source build is test-only. It does not become an unpublished
-production dependency or authorize host installation.
+That source build was test-only. It did not authorize a production dependency
+or host installation; the historical source-gate results above retain that
+immutable producer evidence.
+
+The active proof now installs exact public-registry
+`@pegma/agent-access@0.1.1`, whose trusted release and strict verification
+completed at **2026-11-07T22:32:42Z**. The
+[verified prerequisite receipt](BOOTSTRAP.md#verified-agent-access-prerequisite)
+retains its signed source and exact artifact/provenance record.
+The proof composes that one registry producer with four packed KB candidate
+artifacts and official MCP SDK `1.32.2` in a fresh temporary consumer, with
+lifecycle scripts disabled. It accepts no producer checkout or source fallback.
+A local candidate run on **2026-11-07** passed with `packedPackages: 4`,
+`registryPackages: 1`, and `exactRegistryProducer: true`; all SDK/OAuth/device
+and five-operation positive/negative checks passed. It retained
+`liveHostsProven: false` and `targetClientAppsProven: 0`. A separate negative
+probe rejected a source override at stage 1 before external commands.
+Current-head Node 22/24 CI and the candidate's remaining review/release gates
+are still required.
 
 That gate exercises OAuth and the exact five-tool draft/read/write/requirements/
 evidence flow, shared HTTP/MCP behavior, and rejection cases. The evidence
@@ -261,14 +288,16 @@ only for identical existing artifacts, and released-consumer checks use the
 public registry. See [release operations](RELEASING.md) and the concrete
 [bootstrap handoff](BOOTSTRAP.md).
 
-Source readiness leaves package ownership, protected tags/environments, approved
-signers, first maintainer 2FA publication, per-package trusted publishers, and
-explicit direct-publishing permission pending. Full KB-05 also requires a
-separately reviewed synchronized first advertised version and exact pin change,
-then its own complete-set registry integrity/signature/provenance verification
-and released-consumer proof. Manual bootstrap is not OIDC provenance.
-Agent Access has its own publication
-prerequisites, also required before host assembly.
+Manual maintainer 2FA bootstrap is complete, and all five KB/Agent Access
+trusted-publisher entries have been configured through the CLI. Recheck the
+full ownership, protected tag/main, approved signer, approval environment,
+per-package publisher binding, direct-publishing, and 2FA/token-policy checklist
+in [release operations](RELEASING.md) for the actual trusted release.
+Full KB-05 still requires the `0.1.1` candidate's review and current-head gates,
+then its own trusted publication, complete-set registry
+integrity/signature/provenance verification, and released-consumer proof.
+Manual bootstrap is not OIDC provenance.
+Agent Access has its own publication history:
 [Agent Access release preparation](https://github.com/pegma-dev/agent-access/pull/2)
 was merged at
 [`eddddd5e333ce16b6a4a8233b84656b3ac784947`](https://github.com/pegma-dev/agent-access/commit/eddddd5e333ce16b6a4a8233b84656b3ac784947).
@@ -281,10 +310,13 @@ regressions with zero skips; its merge record retains three OpenRouter review
 rounds, with final round 3 clean and zero open actionable findings.
 See the [final review](https://github.com/pegma-dev/agent-access/pull/2#pullrequestreview-5814178148)
 and the [security receipt](https://github.com/pegma-dev/agent-access/pull/2#issuecomment-6711125916).
-It remains unpublished at `0.1.0`. The KB protocol fixture still pins AUTH-01's
-original implementation commit `a444e2113db98455b638b2ef8aa7c2faccb16b62`;
-the separate release-preparation merge does not change that immutable fixture.
-SD-02 waits for KB publication, and both hosts wait for exact
-published KB and Agent Access dependencies before their retained acceptance.
+Agent Access `0.1.0` subsequently completed manual bootstrap and exact-byte
+postflight without OIDC provenance. Its verified trusted `0.1.1` release then
+closed the public producer prerequisite; see the
+[exact receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). The original
+source-producer proof remains historical evidence, while the changed registry
+composition requires its own current-head gates.
+SD-02 waits for the verified trusted KB release, and both hosts wait for exact
+verified trusted KB and Agent Access dependencies before their retained acceptance.
 Hosts must wait for exact released artifacts rather than adopting branches,
 copied source, local paths, or unpublished production tarballs.

@@ -3,9 +3,13 @@
 `@pegma/knowledge-base-mcp` supplies a shared dispatcher, strict Zod schemas,
 an MCP adapter, and a Web Request/Response adapter. Both transports invoke the
 existing `KnowledgeBaseApplication`; neither introduces
-an authorization engine or another article lifecycle. These source packages are
-unpublished. Passing synthetic transport tests does not establish live OAuth,
-protected staging execution, publication, or host readiness.
+an authorization engine or another article lifecycle. The KB `0.1.0` packages
+completed manual bootstrap without OIDC provenance; source `0.1.1` remains an
+unpublished candidate with its own gates and verified trusted release pending.
+Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
+[release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
+synthetic transport tests does not establish live host login, protected staging
+execution, KB trusted publication, or host readiness.
 
 ## Trusted host composition
 

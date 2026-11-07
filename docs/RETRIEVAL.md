@@ -6,11 +6,12 @@ This design was recorded before durable retrieval operations and synchronized
 with the agreed public types and projection layout. Implementation tests and
 repository gates remain required.
 KB-03 extends the existing application package; it creates no new package,
-database, model integration, or authentication system. All packages remain
-unpublished at source version `0.1.0`. Source tests and repository gates, not
+database, model integration, or authentication system. The KB `0.1.0` packages
+completed manual bootstrap without OIDC provenance; source `0.1.1` remains an
+unpublished candidate. Source tests and repository gates, not
 this document, determine completion. KB-04's optional HTTP/MCP adapter source
-is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Package
-publication, real-host acceptance, and production activation remain separate
+is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Verified trusted
+KB publication, real-host acceptance, and production activation remain separate
 tasks.
 
 Read [declared collections](COLLECTIONS.md) for the authoritative record

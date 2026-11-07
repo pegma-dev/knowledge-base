@@ -5,11 +5,14 @@
 This documents the KB-02/KB-03 application and KB-04 transport host boundaries.
 [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) and
 [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
-are merged; neither real host is ready on that evidence alone. The unpublished
+are merged; neither real host is ready on that evidence alone. The
 application composes contracts/core with host-supplied Storage Core and
 Authorization Core. The
 optional `@pegma/knowledge-base-mcp` package supplies bounded HTTP/MCP adapters
-over that application. All four KB packages are unpublished at `0.1.0`.
+over that application. All four `0.1.0` packages completed manual bootstrap
+and exact-byte postflight without OIDC provenance. Source `0.1.1` is a candidate
+for the first advertised trusted release; review, publication, strict registry/
+provenance verification, and host acceptance remain gates.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
@@ -24,13 +27,19 @@ It is local consumer evidence, not a deployed Workers binding or production
 acceptance. The example's resolved contexts and receipt registry stand in for
 trusted host facts; they authenticate no real browser, agent, or staging run.
 AUTH-01's [merged public source](https://github.com/pegma-dev/agent-access/pull/1)
-provides KB-04's credential producer prerequisite. The separate `agent:proof`
-gate uses that reviewed pinned source only in a temporary consumer with the
-four KB tarballs and official SDK `1.32.2`. It tests the synthetic OAuth and
+provided KB-04's historical credential producer prerequisite. The separate
+`agent:proof` now installs exact registry `@pegma/agent-access@0.1.1` in a fresh
+temporary consumer with four packed KB artifacts, lifecycle scripts disabled,
+and official SDK `1.32.2`. It tests the synthetic OAuth and
 draft/evidence transport loop. Agent Access's
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
-is also merged. Actual existing-login/client acceptance on both hosts, Agent
-Access publication, and full KB-05 publication remain separate.
+is also merged, and its manual `0.1.0` bootstrap is complete without OIDC
+provenance. Its trusted `0.1.1` release and strict registry verification have
+since closed the public producer prerequisite. Actual existing-login/client
+acceptance on both hosts and full KB-05 publication remain open. See the
+[release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) for the exact
+Agent Access receipt. The changed registry proof still needs current-head
+execution; historical source-producer evidence does not validate it.
 
 The host owns identity verification, scoped local-agent credentials, current
 authorization resolution, browser/transport protections, store construction,

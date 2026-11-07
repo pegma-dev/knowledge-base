@@ -2,13 +2,14 @@
 
 Optional KB-04 agent transport source for Pegma Knowledge Base. This package
 adapts the authorized application API to bounded agent commands and the Model
-Context Protocol. It is unpublished at `0.1.0`; merging its source does not
-publish it or establish a live hosted Knowledge Base.
+Context Protocol. Hosts compose it with their protected Knowledge Base
+endpoints; the package does not supply a hosted service.
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent
 access. The adapter pins `@modelcontextprotocol/sdk` at `1.32.2` and `zod` at
-`4.6.7`; it composes the same exact `0.1.0` Knowledge Base packages.
+`4.6.7`; it composes the matching exact Knowledge Base package versions declared
+in its dependencies.
 
 The MCP adapter explicitly uses the SDK's Workers-compatible JSON Schema
 validator, which requires no generated code. Its `@cfworker/json-schema`
@@ -43,9 +44,9 @@ or private evidence and provenance.
 through host-configured protected endpoints. Both require fresh host
 authentication and admission control on every request; neither issues tokens.
 
-The [host composition contract](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
+The [host composition contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/HOST_COMPOSITION.md)
 describes authenticated contexts, trusted evidence, replay, and safe DTOs. The
-[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
+[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RETRIEVAL.md)
 describes authoritative current-publication confirmation and audience boundaries.
 
 ## Local verification and release
@@ -62,21 +63,22 @@ pnpm run release:check
 pnpm run agent:proof
 ```
 
-`release:check` packs and installs all four unpublished Knowledge Base packages
+`release:check` packs and installs all four prepared Knowledge Base packages
 in an isolated temporary consumer, verifies their actual artifact bytes and
 inventory, and imports their public entry points without workspace links.
-`agent:proof` exercises the authenticated SDK path with a pinned public Agent
-Access producer packed only into a temporary test consumer. That producer
-source is a test fixture, not a production release substitute or package
-dependency. These local checks establish neither live host acceptance nor npm
+`agent:proof` exercises the authenticated SDK path with an exact released Agent
+Access registry producer and the four packed KB artifacts in a fresh temporary
+consumer, with lifecycle scripts disabled. Agent Access remains a proof
+dependency rather than this package's runtime dependency. These local checks
+establish neither live host acceptance nor KB trusted npm
 publication.
 
 Each package has its own README, MIT LICENSE, build-on-prepack hook, and
-compiled-test exclusion. All four package versions remain synchronized at
-`0.1.0`. First publication, release tags, trusted-publisher configuration, and
+compiled-test exclusion. All four package versions remain synchronized with
+exact internal dependency pins. Publishing, release tags, trusted-publisher configuration, and
 host activation are separate maintainer operations in the
-[release procedure](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RELEASING.md).
-Development links above track `main`; release preparation must pin verified
-release documentation before first publication.
+[release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RELEASING.md).
+Documentation links target this package's release tag rather than development
+`main`.
 
 Built in the open by RetireGolden, LLC.
