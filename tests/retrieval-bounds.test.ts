@@ -19,7 +19,7 @@ import {
 for (const [name, createStore] of storeFactories) {
   describe(`retrieval physical and source bounds (${name})`, () => {
     it("rejects oversized query, term, scope and result requests before reading storage", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       const invalid = [
         { ...f.botInput(), query: "a".repeat(257) },
         {
@@ -38,7 +38,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("uses keyed reads only and respects total physical gets even when missing rows consume the budget", async () => {
-      const f = retrievalFixture(createStore(), {
+      const f = retrievalFixture(await createStore(), {
         limits: { maxRequestPhysicalGets: 5 },
       });
       await f.corpus();
@@ -52,10 +52,10 @@ for (const [name, createStore] of storeFactories) {
       expect(f.traced.reads.length).toBeLessThanOrEqual(5);
       expect(f.traced.enumerations).toEqual([]);
       expect(f.traced.transactions).toEqual([]);
-    }, 30_000);
+    });
 
     it("keeps ordinary retrieval within all declared physical ceilings without scans or mutations", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.corpus();
       f.clearObservations();
       const answer = await f.app.retrieveAnswerSources(
@@ -73,12 +73,12 @@ for (const [name, createStore] of storeFactories) {
       ).toBeLessThanOrEqual(defaultKnowledgeRetrievalLimits.maxIndexKeyReads);
       expect(f.traced.enumerations).toEqual([]);
       expect(f.traced.transactions).toEqual([]);
-    }, 30_000);
+    });
 
     it.each([{ maxContentBytes: 1 }, { maxSourceTokens: 1 }])(
       "returns no partial procedure when the whole-source allowance is %j",
       async (limits) => {
-        const f = retrievalFixture(createStore(), { limits });
+        const f = retrievalFixture(await createStore(), { limits });
         await f.setupCollection();
         await f.publishGuide();
         const answer = await f.app.retrieveAnswerSources(
@@ -88,12 +88,13 @@ for (const [name, createStore] of storeFactories) {
         expect(answer.sources).toEqual([]);
         expect(answer.outcome).toBe("no_result");
       },
-      30_000,
     );
 
     it("counts complete serialized sources including citations and reference metadata", async () => {
       const count = vi.fn(countSyntheticTokens);
-      const f = retrievalFixture(createStore(), { tokenCounter: { count } });
+      const f = retrievalFixture(await createStore(), {
+        tokenCounter: { count },
+      });
       await f.setupCollection();
       await f.publishGuide();
       const answer = await f.app.retrieveAnswerSources(
@@ -111,12 +112,12 @@ for (const [name, createStore] of storeFactories) {
       expect(answer.sourceTokens).toBeLessThanOrEqual(
         defaultKnowledgeRetrievalLimits.maxSourceTokens,
       );
-    }, 30_000);
+    });
 
     it.each(["maxContentBytes", "maxSourceTokens"] as const)(
       "fits whole ranked sources within %s while exact confirmation remains all-or-nothing",
       async (budget) => {
-        const backing = createStore();
+        const backing = await createStore();
         const normal = retrievalFixture(backing);
         await normal.setupCollection();
         for (const id of ["article/export-a", "article/export-b"])
@@ -167,11 +168,10 @@ for (const [name, createStore] of storeFactories) {
           ).sources,
         ).toEqual(fitted.sources);
       },
-      30_000,
     );
 
     it("fails closed when the local token counter is missing or returns an invalid count", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const f = retrievalFixture(backing);
       await f.setupCollection();
       await f.publishGuide();
@@ -191,10 +191,10 @@ for (const [name, createStore] of storeFactories) {
           (await app.retrieveAnswerSources(botCustomer, f.botInput())).sources,
         ).toEqual([]);
       }
-    }, 30_000);
+    });
 
     it("bounds confirmation count and returned results independently of available candidates", async () => {
-      const f = retrievalFixture(createStore(), {
+      const f = retrievalFixture(await createStore(), {
         limits: { maxHeadProbes: 1, maxConfirmations: 1, maxResults: 1 },
       });
       await f.corpus();
@@ -203,7 +203,7 @@ for (const [name, createStore] of storeFactories) {
         f.botInput("workspace"),
       );
       expect(answer.sources.length).toBeLessThanOrEqual(1);
-    }, 30_000);
+    });
 
     it.each([
       "duplicate entries",
@@ -213,7 +213,7 @@ for (const [name, createStore] of storeFactories) {
     ] as const)(
       "counts %s before filtering an optional candidate adapter response",
       async (fault) => {
-        const backing = createStore();
+        const backing = await createStore();
         const seed = retrievalFixture(backing);
         await seed.setupCollection();
         await seed.publishGuide();
@@ -255,7 +255,6 @@ for (const [name, createStore] of storeFactories) {
         expect(search).toHaveBeenCalledTimes(1);
         expect(f.traced.enumerations).toEqual([]);
       },
-      30_000,
     );
 
     it("stops empty continuation pages and accounts for physical pages with no candidates", async () => {
@@ -269,7 +268,7 @@ for (const [name, createStore] of storeFactories) {
           pagesRead: 1,
         },
       }));
-      const f = retrievalFixture(createStore(), {
+      const f = retrievalFixture(await createStore(), {
         candidateAdapter: { search },
         limits: { maxPostingPagesPerTerm: 2 },
       });
@@ -299,7 +298,7 @@ for (const [name, createStore] of storeFactories) {
             pagesRead: 1,
           },
         }));
-        const f = retrievalFixture(createStore(), {
+        const f = retrievalFixture(await createStore(), {
           candidateAdapter: { search },
           limits: { maxIndexKeyReads: 1 },
         });
@@ -323,10 +322,10 @@ for (const [name, createStore] of storeFactories) {
         expect(search).toHaveBeenCalledTimes(1);
         expect(search.mock.calls[0]?.[0].budget.keyedReads).toBe(1);
       },
-      30_000,
     );
 
-    it("rejects limit configurations above hard ceilings or outside integral positive bounds", () => {
+    it("rejects limit configurations above hard ceilings or outside integral positive bounds", async () => {
+      const store = await createStore();
       for (const limits of [
         { maxQueryCharacters: 257 },
         { maxRequestPhysicalGets: 769 },
@@ -334,9 +333,7 @@ for (const [name, createStore] of storeFactories) {
         { maxHeadProbes: 1.5 },
         { maxResults: -1 },
       ])
-        expect(() => retrievalFixture(createStore(), { limits })).toThrow(
-          TypeError,
-        );
+        expect(() => retrievalFixture(store, { limits })).toThrow(TypeError);
     });
   });
 }

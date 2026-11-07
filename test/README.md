@@ -1,11 +1,13 @@
-# KB-02 application conformance fixtures
+# Public KB conformance fixtures
 
-The suites in `tests/application.test.ts` and `tests/application-storage.test.ts`
-run the same public application commands against Storage Core's real memory
-store and its real Azure Tables adapter connected to local Azurite. They use
-the actual contracts/core, Authorization Core permission checks, declared
-record codec, and application repository. No parallel KB repository or custom
-authorization engine is supplied by the fixtures.
+The application/storage/review and retrieval/bounds/maintenance/regression
+suites under `tests/` share `application-stores.ts`. They target Storage Core's
+real memory store, its released Azure Tables adapter connected to local
+Azurite, and the released Cloudflare D1 adapter connected to real local
+Miniflare D1. Every factory call is awaited, including calls that create
+several stores in one test. They use actual contracts/core, Authorization Core
+checks, declared codecs, and public application entry points. No parallel KB
+repository or custom authorization engine is supplied.
 
 `application-fixtures.ts` supplies wholly fictional resolved `AccessContext`
 values, a controlled clock, and scripted external evidence/source verifiers.
@@ -28,15 +30,51 @@ development-account connection is local-only; no cloud credentials or actual
 customer data are used. Temporary emulator data is removed only after checking
 that the resolved path belongs to the expected temporary-directory prefix.
 
-Run the application conformance suites after building the workspace packages:
+`d1.ts` creates a fresh Miniflare runtime and UUID database per factory call,
+including two calls within one test. Its real `getD1Database("DB")` binding is
+passed directly to `createCloudflareD1Store`, without a facade or cast.
+`cf: false`, loopback/ephemeral port, and `d1Persist: false` keep this a local
+fixture. It does not exercise a live Workers deployment or Cloudflare account.
+Exact pins and the fixed compatibility date are in
+[source preparation](../docs/SOURCE_PREPARATION.md#pinned-local-d1-consumer).
+
+D1 cleanup is registered with `onTestFinished` before native construction or
+binding lookup. Initialization failure immediately uses the same memoized
+asynchronous disposal path as normal test completion; cleanup errors remain
+visible. Create D1 fixtures only inside a Vitest test. Do not share a runtime
+between tests or omit awaiting a factory/disposal. The isolation suite uses
+the same article IDs in independently created stores and verifies public
+publication/retrieval/retirement behavior without inspecting storage.
+
+Vitest is bounded to four workers, 180-second tests, and 30-second hooks; D1's
+disposal hook also has a 30-second limit. CI jobs on Node 22/24 each have a
+30-minute timeout. The workspace allows only the pinned `workerd` install
+script. These controls bound local native tooling, not production capacity.
+Windows local elapsed time includes Node-to-workerd RPC and setup overhead;
+it does not certify production D1 latency. A longer execution budget still
+requires every assertion and cleanup step to succeed.
+
+`tests/composition.test.ts` runs the repository-owned fictional example over
+the same three factories. The example imports no test helper. Its private
+receipt registry matches exact immutable synthetic run bindings; it is not a
+production credential or staging-verification implementation. See the
+[example README](../examples/composition/README.md).
+
+Use Node 22.6.0+ or 24 for repository development and the TypeScript example.
+Run a focused application subset after building the workspace packages:
 
 ```sh
 pnpm exec vitest run tests/application.test.ts tests/application-storage.test.ts
 ```
 
-These tests establish KB-02 service and storage behavior. Passing synthetic
-resolved contexts does not establish a real OAuth/MCP credential flow, and
-the suites do not establish KB-03 search, browser UI, model-provider settings,
-live-host acceptance, production throughput, or retention operations. The full
-repository type/test/release gates and later host activation evidence remain
-required.
+The complete repository gate also runs the retrieval, regression, composition,
+and isolation suites plus `pnpm example` and artifact checks. A current-head
+gate report supplies pass counts and verdicts; configured fixtures alone do
+not assert a passing run.
+
+These suites exercise KB-02/KB-03 source and partial KB-05 consumer preparation.
+Passing synthetic resolved contexts does not establish KB-04's real OAuth/MCP
+credential/client flow. Local storage tests establish no browser UI, live
+Workers/host acceptance, model-provider settings, production throughput, or
+retention operations. All three KB packages remain unpublished; the full
+KB-05 release/publication and host activation gates remain required.

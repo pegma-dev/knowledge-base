@@ -19,7 +19,7 @@ import {
 for (const [name, createStore] of storeFactories) {
   describe(`approved lexical retrieval (${name})`, () => {
     it("finds representative title/tag paraphrases and returns a safe known no-result", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.corpus();
       for (const guide of retrievalGuides) {
         for (const query of guide.questions) {
@@ -37,10 +37,10 @@ for (const [name, createStore] of storeFactories) {
           f.portalInput(unsupportedRetrievalQuestion),
         ),
       ).toEqual({ outcome: "no_result", articles: [] });
-    }, 30_000);
+    });
 
     it("uses bot-only knowledge without portal browsing or a browse citation", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection("collection/bot-only", false);
       await f.publishGuide(retrievalGuides[0], "collection/bot-only");
       expect(
@@ -63,10 +63,10 @@ for (const [name, createStore] of storeFactories) {
         retrievalGuides[0]!.draft.title,
       );
       expect(answer.sources[0]?.citation).not.toHaveProperty("portalArticle");
-    }, 30_000);
+    });
 
     it("excludes draft-only content and preserves the old publication after a draft move", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       await f.createDraft("article/draft-only", "collection/workshop", {
         ...draft(),
@@ -106,10 +106,10 @@ for (const [name, createStore] of storeFactories) {
         title: retrievalGuides[0]!.draft.title,
       });
       expect(JSON.stringify(result)).not.toContain("UNAPPROVED");
-    }, 30_000);
+    });
 
     it("requires the exact product, version, build and locale tuple", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       await f.publishGuide();
       for (const field of [
@@ -136,10 +136,10 @@ for (const [name, createStore] of storeFactories) {
           ).sources,
         ).toEqual([]);
       }
-    }, 30_000);
+    });
 
     it("does not widen a missing customer audience with broad service permissions", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       await f.publishGuide();
       const wrongAudience = access(
@@ -157,12 +157,12 @@ for (const [name, createStore] of storeFactories) {
         (await f.app.retrieveAnswerSources(wrongAudience, f.botInput()))
           .sources,
       ).toEqual([]);
-    }, 30_000);
+    });
 
     it.each(["policy", "source", "evidence"] as const)(
       "lets current %s withdrawal defeat stale hints and previously returned source references",
       async (withdrawal) => {
-        const f = retrievalFixture(createStore());
+        const f = retrievalFixture(await createStore());
         await f.setupCollection();
         let current = await f.createDraft(
           "article/export",
@@ -228,11 +228,10 @@ for (const [name, createStore] of storeFactories) {
           ).sources,
         ).toEqual([]);
       },
-      30_000,
     );
 
     it("returns safe exact citations and reconfirms them instead of trusting an earlier answer payload", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       const published = await f.publishGuide();
       const answer = await f.app.retrieveAnswerSources(
@@ -278,11 +277,11 @@ for (const [name, createStore] of storeFactories) {
           })
         ).sources,
       ).toEqual([]);
-    }, 30_000);
+    });
 
     it("keeps independently composed stores isolated even for matching article and collection IDs", async () => {
-      const first = retrievalFixture(createStore());
-      const second = retrievalFixture(createStore());
+      const first = retrievalFixture(await createStore());
+      const second = retrievalFixture(await createStore());
       await first.setupCollection();
       await second.setupCollection();
       await first.publishGuide();
@@ -298,10 +297,10 @@ for (const [name, createStore] of storeFactories) {
         (await second.app.retrieveAnswerSources(botCustomer, second.botInput()))
           .sources,
       ).toEqual([]);
-    }, 30_000);
+    });
 
     it("uses deterministic article ordering for equal approved title/tag scores", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       for (const id of ["article/z-export", "article/a-export"])
         await f.publishGuide({ ...retrievalGuides[0]!, id });
@@ -318,6 +317,6 @@ for (const [name, createStore] of storeFactories) {
         "article/z-export",
       ]);
       expect(second).toEqual(first);
-    }, 30_000);
+    });
   });
 }

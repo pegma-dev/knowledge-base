@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.6.0"
   },
   "workspaces": [
     "packages/*"
@@ -19,19 +19,23 @@
     "format:check": "prettier --check .",
     "test": "pnpm run build && vitest run",
     "release:check": "node scripts/release-packages.mjs check",
-    "release:pack": "node scripts/release-packages.mjs pack"
+    "release:pack": "node scripts/release-packages.mjs pack",
+    "example": "pnpm run build && node --experimental-strip-types examples/composition/run.ts"
   },
   "devDependencies": {
     "@azure/data-tables": "13.3.2",
+    "@cloudflare/workers-types": "5.20260730.1",
     "@pegma/authorization-core": "0.4.0",
     "@pegma/knowledge-base-application": "0.1.0",
     "@pegma/knowledge-base-contracts": "0.1.0",
     "@pegma/knowledge-base-core": "0.1.0",
     "@pegma/spine": "0.1.2",
     "@pegma/storage-azure-tables": "0.4.0",
+    "@pegma/storage-cloudflare-d1": "0.4.1",
     "@pegma/storage-core": "0.4.0",
     "@types/node": "26.6.6",
     "azurite": "3.37.0",
+    "miniflare": "4.20260730.0",
     "prettier": "3.9.10",
     "typescript": "7.0.2",
     "vitest": "5.0.5"

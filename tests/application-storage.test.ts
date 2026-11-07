@@ -19,7 +19,7 @@ const capacity = { name: "RepositoryCapacityError" };
 for (const [name, createStore] of storeFactories) {
   describe(`KB application atomicity and admission (${name})`, () => {
     it("commits authoritative revision, audit, replay receipt and causal job together", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const current = await f.createDraft();
       const rows = (await allKnowledgeRows(f.store)).filter(
@@ -38,7 +38,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("retries a refused transaction whose failedAction is absent without duplicating accepted work", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const traced = traceStore(backing);
       const f = applicationFixture(traced.store);
       await f.setupCollection();
@@ -68,7 +68,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("replays an identical concurrent command after a timestamp-dependent immutable planning collision", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const winner = applicationFixture(backing);
       await winner.setupCollection();
       const traced = traceStore(backing);
@@ -132,12 +132,12 @@ for (const [name, createStore] of storeFactories) {
           })
         ).revision.createdAt,
       ).toBe("2026-11-06T20:00:00.000Z");
-    }, 30_000);
+    });
 
     it.each(["create", "edit"] as const)(
       "replays an identical %s when the winning receipt appears after the cached head was read",
       async (operation) => {
-        const backing = createStore();
+        const backing = await createStore();
         const winner = applicationFixture(backing);
         await winner.setupCollection();
         const articleId = "article/receipt-read-race";
@@ -208,11 +208,10 @@ for (const [name, createStore] of storeFactories) {
           );
         expect(traced.transactions).toHaveLength(0);
       },
-      30_000,
     );
 
     it("refuses repeated failed preconditions atomically, including absent failedAction", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const traced = traceStore(backing);
       const f = applicationFixture(traced.store);
       await f.setupCollection();
@@ -240,7 +239,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("allows one concurrent edit, counts every history row, and preserves retirement reserve", async () => {
-      const store = createStore();
+      const store = await createStore();
       await applicationFixture(store).setupCollection();
       const f = applicationFixture(store, {
         limits: { maxPhysicalRows: 14, controlReserveRows: 4 },
@@ -295,10 +294,10 @@ for (const [name, createStore] of storeFactories) {
           (row) => row.resourceKind === "article",
         ),
       ).toHaveLength(13);
-    }, 30_000);
+    });
 
     it("does not lose independent evidence submissions across an application-generation conflict", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const current = await f.createDraft(
         "article/walkthrough",
@@ -348,10 +347,10 @@ for (const [name, createStore] of storeFactories) {
       await f.review(
         await f.app.getDraft(author, { articleId: current.articleId }),
       );
-    }, 30_000);
+    });
 
     it("preserves exact retained-history limits without deleting old rows to admit an edit", async () => {
-      const store = createStore();
+      const store = await createStore();
       await applicationFixture(store).setupCollection();
       const f = applicationFixture(store, {
         limits: { maxArticleRevisions: 2 },
@@ -382,7 +381,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("keeps enough control capacity to revoke a live published proof", async () => {
-      const store = createStore();
+      const store = await createStore();
       await applicationFixture(store).setupCollection();
       const f = applicationFixture(store, {
         limits: { maxPhysicalRows: 22, controlReserveRows: 4 },
@@ -427,10 +426,10 @@ for (const [name, createStore] of storeFactories) {
           })
         ).publicationHeld,
       ).toBe(true);
-    }, 30_000);
+    });
 
     it("fails current-policy serving after a collection update races a publication commit", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const traced = traceStore(backing);
       const f = applicationFixture(traced.store);
       await f.setupCollection();
@@ -483,6 +482,6 @@ for (const [name, createStore] of storeFactories) {
       await expect(
         f.app.getPublishedArticle(admin, { articleId: current.articleId }),
       ).rejects.toMatchObject({ name: "KnowledgeBaseNotFoundError" });
-    }, 30_000);
+    });
   });
 }

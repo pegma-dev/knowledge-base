@@ -2,6 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
+    "allowImportingTsExtensions": true,
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false,
@@ -11,6 +12,7 @@
     "packages/*/src/**/*.test.ts",
     "tests/**/*.test.ts",
     "test/**/*.ts",
+    "examples/**/*.ts",
     "vitest.config.ts"
   ]
 }

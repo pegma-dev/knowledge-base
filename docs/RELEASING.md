@@ -9,19 +9,27 @@ domain, authorized application, and bounded retrieval source plus packaging
 checks; their repository gates determine task completion. They do not publish, create tags/releases,
 configure credentials, or enable a publish workflow.
 
+Independent partial KB-05 [source preparation](SOURCE_PREPARATION.md) adds the
+local Miniflare D1 consumer fixture, shared three-backend conformance, and a
+public synthetic example. This is not completion of KB-04 or full KB-05. No
+package is added or published; all three remain unpublished at `0.1.0`.
+
 Hosts must wait for an exact public registry release. Git branches, copied
 source, local paths, and unpublished production tarballs are not substitutes.
 The temporary tarball consumer below is a packaging test only.
 
 ## Artifact checks
 
-Run the repository gate on Node 22 and 24 with the pinned pnpm version:
+Use Node 22.6.0+ or 24 for the repository gate and source example, with the
+pinned pnpm version. CI continues to track current Node 22 and 24; published
+package engines remain `>=22`.
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm run format:check
 pnpm run check
 pnpm test
+pnpm example
 pnpm run release:check
 ```
 
@@ -70,8 +78,10 @@ release procedure, not proof that external publisher settings exist.
 
 - [ ] Confirm package-name ownership and organization publishing permissions.
 - [ ] Complete KB-05's advertised package/adapter and dual-store release
-      criteria. KB-02/KB-03 memory/Azurite evidence does not establish the later D1
-      consumer fixture, MCP client flow, or either host's production readiness.
+      criteria. Partial source preparation supplies a real local D1 consumer
+      fixture and synthetic composition subject to current-head gates. It does
+      not establish KB-04's authenticated real-client flow, live Workers/host
+      acceptance, or complete package/bootstrap/publication readiness.
       Do not publish empty packages.
 - [ ] Merge reviewed release source and exact version/pin changes to protected
       `origin/main`; require every current-head review, test, build, security,
