@@ -1,11 +1,13 @@
 # Release operations
 
-## KB-01 status
+## Source status
 
-`@pegma/knowledge-base-contracts` and `@pegma/knowledge-base-core` are prepared
-at synchronized version `0.1.0`. Both package names are unpublished. KB-01
-establishes packaging checks and the release handoff; it does not publish,
-create tags/releases, configure credentials, or enable a publish workflow.
+`@pegma/knowledge-base-contracts`, `@pegma/knowledge-base-core`, and
+`@pegma/knowledge-base-application` are prepared at synchronized source version
+`0.1.0`. All three package names are unpublished. KB-01/KB-02 establish domain
+and authorized application source plus packaging checks; their repository
+gates determine task completion. They do not publish, create tags/releases,
+configure credentials, or enable a publish workflow.
 
 Hosts must wait for an exact public registry release. Git branches, copied
 source, local paths, and unpublished production tarballs are not substitutes.
@@ -23,20 +25,20 @@ pnpm test
 pnpm run release:check
 ```
 
-`release:check` packs contracts and then core using npm. Each package's
+`release:check` packs contracts, core, then application using npm. Each package's
 `prepack` builds its own output, so a package cannot silently ship a stale
 distribution. The checker verifies:
 
 - synchronized stable versions, exact internal/Spine pins, ESM/public metadata,
-  and the two declared runtime/type entry points;
+  and each package's declared runtime/type entry points;
 - a package-local README and MIT LICENSE, a build-on-prepack script, and
   exclusion of `src/**/*.test.ts` from compilation;
 - npm's artifact inventory containing only package metadata, README, LICENSE,
   and JavaScript/declaration output and maps under `dist`, with compiled tests
   excluded and both entry-point files present;
 - the actual tarball bytes against npm's reported SHA-1 and SHA-512 integrity;
-- an isolated consumer installation of both tarballs and successful ESM
-  imports of both public packages.
+- an isolated consumer installation of all three tarballs and successful ESM
+  imports of all three public packages.
 
 The consumer disables install scripts, audit, and funding requests and obtains
 released external dependencies from the public npm registry. It has no workspace
@@ -53,7 +55,7 @@ pnpm run release:pack
 ```
 
 This runs the same checks, then writes a new `.release/knowledge-base-*`
-directory containing the two tarballs and `manifest.json` with their inventory
+directory containing the three tarballs and `manifest.json` with their inventory
 and integrity values. Existing artifact directories are preserved. These files
 are local preparation artifacts, not proof of a released version or provenance.
 The checker does not verify a source tag, main ancestry, registry publication,
@@ -67,8 +69,10 @@ when implementing the release workflow; this checklist records the Pegma
 release procedure, not proof that external publisher settings exist.
 
 - [ ] Confirm package-name ownership and organization publishing permissions.
-- [ ] Complete KB-05's application/adapter and dual-store release criteria for
-      any additional packages being advertised; do not publish empty packages.
+- [ ] Complete KB-05's advertised package/adapter and dual-store release
+      criteria. KB-02 memory/Azurite evidence does not establish the later D1
+      consumer fixture, MCP client flow, or either host's production readiness.
+      Do not publish empty packages.
 - [ ] Merge reviewed release source and exact version/pin changes to protected
       `origin/main`; require every current-head review, test, build, security,
       and artifact check to pass.

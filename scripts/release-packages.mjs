@@ -19,6 +19,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const packages = [
   { directory: "contracts", name: "@pegma/knowledge-base-contracts" },
   { directory: "core", name: "@pegma/knowledge-base-core" },
+  { directory: "application", name: "@pegma/knowledge-base-application" },
 ];
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 
@@ -104,9 +105,18 @@ async function validatePackages() {
     });
     assert.deepEqual(
       manifest.dependencies,
-      specification.directory === "core"
-        ? { "@pegma/knowledge-base-contracts": manifest.version }
-        : { "@pegma/spine": "0.1.2" },
+      specification.directory === "application"
+        ? {
+            "@pegma/audit": "0.2.0",
+            "@pegma/authorization-core": "0.4.0",
+            "@pegma/knowledge-base-contracts": manifest.version,
+            "@pegma/knowledge-base-core": manifest.version,
+            "@pegma/spine": "0.1.2",
+            "@pegma/storage-core": "0.4.0",
+          }
+        : specification.directory === "core"
+          ? { "@pegma/knowledge-base-contracts": manifest.version }
+          : { "@pegma/spine": "0.1.2" },
     );
     for (const document of ["README.md", "LICENSE"]) {
       const content = await readFile(join(directory, document), "utf8");

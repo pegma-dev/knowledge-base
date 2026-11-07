@@ -8,8 +8,9 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
 
 - Contracts and core own collection policy, immutable article revisions,
   validation/evidence bindings, approval, publication, and retirement.
-- KB-01 is pure domain work. Storage, authorized services, retrieval, API/MCP,
-  and host interfaces are later tasks; do not create their packages early.
+- KB-01 owns pure domain work. KB-02 adds declared persistence and authorized
+  application services. Retrieval/search, API/MCP, and live host interfaces
+  remain later tasks; do not create their packages early.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -22,8 +23,17 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
 - Approval binds exact content, revision, audience/policy, applicability,
   validation policy, and evidence. Edits and changed authority invalidate it.
   A `passed` string or claimed runner identity does not authenticate evidence.
-- Core transitions are not an authorization boundary. The later application
-  must authenticate/authorize the actor, attestations, and current resources.
+- Core transitions are not an authorization boundary. The application
+  enforces named permissions and current KB resources; the host authenticates
+  access contexts and evidence/source facts. Caller-supplied proof fields do
+  not establish that trust.
+- KB-02 article heads are normalized; content/evidence/publication history is
+  immutable and bounded. Application generation fences every state change,
+  independently of content revision. Same-partition CAS, Audit, receipts, and
+  causal jobs commit together. Collection/profile and article partitions do
+  not provide a global policy fence; current reads must reject stale authority.
+- Replay rechecks current operation/resource permission and returns a bounded
+  historical acknowledgement, not raw content or restored publication authority.
 - Base packages require no Support Desk, GitHub, model, framework, HTTP, or
   provider SDK. Evidence is data; never execute code or fetch submitted URLs.
 - Constrain content and links; host renderers must disable executable content
@@ -50,3 +60,6 @@ trusted-publisher configuration are separate maintainer operations.
 Read this file, the root README, then the owning package README. The public
 enhancement plan defines KB-01 through KB-05. Give a worker one task and an
 explicit file ownership boundary; do not revert another worker's edits.
+For KB-02, read [declared collections](docs/COLLECTIONS.md) before changing
+durable operations and [host composition](docs/HOST_COMPOSITION.md) before
+changing authorization, verifier, replay, or DTO boundaries.
