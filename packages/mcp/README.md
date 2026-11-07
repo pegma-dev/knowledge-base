@@ -79,6 +79,11 @@ exact internal dependency pins. Publishing, release tags, trusted-publisher conf
 host activation are separate maintainer operations in the
 [release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RELEASING.md).
 Documentation links target this package's release tag rather than development
-`main`.
+`main`. During release preparation that tag may still be pending; it is created
+after the reviewed merge and before publishing. Source readers can use the
+explicitly moving
+[DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
+while preparing a release. The versioned contract references remain tag-pinned;
+the DEVELOPMENT link is a source-reader fallback.
 
 Built in the open by RetireGolden, LLC.

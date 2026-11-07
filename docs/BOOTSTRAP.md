@@ -100,11 +100,20 @@ That verification covered exact registry bytes/dependencies, cryptographic
 signatures, source-bound provenance, and clean consumer imports. The retained
 artifact identity is:
 
-| Field                                   | Value                                                              |
-| --------------------------------------- | ------------------------------------------------------------------ |
-| Artifact ID                             | `13592934200`                                                      |
-| Downloaded artifact archive SHA-256     | `8a29c3a60cfe1307d4dd5375d02c36b136bcdd404dcbea256ce32970e26ccbe6` |
-| Independently retained manifest SHA-256 | `aff861e5e7e62612f42ce7b633519e86b0b5d11712e215f7c33fe5d30ba2198c` |
+| Field                                   | Value                                                                                             |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Artifact ID                             | `13592934200`                                                                                     |
+| Downloaded artifact archive SHA-256     | `8a29c3a60cfe1307d4dd5375d02c36b136bcdd404dcbea256ce32970e26ccbe6`                                |
+| Independently retained manifest SHA-256 | `aff861e5e7e62612f42ce7b633519e86b0b5d11712e215f7c33fe5d30ba2198c`                                |
+| Prepared producer tarball filename      | `pegma-agent-access-0.1.1.tgz`                                                                    |
+| Producer tarball SHA-1                  | `e590e4cfc8dc1c5a44292628099706b0ab919479`                                                        |
+| Producer tarball SHA-512 integrity      | `sha512-C8t2kkv2piE9Jxt48hrRj+dYDoBd4BMgyO9JpgBQT5ycr8xZx4hq43DSG9I/KjjPQhEvRhp7obYnZ/IiBme/Jw==` |
+
+The prepared producer filename and tarball hashes come from the independently
+digest-bound manifest above in CI artifact `13592934200`. The linked strict
+verification job verified that prepared identity against the registry release;
+the proof's integrity pin uses those bound bytes rather than live registry
+metadata as its trust anchor.
 
 Attempt 1's bounded registry-visibility window elapsed before verification
 could observe the release. After the exact version became visible, strict

@@ -6,6 +6,12 @@ available. The proof needs public npm registry access and binds an
 ephemeral listener to `127.0.0.1` only. Both component configurations explicitly
 enable `allowInsecureLoopback` for this test.
 
+The orchestrator isolates npm configuration: incoming `npm_config_*` variables
+and user npmrc overrides are not applied, and the official npm registry is
+mandatory. Transport settings such as `HTTPS_PROXY` and `NODE_EXTRA_CA_CERTS`
+remain available; provide them when your network requires a proxy or custom CA.
+Package mirrors and source fallbacks are not supported.
+
 This is an independently reproducible, **test-only artifact composition**. It
 exercises the actual MCP TypeScript SDK `1.32.2`, Sessions `0.2.0`, Authorization
 Core `0.4.0`, Storage Core `0.4.0`, exact registry `@pegma/agent-access@0.1.1`,
@@ -42,6 +48,24 @@ publication and does not rerun the producer's own release gates.
 No producer checkout, source override, clone, or source-build fallback is
 accepted. The earlier source-producer path remains historical evidence in
 [source preparation](../../docs/SOURCE_PREPARATION.md#separate-authenticated-transport-proof).
+
+## Maintaining the producer pin
+
+Update the producer version and integrity together in a reviewed PR:
+
+1. Obtain both values from the independently digest-bound prepared manifest of
+   a fully verified trusted producer release. Use the producer's strict `verify`
+   command to confirm exact registry bytes and source-bound provenance.
+2. Record the release identity, independent manifest digest, prepared tarball
+   hashes, and verification receipt, as in the
+   [current producer receipt](../../docs/BOOTSTRAP.md#verified-agent-access-prerequisite).
+3. Change both proof pins in the reviewed PR and run `pnpm run agent:proof` on
+   Node 22 and 24 before accepting the update.
+
+Do not automatically accept `npm view` output or newly served registry metadata
+as a replacement trust anchor, or advance the producer version merely because
+metadata was re-signed. Published versions are immutable; altered tarball bytes
+must fail closed and require a reviewed release decision.
 
 ## Actual protocol and application path
 
