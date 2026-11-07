@@ -2,23 +2,25 @@
 
 ## Scope and readiness
 
-This is an independent, partial KB-05 source-preparation slice. It adds a real
-local D1 consumer fixture and a public synthetic composition example over the
-existing contracts/core/application packages. It does not finish KB-04 or the
-full KB-05 release task. KB-04 now adds the optional HTTP/MCP package and its
-separate authenticated protocol proof; that source work is in progress until
-current-head gates and review pass. All four KB packages remain unpublished at
-synchronized source version `0.1.0`.
+KB-05 source preparation supplies a real local D1 consumer fixture, a public
+synthetic composition, and exact-artifact release tooling. The earlier fixture
+slice is [merged](https://github.com/pegma-dev/knowledge-base/pull/4), and
+[KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) is merged at
+`b61fc77aedd22e888ac7292c3597f93e54fcda8e`. That source passed 372 tests on each
+Node 22/24 lane and the separate authenticated official-SDK protocol proof.
+These are historical merged-source results; current changes require fresh
+current-head gates. All four KB packages remain unpublished at synchronized
+source version `0.1.0`.
 
 | Evidence area    | This source slice                                                        | Separate remaining proof                                                                          |
 | ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1 | Production Azure/Workers configuration, operations, and host acceptance                           |
 | Composition      | Runnable fictional author/evidence/review/publication/retrieval flow     | Real host identity, staging verification, existing-login/client acceptance, and UI                |
-| Artifacts        | Four-package pack/import checks, extended by KB-04                       | First publication, trusted-publisher setup, registry integrity/provenance, and released consumers |
-| Task readiness   | Current-head repository gates establish this slice's evidence            | KB-04 source exit, actual two-host/client acceptance, and remaining KB-05 exit criteria           |
+| Artifacts        | Four-package checks and signed-tag preparation with a schema-2 manifest  | First publication, trusted-publisher setup, registry integrity/provenance, and released consumers |
+| Task readiness   | Current-head repository gates establish source readiness                 | Actual publication and two-host/client acceptance remain separately recorded                      |
 
-No test counts or pass verdicts are implied by this document. Record verified
-current-head gate results before treating the source slice as validated.
+The historical result above does not certify this working tree. Record verified
+current-head gate results before treating changed source as validated.
 Local emulator and fixture results are not production or live Workers proof.
 
 ## Pinned local D1 consumer
@@ -157,24 +159,35 @@ evidence flow, shared HTTP/MCP behavior, and rejection cases. The evidence
 attester must bind the authenticated actor and runner to the exact article
 revision/content hash, staging build, execution result, and opaque receipt;
 an authenticated agent's claimed `passed` result remains untrusted data.
-Current-head results establish execution; this document claims no passing run.
+KB-04's merged-source result records execution; changed source requires fresh
+current-head results.
 See [agent workflow](AGENT_WORKFLOW.md) for the retained source and host gates.
 
 ## Remaining gates
 
-KB-04's source exit needs its implementation, Node 22/24 gates, clean review,
-and security checks. Actual clients and two-host authentication/staging
-acceptance remain open in P-00 and PG-01/RG-01. Every requested client/mode must
+KB-04's source exit is merged; it does not establish actual clients or two-host
+authentication/staging acceptance. Those gates remain open in P-00 and
+PG-01/RG-01. Every requested client/mode must
 record discovery, existing-login/current-Admin consent, the five operations,
 and credential/evidence failures on each host using published dependencies.
 Synthetic source/SDK success cannot close those activation prerequisites.
 
-The full KB-05 release candidate still needs its advertised package/adapter
-and client criteria, reviewed bootstrap/trusted-publisher configuration, exact
-registry publication, artifact/provenance verification, and released consumer
-checks. See [release operations](RELEASING.md). KB-04 implements the fourth
-package rather than an empty adapter; neither source slice creates a release
-tag, publication, or host activation. Agent Access has its own first-publication
-and trusted-publisher prerequisites, also required before host assembly.
+KB-05's release tooling separates development pack checks from strict release
+preparation. The latter verifies a clean checkout, approved signed annotated
+version tag, exact commit and main ancestry; a schema-2 manifest binds all four
+tarballs and must be checked against an independently retained digest. Registry
+preflight covers the complete release set before a publish, permits recovery
+only for identical existing artifacts, and released-consumer checks use the
+public registry. See [release operations](RELEASING.md) and the concrete
+[bootstrap handoff](BOOTSTRAP.md).
+
+Source readiness leaves package ownership, protected tags/environments, approved
+signers, first maintainer 2FA publication, per-package trusted publishers,
+registry integrity/provenance verification, and released consumers pending.
+Manual bootstrap is not OIDC provenance. Agent Access has its own publication
+prerequisites, also required before host assembly; AUTH-01's merged source at
+`a444e2113db98455b638b2ef8aa7c2faccb16b62` and its 123-test source result do
+not publish it. SD-02 waits for KB publication, and both hosts wait for exact
+published KB and Agent Access dependencies before their retained acceptance.
 Hosts must wait for exact released artifacts rather than adopting branches,
 copied source, local paths, or unpublished production tarballs.

@@ -1,0 +1,26 @@
+name: Set up reviewed release npm
+description: Verify and extract the pinned npm CLI without installing project dependencies.
+runs:
+  using: composite
+  steps:
+    - name: Verify and extract pinned npm
+      shell: bash
+      env:
+        NPM_VERSION: 11.18.0
+        NPM_TARBALL_SHA256: 73f6155215ebabf4ed96dca1f567c2372cc713c33af2e5b9b62fde4e92373e2e
+      run: |
+        set -euo pipefail
+        tarball="${RUNNER_TEMP}/npm-${NPM_VERSION}.tgz"
+        npm_root="${RUNNER_TEMP}/release-npm-${NPM_VERSION}"
+        curl --fail --silent --show-error --location --retry 3 \
+          "https://registry.npmjs.org/npm/-/npm-${NPM_VERSION}.tgz" \
+          --output "${tarball}"
+        echo "${NPM_TARBALL_SHA256}  ${tarball}" | sha256sum --check --strict --quiet
+        mkdir "${npm_root}"
+        tar --extract --gzip --file "${tarball}" --directory "${npm_root}"
+        npm_cli="${npm_root}/package/bin/npm-cli.js"
+        if [[ "$(node "${npm_cli}" --version)" != "${NPM_VERSION}" ]]; then
+          echo "::error::The reviewed npm version is not active"
+          exit 1
+        fi
+        printf 'RELEASE_NPM_CLI=%s\nRELEASE_NPM_VERSION=%s\n' "${npm_cli}" "${NPM_VERSION}" >> "${GITHUB_ENV}"
