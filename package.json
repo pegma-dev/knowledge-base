@@ -20,15 +20,19 @@
     "test": "pnpm run build && vitest run",
     "release:check": "node scripts/release-packages.mjs check",
     "release:pack": "node scripts/release-packages.mjs pack",
-    "example": "pnpm run build && node --experimental-strip-types examples/composition/run.ts"
+    "example": "pnpm run build && node --experimental-strip-types examples/composition/run.ts",
+    "agent:proof": "node scripts/agent-protocol-proof.mjs"
   },
   "devDependencies": {
     "@azure/data-tables": "13.3.2",
+    "@cfworker/json-schema": "4.1.6",
     "@cloudflare/workers-types": "5.20260730.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@pegma/authorization-core": "0.4.0",
     "@pegma/knowledge-base-application": "0.1.0",
     "@pegma/knowledge-base-contracts": "0.1.0",
     "@pegma/knowledge-base-core": "0.1.0",
+    "@pegma/knowledge-base-mcp": "0.1.0",
     "@pegma/spine": "0.1.2",
     "@pegma/storage-azure-tables": "0.4.0",
     "@pegma/storage-cloudflare-d1": "0.4.1",
@@ -38,7 +42,8 @@
     "miniflare": "4.20260730.0",
     "prettier": "3.9.10",
     "typescript": "7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "5.0.5",
+    "zod": "4.6.7"
   },
   "packageManager": "pnpm@10.34.5"
 }

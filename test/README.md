@@ -72,9 +72,12 @@ and isolation suites plus `pnpm example` and artifact checks. A current-head
 gate report supplies pass counts and verdicts; configured fixtures alone do
 not assert a passing run.
 
-These suites exercise KB-02/KB-03 source and partial KB-05 consumer preparation.
-Passing synthetic resolved contexts does not establish KB-04's real OAuth/MCP
-credential/client flow. Local storage tests establish no browser UI, live
+The domain/storage suites exercise KB-02/KB-03 source and partial KB-05 consumer
+preparation. Agent transport suites add KB-04 HTTP/MCP parity and boundary
+coverage; `pnpm run agent:proof` separately exercises the actual SDK and reviewed
+Agent Access artifacts in an isolated synthetic consumer. These results do not
+establish actual site logins or target-client application acceptance.
+Local storage tests establish no browser UI, live
 Workers/host acceptance, model-provider settings, production throughput, or
-retention operations. All three KB packages remain unpublished; the full
+retention operations. All four KB packages remain unpublished; the full
 KB-05 release/publication and host activation gates remain required.

@@ -5,15 +5,17 @@
 This is an independent, partial KB-05 source-preparation slice. It adds a real
 local D1 consumer fixture and a public synthetic composition example over the
 existing contracts/core/application packages. It does not finish KB-04 or the
-full KB-05 release task. All three KB packages remain unpublished at source
-version `0.1.0`.
+full KB-05 release task. KB-04 now adds the optional HTTP/MCP package and its
+separate authenticated protocol proof; that source work is in progress until
+current-head gates and review pass. All four KB packages remain unpublished at
+synchronized source version `0.1.0`.
 
 | Evidence area    | This source slice                                                        | Separate remaining proof                                                                          |
 | ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
 | Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1 | Production Azure/Workers configuration, operations, and host acceptance                           |
-| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow     | Real host identity, staging verification, scoped API/MCP credentials, and UI                      |
-| Artifacts        | Existing three-package pack/import checks                                | First publication, trusted-publisher setup, registry integrity/provenance, and released consumers |
-| Task readiness   | Current-head repository gates establish this slice's evidence            | KB-04 credential/client proof and all remaining KB-05 exit criteria                               |
+| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow     | Real host identity, staging verification, existing-login/client acceptance, and UI                |
+| Artifacts        | Four-package pack/import checks, extended by KB-04                       | First publication, trusted-publisher setup, registry integrity/provenance, and released consumers |
+| Task readiness   | Current-head repository gates establish this slice's evidence            | KB-04 source exit, actual two-host/client acceptance, and remaining KB-05 exit criteria           |
 
 No test counts or pass verdicts are implied by this document. Record verified
 current-head gate results before treating the source slice as validated.
@@ -102,11 +104,13 @@ pnpm run check
 pnpm test
 pnpm example
 pnpm run release:check
+pnpm run agent:proof
 ```
 
-The CI workflow runs those checks, including the synthetic example, on Node
-22 and 24. A local run does not substitute for required current-head CI or
-reviews. Adapter conformance also does not certify production throughput,
+The CI workflow runs those checks, including the synthetic example and KB-04's
+separate protocol proof, on Node 22 and 24. A local run does not substitute for
+required current-head CI, a clean OpenRouter review with zero actionable
+findings, or applicable security checks. Adapter conformance does not certify production throughput,
 retention, backups, network protections, or distributed deployment behavior.
 
 ## Public synthetic composition
@@ -138,17 +142,39 @@ evidence, author publication authority, private-data exclusion, bot-only
 citations, and retirement with old projection hints. Current-head gate results
 remain the evidence of execution.
 
+## Separate authenticated transport proof
+
+The partial KB-05 composition above still uses synthetic resolved contexts.
+KB-04's `pnpm run agent:proof` separately composes the real
+[AUTH-01 source](https://github.com/pegma-dev/agent-access/pull/1), pinned to
+reviewed public commit `a444e2113db98455b638b2ef8aa7c2faccb16b62`, with all four
+KB tarballs and official MCP SDK `1.32.2` in an isolated temporary consumer.
+The pinned source build is test-only. It does not become an unpublished
+production dependency or authorize host installation.
+
+That gate exercises OAuth and the exact five-tool draft/read/write/requirements/
+evidence flow, shared HTTP/MCP behavior, and rejection cases. The evidence
+attester must bind the authenticated actor and runner to the exact article
+revision/content hash, staging build, execution result, and opaque receipt;
+an authenticated agent's claimed `passed` result remains untrusted data.
+Current-head results establish execution; this document claims no passing run.
+See [agent workflow](AGENT_WORKFLOW.md) for the retained source and host gates.
+
 ## Remaining gates
 
-KB-04 must still establish the real scoped/revocable/audience-bound author
-credential and protected-resource/client flow. Manually supplied fixture
-contexts do not close that prerequisite. The optional API/MCP contract and
-real local-client author/test/evidence loop require their own task evidence.
+KB-04's source exit needs its implementation, Node 22/24 gates, clean review,
+and security checks. Actual clients and two-host authentication/staging
+acceptance remain open in P-00 and PG-01/RG-01. Every requested client/mode must
+record discovery, existing-login/current-Admin consent, the five operations,
+and credential/evidence failures on each host using published dependencies.
+Synthetic source/SDK success cannot close those activation prerequisites.
 
 The full KB-05 release candidate still needs its advertised package/adapter
 and client criteria, reviewed bootstrap/trusted-publisher configuration, exact
 registry publication, artifact/provenance verification, and released consumer
-checks. See [release operations](RELEASING.md). No empty adapter package,
-release tag, publication, or host activation is created by this source slice.
+checks. See [release operations](RELEASING.md). KB-04 implements the fourth
+package rather than an empty adapter; neither source slice creates a release
+tag, publication, or host activation. Agent Access has its own first-publication
+and trusted-publisher prerequisites, also required before host assembly.
 Hosts must wait for exact released artifacts rather than adopting branches,
 copied source, local paths, or unpublished production tarballs.

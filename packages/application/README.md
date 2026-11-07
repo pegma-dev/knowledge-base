@@ -10,8 +10,9 @@ before durable operations. [Host composition](https://github.com/pegma-dev/knowl
 authentication, current-resource authorization, verified-evidence, and privacy
 boundaries. [Retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
 documents bounded lexical lookup, authoritative confirmation, citations, and
-repair. API/MCP, real-host acceptance, and production activation remain later
-tasks.
+repair. The optional `@pegma/knowledge-base-mcp` package adds HTTP/MCP adapters
+over this API; it supplies no login or token issuer. Real-host acceptance and
+production activation remain separately gated.
 
 GitHub links in this unpublished README track development `main`; they are
 not frozen version documentation. KB-05 release preparation must pin those
