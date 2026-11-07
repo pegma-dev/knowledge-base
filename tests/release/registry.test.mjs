@@ -109,6 +109,10 @@ function trustedEnvironment() {
     GITHUB_ACTIONS: "true",
     GITHUB_EVENT_NAME: "release",
     GITHUB_REPOSITORY: "pegma-dev/knowledge-base",
+    GITHUB_REPOSITORY_ID: "123456789",
+    GITHUB_REPOSITORY_OWNER_ID: "987654321",
+    GITHUB_RUN_ID: "1234567890",
+    GITHUB_RUN_ATTEMPT: "1",
     GITHUB_SERVER_URL: "https://github.com",
     GITHUB_REF: `refs/tags/${identity.tag}`,
     GITHUB_SHA: identity.commit,
@@ -119,6 +123,14 @@ function trustedEnvironment() {
       "https://pipelines.actions.githubusercontent.com/synthetic",
     ACTIONS_ID_TOKEN_REQUEST_TOKEN: "synthetic-oidc-request-token",
     SYNTHETIC_SOURCE_SECRET: "must-not-reach-npm",
+    GITHUB_TOKEN: "synthetic-github-token",
+    GH_TOKEN: "synthetic-gh-token",
+    GITHUB_CUSTOM_SECRET: "synthetic-github-secret",
+    GITHUB_APP_PRIVATE_KEY: "synthetic-github-app-key",
+    RUNNER_CUSTOM_SECRET: "synthetic-runner-secret",
+    ACTIONS_ID_TOKEN_REQUEST_CUSTOM_SECRET: "synthetic-oidc-extra-secret",
+    PATH: "synthetic-os-path",
+    TEMP: "synthetic-os-temp",
   };
 }
 
@@ -382,6 +394,47 @@ test("registry tarball bytes, length, and response status are independently veri
         /tarball/u,
       );
     });
+  }
+});
+
+test("publishing inherits approved provenance and OIDC variables without GitHub credentials", async (t) => {
+  const prepared = await fixture(t);
+  const state = fakeRegistry(prepared, []);
+  const publishing = publisher(prepared, state);
+  await publishPreparedRelease(prepared.options, publishing.seams);
+  assert.ok(publishing.calls.length > 0);
+  for (const { context } of publishing.calls) {
+    for (const key of [
+      "GITHUB_TOKEN",
+      "GH_TOKEN",
+      "GITHUB_CUSTOM_SECRET",
+      "GITHUB_APP_PRIVATE_KEY",
+      "RUNNER_CUSTOM_SECRET",
+      "ACTIONS_ID_TOKEN_REQUEST_CUSTOM_SECRET",
+    ]) {
+      assert.equal(context.env[key], undefined, key);
+    }
+    for (const key of [
+      "GITHUB_ACTIONS",
+      "GITHUB_EVENT_NAME",
+      "GITHUB_REPOSITORY",
+      "GITHUB_REPOSITORY_ID",
+      "GITHUB_REPOSITORY_OWNER_ID",
+      "GITHUB_SERVER_URL",
+      "GITHUB_REF",
+      "GITHUB_SHA",
+      "GITHUB_WORKFLOW_REF",
+      "GITHUB_WORKFLOW_SHA",
+      "GITHUB_RUN_ID",
+      "GITHUB_RUN_ATTEMPT",
+      "RUNNER_ENVIRONMENT",
+      "ACTIONS_ID_TOKEN_REQUEST_URL",
+      "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+      "PATH",
+      "TEMP",
+    ]) {
+      assert.equal(context.env[key], publishing.seams.env[key], key);
+    }
   }
 });
 

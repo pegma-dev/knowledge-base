@@ -206,6 +206,28 @@ export function run(command, arguments_, cwd, env) {
   return result.stdout.trim();
 }
 
+export function withGitEnvironment(env, operation) {
+  const isGit = (key) => key.toUpperCase().startsWith("GIT_");
+  const original = Object.entries(process.env).filter(([key]) => isGit(key));
+  const clear = () => {
+    for (const key of Object.keys(process.env)) {
+      if (isGit(key)) delete process.env[key];
+    }
+  };
+  // The release verifier is synchronous, so the environment is restored before
+  // any other asynchronous test work can observe these scoped fixture values.
+  clear();
+  try {
+    for (const [key, value] of Object.entries(env)) {
+      if (isGit(key)) process.env[key] = value;
+    }
+    return operation();
+  } finally {
+    clear();
+    for (const [key, value] of original) process.env[key] = value;
+  }
+}
+
 export async function signedGitFixture(t) {
   const directory = await temporaryDirectory(t);
   const root = join(directory, "checkout");
@@ -216,7 +238,7 @@ export async function signedGitFixture(t) {
   await writeFile(emptyConfig, "");
   const env = { ...process.env };
   for (const key of Object.keys(env)) {
-    if (key.startsWith("GIT_")) delete env[key];
+    if (key.toUpperCase().startsWith("GIT_")) delete env[key];
   }
   Object.assign(env, {
     GIT_CONFIG_GLOBAL: emptyConfig,

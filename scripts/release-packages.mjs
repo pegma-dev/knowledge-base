@@ -66,22 +66,59 @@ async function exists(path) {
   }
 }
 
-async function npmCliPath(preparedRelease = false) {
-  if (preparedRelease && process.env.RELEASE_NPM_CLI !== undefined) {
-    const candidate = process.env.RELEASE_NPM_CLI;
-    assert.ok(
+export async function resolveReleaseNpmCli(env = process.env) {
+  const candidate = env.RELEASE_NPM_CLI;
+  assert.ok(
+    typeof candidate === "string" &&
       isAbsolute(candidate) &&
-        basename(candidate) === "npm-cli.js" &&
-        (await exists(candidate)),
-      "The reviewed release npm CLI must be an absolute npm-cli.js path.",
+      basename(candidate) === "npm-cli.js",
+    "The reviewed release npm CLI must be an explicit absolute npm-cli.js path.",
+  );
+  assert.equal(
+    env.RELEASE_NPM_VERSION,
+    "11.18.0",
+    "Release preparation requires the reviewed npm version.",
+  );
+  const path = resolve(candidate);
+  const metadata = await lstat(path);
+  assert.ok(
+    metadata.isFile() && !metadata.isSymbolicLink(),
+    "The release npm CLI must be a regular file.",
+  );
+  const canonical = await realpath(path);
+  assert.equal(
+    canonical,
+    path,
+    "The release npm CLI must use its canonical path.",
+  );
+  return canonical;
+}
+
+async function npmCliPath(preparedRelease = false) {
+  if (preparedRelease) {
+    const candidate = await resolveReleaseNpmCli();
+    const [major, minor] = process.versions.node.split(".").map(Number);
+    assert.ok(
+      major > 22 || (major === 22 && minor >= 14),
+      "Release preparation requires Node 22.14 or newer.",
     );
+    const versionEnvironment = {};
+    for (const [key, value] of Object.entries(process.env)) {
+      if (
+        /^(?:PATH|PATHEXT|SystemRoot|WINDIR|COMSPEC|TEMP|TMP|HOME|USERPROFILE|LOCALAPPDATA|APPDATA)$/iu.test(
+          key,
+        )
+      ) {
+        versionEnvironment[key] = value;
+      }
+    }
     assert.equal(
-      process.env.RELEASE_NPM_VERSION,
-      "11.18.0",
-      "Release preparation requires the reviewed npm version.",
-    );
-    assert.equal(
-      run(process.execPath, [candidate, "--version"], root),
+      run(
+        process.execPath,
+        [candidate, "--version"],
+        tmpdir(),
+        versionEnvironment,
+      ),
       "11.18.0",
       "Release preparation npm CLI differs from the reviewed version.",
     );

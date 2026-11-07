@@ -69,20 +69,34 @@ function fail(message) {
 }
 
 function git(root, arguments_, allowFailure = false) {
-  const env = { ...process.env, GIT_NO_REPLACE_OBJECTS: "1" };
-  // The checkout supplied by the workflow is authoritative. Keep its approved
-  // signer configuration, but do not let inherited repository overrides select
-  // a different worktree, index, or object database.
-  for (const key of [
+  const env = { ...process.env };
+  // Preserve the host's approved local/global signer configuration, including
+  // GIT_CONFIG_GLOBAL and GIT_CONFIG_NOSYSTEM. Command-scope config injection
+  // must not override that policy or select another repository/object database.
+  const excluded = new Set([
     "GIT_DIR",
     "GIT_WORK_TREE",
     "GIT_INDEX_FILE",
     "GIT_OBJECT_DIRECTORY",
     "GIT_ALTERNATE_OBJECT_DIRECTORIES",
     "GIT_COMMON_DIR",
-  ]) {
-    delete env[key];
+    "GIT_CONFIG",
+    "GIT_CONFIG_COUNT",
+    "GIT_CONFIG_PARAMETERS",
+    "GIT_NO_REPLACE_OBJECTS",
+  ]);
+  for (const key of Object.keys(env)) {
+    // Environment names are case-insensitive on Windows. Inspect the copied
+    // keys as well as their canonical spelling before spawning native Git.
+    const normalized = key.toUpperCase();
+    if (
+      excluded.has(normalized) ||
+      /^GIT_CONFIG_(?:KEY|VALUE)_/u.test(normalized)
+    ) {
+      delete env[key];
+    }
   }
+  env.GIT_NO_REPLACE_OBJECTS = "1";
   const result = spawnSync(
     process.platform === "win32" ? "git.exe" : "git",
     ["--no-replace-objects", ...arguments_],

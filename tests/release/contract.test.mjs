@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import test from "node:test";
 import {
@@ -8,7 +8,11 @@ import {
   releaseDependencies,
   verifyReleaseIdentity,
 } from "../../scripts/release-contract.mjs";
-import { signedGitFixture, specifications } from "./fixtures.mjs";
+import {
+  signedGitFixture,
+  specifications,
+  withGitEnvironment,
+} from "./fixtures.mjs";
 
 test("the reviewed release package order and exact dependency pins are fixed", () => {
   assert.equal(RELEASE_REPOSITORY, "pegma-dev/knowledge-base");
@@ -87,6 +91,102 @@ test("a cryptographic signature from an unapproved signer is rejected", async (t
   const fixture = await signedGitFixture(t);
   await writeFile(fixture.allowedSigners, "");
   assert.throws(() => verify(fixture), /signature/u);
+});
+
+async function signerConfig(path, allowedSigners) {
+  await writeFile(
+    path,
+    `[gpg "ssh"]\n\tallowedSignersFile = ${JSON.stringify(allowedSigners.replaceAll("\\", "/"))}\n`,
+  );
+}
+
+function injectedSignerEnvironments(allowedSigners, config) {
+  const parameter = `gpg.ssh.allowedSignersFile=${allowedSigners}`;
+  const environments = [
+    {
+      name: "indexed command config",
+      env: {
+        GIT_CONFIG_COUNT: "1",
+        GIT_CONFIG_KEY_0: "gpg.ssh.allowedSignersFile",
+        GIT_CONFIG_VALUE_0: allowedSigners,
+      },
+    },
+    {
+      name: "serialized command config",
+      env: {
+        GIT_CONFIG_PARAMETERS: `'${parameter.replaceAll("'", "'\\''")}'`,
+      },
+    },
+    {
+      name: "direct config path",
+      env: { GIT_CONFIG: config },
+    },
+  ];
+  return environments.flatMap((entry) =>
+    process.platform === "win32"
+      ? [
+          entry,
+          {
+            name: `${entry.name} with Windows environment casing`,
+            env: Object.fromEntries(
+              Object.entries(entry.env).map(([key, value]) => [
+                key.toLowerCase(),
+                value,
+              ]),
+            ),
+          },
+        ]
+      : [entry],
+  );
+}
+
+test("inherited Git config cannot approve a signer rejected by local policy", async (t) => {
+  const fixture = await signedGitFixture(t);
+  const alternateSigners = join(
+    fixture.directory,
+    "environment-allowed-signers",
+  );
+  const alternateConfig = join(fixture.directory, "environment-gitconfig");
+  await writeFile(
+    alternateSigners,
+    await readFile(fixture.allowedSigners, "utf8"),
+  );
+  await signerConfig(alternateConfig, alternateSigners);
+  await writeFile(fixture.allowedSigners, "");
+  for (const injection of injectedSignerEnvironments(
+    alternateSigners,
+    alternateConfig,
+  )) {
+    withGitEnvironment({ ...fixture.env, ...injection.env }, () => {
+      assert.throws(() => verify(fixture), /signature/u, injection.name);
+    });
+  }
+});
+
+test("inherited Git config cannot replace an approved local signer policy", async (t) => {
+  const fixture = await signedGitFixture(t);
+  const alternateSigners = join(fixture.directory, "environment-empty-signers");
+  const alternateConfig = join(fixture.directory, "environment-gitconfig");
+  await writeFile(alternateSigners, "");
+  await signerConfig(alternateConfig, alternateSigners);
+  for (const injection of injectedSignerEnvironments(
+    alternateSigners,
+    alternateConfig,
+  )) {
+    withGitEnvironment({ ...fixture.env, ...injection.env }, () => {
+      assert.equal(verify(fixture).commit, fixture.commit, injection.name);
+    });
+  }
+});
+
+test("trusted global signer configuration remains available to verification", async (t) => {
+  const fixture = await signedGitFixture(t);
+  const globalConfig = join(fixture.directory, "trusted-global-gitconfig");
+  await signerConfig(globalConfig, fixture.allowedSigners);
+  fixture.git("config", "--unset", "gpg.ssh.allowedSignersFile");
+  withGitEnvironment({ ...fixture.env, GIT_CONFIG_GLOBAL: globalConfig }, () =>
+    assert.equal(verify(fixture).commit, fixture.commit),
+  );
 });
 
 test("a tag targeting an older commit is rejected even when HEAD matches the event", async (t) => {

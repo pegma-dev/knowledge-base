@@ -24,10 +24,14 @@ OIDC provenance. It cannot be substituted for the strict `verify` result in
    protected immutable `v*` tags outside this source change.
 3. The maintainer creates the approved signed annotated `v0.1.0` tag targeting
    that merged commit. In a clean complete checkout at the tag, configure the
-   approved signer verification and run strict preparation. Use the reviewed
-   npm `11.18.0` artifact and hash from `publish.yml`, with `RELEASE_NPM_CLI`
-   pointing to its absolute `npm-cli.js` path and
-   `RELEASE_NPM_VERSION=11.18.0`, or use the workflow's prepare-only dispatch:
+   approved signer verification. Before standalone preparation, extract the
+   reviewed npm `11.18.0` tarball after checking the SHA-256 pinned in the
+   [npm setup action](../.github/actions/setup-release-npm/action.yml).
+   Explicitly set `RELEASE_NPM_CLI` to the extracted regular `npm-cli.js` file's
+   canonical absolute path and set `RELEASE_NPM_VERSION=11.18.0`; both are
+   required, and linked paths are rejected. Alternatively use the workflow's
+   prepare-only dispatch, which supplies both variables. Then run strict
+   preparation:
 
    ```sh
    node scripts/release-packages.mjs prepare --tag v0.1.0 --expected-commit FULL_COMMIT_SHA

@@ -251,13 +251,30 @@ async function temporary(action) {
 
 function isolatedEnvironment(env, directory, publishing) {
   const clean = {};
+  // Pinned npm needs public provenance metadata and its OIDC request credential.
+  const publishingKeys = new Set([
+    "GITHUB_ACTIONS",
+    "GITHUB_EVENT_NAME",
+    "GITHUB_REPOSITORY",
+    "GITHUB_REPOSITORY_ID",
+    "GITHUB_REPOSITORY_OWNER_ID",
+    "GITHUB_SERVER_URL",
+    "GITHUB_REF",
+    "GITHUB_SHA",
+    "GITHUB_WORKFLOW_REF",
+    "GITHUB_WORKFLOW_SHA",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "RUNNER_ENVIRONMENT",
+    "ACTIONS_ID_TOKEN_REQUEST_URL",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+  ]);
   for (const [key, value] of Object.entries(env)) {
     if (
       /^(?:PATH|PATHEXT|SystemRoot|WINDIR|COMSPEC|TEMP|TMP|HOME|USERPROFILE|LOCALAPPDATA|APPDATA)$/iu.test(
         key,
       ) ||
-      (publishing &&
-        /^(?:GITHUB_|RUNNER_|ACTIONS_ID_TOKEN_REQUEST_)/u.test(key))
+      (publishing && publishingKeys.has(key))
     ) {
       clean[key] = value;
     }
