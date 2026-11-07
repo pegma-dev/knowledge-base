@@ -526,7 +526,7 @@ function provenanceAudit(manifest) {
         predicateType: "https://slsa.dev/provenance/v1",
         subject: [
           {
-            name: `pkg:npm/${record.name.replace("@", "%40")}@${record.version}`,
+            name: `pkg:npm/${record.name.split("/").map(encodeURIComponent).join("/")}@${record.version}`,
             digest: {
               sha512: Buffer.from(record.integrity.slice(7), "base64").toString(
                 "hex",

@@ -465,7 +465,7 @@ export function verifyProvenanceAudit(audit, manifest) {
       !Array.isArray(statement.subject) ||
       statement.subject.length !== 1 ||
       statement.subject[0].name !==
-        `pkg:npm/${record.name.replace("@", "%40")}@${record.version}` ||
+        `pkg:npm/${record.name.split("/").map(encodeURIComponent).join("/")}@${record.version}` ||
       !equal(statement.subject[0].digest?.sha512, expectedDigest) ||
       definition?.buildType !==
         "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1" ||
