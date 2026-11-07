@@ -13,6 +13,8 @@ export const knowledgePermissions = {
   collectionManage: "knowledge.collection.manage",
   publicCollectionApprove: "knowledge.collection.approve-public",
   articleRead: "knowledge.article.read",
+  botRead: "knowledge.article.bot.read",
+  indexManage: "knowledge.index.manage",
   draftRead: "knowledge.article.draft.read",
   draftWrite: "knowledge.article.draft.write",
   evidenceRead: "knowledge.article.evidence.read",

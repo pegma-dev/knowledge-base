@@ -17,9 +17,21 @@ export interface GetTrace {
   readonly key: EntityKey;
 }
 
+export interface ReadTrace extends GetTrace {
+  readonly method: "get" | "getVersioned";
+}
+
+export interface EnumerationTrace {
+  readonly collection: string;
+  readonly method: "list" | "listVersioned" | "scan";
+  readonly input: unknown;
+}
+
 /** Delegates all data to the real Store; only read timing and transactions vary. */
 export function traceStore(backing: Store) {
   const transactions: TransactionTrace[] = [];
+  const reads: ReadTrace[] = [];
+  const enumerations: EnumerationTrace[] = [];
   let intercept:
     | ((
         trace: TransactionTrace,
@@ -27,18 +39,41 @@ export function traceStore(backing: Store) {
       ) => Promise<TransactionOutcome>)
     | undefined;
   let beforeGet: ((trace: GetTrace) => Promise<void>) | undefined;
+  let beforeRead: ((trace: ReadTrace) => Promise<void>) | undefined;
   const store: Store = {
     collection<T>(definition: CollectionDefinition<T>) {
       const target = backing.collection(definition);
       return new Proxy(target, {
         get(object, property) {
-          if (property === "get")
+          if (property === "get" || property === "getVersioned")
             return async (key: EntityKey) => {
-              await beforeGet?.({
+              const trace: ReadTrace = {
                 collection: definition.name,
+                method: property,
                 key: structuredClone(key),
+              };
+              reads.push(trace);
+              await beforeRead?.(trace);
+              if (property === "get") await beforeGet?.(trace);
+              return property === "get"
+                ? object.get(key)
+                : object.getVersioned(key);
+            };
+          if (
+            property === "list" ||
+            property === "listVersioned" ||
+            property === "scan"
+          )
+            return async (input: unknown) => {
+              enumerations.push({
+                collection: definition.name,
+                method: property,
+                input: structuredClone(input),
               });
-              return object.get(key);
+              const method = Reflect.get(object, property, object) as (
+                value: unknown,
+              ) => Promise<unknown>;
+              return method.call(object, input);
             };
           if (property === "transact")
             return async (
@@ -65,11 +100,16 @@ export function traceStore(backing: Store) {
   return {
     store,
     transactions,
+    reads,
+    enumerations,
     intercept: (handler: typeof intercept) => {
       intercept = handler;
     },
     beforeGet: (handler: typeof beforeGet) => {
       beforeGet = handler;
+    },
+    beforeRead: (handler: typeof beforeRead) => {
+      beforeRead = handler;
     },
   };
 }

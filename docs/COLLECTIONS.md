@@ -1,15 +1,17 @@
-# KB-02 declared collections and durable layout
+# Declared collections and durable layout
 
 ## Design status
 
-This layout was written before durable operations and synchronized with the
-storage/application seam agreement. KB-02 source work remains subject to the
-owning implementation tests and repository gate; this document alone does not
-mark the task complete. The declared collection is `knowledge-base.records.v1`.
+The authoritative layout was written before KB-02 durable operations. The
+KB-03 retrieval layout below was recorded before its durable operations and
+synchronized with the implementation seam agreement. Source work
+remains subject to owning implementation tests and repository gates; this
+document alone does not mark a task complete. The authoritative collection is
+`knowledge-base.records.v1`.
 The approved scope is the
 [implementation plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
-and its P-00 capacity/privacy requirements. No KB-03 search projection, MCP
-endpoint, real-host acceptance, or production readiness is established here.
+and its P-00 capacity/privacy requirements. MCP, real-host acceptance, and
+production readiness remain later gates.
 
 ## Partition and authority rules
 
@@ -176,6 +178,72 @@ exact retained immutable versions, not the new mutable draft's material.
 
 Invalid rows or an unavailable dependency produce a visible failure. There is
 no best-effort acceptance through Spine's event bus. Projection/search repair
-is KB-03 work and cannot authorize a read or hide a failed authoritative
+cannot authorize a read or hide a failed authoritative
 mutation. Host blob uploads are separate from record transactions and need
 pending references plus orphan cleanup in the owning integration.
+
+## KB-03 retrieval projection layout
+
+The derived collection is `knowledge-base.retrieval.v1`. This layout was
+recorded before its operations and synchronized with source. The host-supplied
+Store is isolated per KB
+instance, as in KB-02. There is no tenant/instance-ID option or shared tenant
+control plane. Cross-instance isolation depends on supplying separate stores.
+
+| Partition family             | Row families                                                                        | Meaning                                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Singleton `directory`        | `head`                                                                              | Bounded collection discovery hints                                                        |
+| `catalog:<collectionIdHash>` | `head`                                                                              | Bounded article discovery hints for one collection                                        |
+| `article:<articleIdHash>`    | `head`                                                                              | Bounded projection progress/status for one article                                        |
+| `scope:<scopeHash>`          | `head`, `manifest:<articleIdHash>`, `posting:<termHash>`, `page:<termHash>:<0..15>` | Quota ledger, per-article term/progress manifest, posting head, and bounded posting pages |
+
+Article/catalog ID hashes and normalized-term hashes use
+`SHA256(canonicalJson(value))`. Scope hashes cover canonical JSON of the object
+`{ collectionId, policyVersion, use }`, where use is `portal` or `bot`.
+Candidate entries contain article revision/content hash plus observed
+application/source generations and a binding hash. Queries match the immutable
+published revision/hash and current collection/policy; the hint's older
+generations or full binding hash neither grant authority nor hide an unchanged
+retained publication after a new draft. Current authority comes from the
+publication checker. Hints contain no titles,
+article bodies, raw source text, or URLs; lexical terms are hashed. These are
+lookup/integrity bindings, not encryption or access capabilities. Current
+authoritative confirmation still gates every exposed result.
+
+Request retrieval uses only keyed directory/catalog/posting reads and bounded
+article confirmation. It never lists or scans a projection partition. Only
+maintenance scans bounded physical pages of `knowledge-base.records.v1`,
+counting all rows before filtering and returning an opaque backend cursor.
+
+Projection rows use native flat chunk properties with the same independent
+row/string limits as the authoritative collection. Scope partitions admit at
+most 8,192 physical rows and 16 MiB of encoded-record JSON estimates; batches
+are bounded to 100 actions and a 3 MiB transaction estimate. A transaction
+counts encoded native rows (or encoded delete keys) plus 256 bytes per action;
+retained partition bytes count encoded rows without that action allowance.
+These byte estimates
+remain distinct from native UTF-16 property/entity bounds and backend wire
+framing. Lower host limits still apply.
+
+Each scope batch handles at most two terms: even two full sixteen-page
+postings require at most 36 physical mutations including manifest and scope
+head. Three bounded CAS attempts protect the scope ledger, which subtracts
+old rows/bytes and adds replacements and the new head. Scope CAS protects a
+batch, not a whole corpus or all partitions. Partial batches and
+directory/catalog/article-status changes are
+resumable derived work. Maintain generation-fenced target manifests and
+conditional cleanup, with visible pending/blocked status on failure. Do not
+report indexing complete until new targets and obsolete-scope cleanup have
+converged. Retirement/revocation remains effective through authoritative read
+checks while projection repair catches up. See [retrieval](RETRIEVAL.md) for
+query bounds, audience-safe citations, and repair/acceptance requirements.
+
+Cleanup reclaims obsolete term/page rows while retaining small manifest and
+catalog generation floors so delayed work cannot recreate older projections.
+The directory retains at most 64 collection IDs. A collection catalog retains
+at most 256 article identities and 32 historical policy/use epochs; a scope
+retains at most 256 article floors. An article plan admits at most 32
+known/pending scopes while cleanup converges. These are finite admission
+budgets, not unbounded lifetime history. When retained floors/epochs exhaust
+capacity, report blocked capacity work; no safe floor/epoch compaction is
+implemented or implied.

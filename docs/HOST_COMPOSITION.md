@@ -1,13 +1,13 @@
-# KB-02 host composition
+# Application and retrieval host composition
 
 ## Status and ownership
 
-This documents the agreed KB-02 source API and host boundary. Implementation
+This documents the agreed KB-02/KB-03 source API and host boundary. Implementation
 and repository gates determine task completion; this document does not assert
 that either real host is ready. The unpublished application composes
 contracts/core with host-supplied Storage Core and Authorization Core. It is
-not an HTTP server, an identity system, a search service, or an operational
-MCP endpoint. See [declared collections](COLLECTIONS.md) for the required
+not an HTTP server, an identity system, or an operational MCP endpoint.
+See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
 
 The host owns identity verification, scoped local-agent credentials, current
@@ -52,7 +52,8 @@ the effective customer's answer audience.
 ## Authoring, evidence, and exact review
 
 Compose `createKnowledgeBaseApplication` once with `store` and `clock`, and
-optional `limits`, `evidenceVerifier`, and `privateSources`. The full
+optional `limits`, `evidenceVerifier`, `privateSources`, and nested `retrieval`
+settings. The full
 [application types](../packages/application/src/types.ts) define the command,
 result, verifier, and DTO contracts. Keep mutation
 commands distinct from trusted contexts: the host supplies actor identity,
@@ -76,8 +77,8 @@ untrusted command body as proof of authority.
 Names in this table are members of the contracts package's
 `knowledgePermissions`; they are permission identifiers, not roles. Resource
 and proof checks remain additional requirements. `getPublishedArticle` is a
-portal read, not bot-only retrieval. No KB-03 search/bot-retrieval surface is
-provided by these methods.
+portal read, not bot-only retrieval. The separate retrieval methods below
+enforce their own effective-customer use and audience.
 
 `getValidationRequirements` returns the current article-kind checks,
 validation-policy reference, governance generation, and expected staging
@@ -171,8 +172,77 @@ remain live gates. Retirement or current policy revocation defeats old pointers.
 separate collection/profile transaction cannot atomically fence all article
 partitions: current checks make stale state unusable on subsequent reads;
 the implementation must not promise cross-partition atomic revocation.
-KB-03 retrieval/search adds its own bounded candidate and final-authority
-checks; a KB-02 keyed read is not that search implementation.
+Retrieval/search adds bounded candidate and final-authority checks; a keyed
+`getPublishedArticle` call is not a search operation.
+
+## Retrieval and trusted local ports
+
+The application extends the same composition with `retrieval.limits`,
+`retrieval.candidateAdapter`, and `retrieval.tokenCounter`. Limits may only
+reduce fixed component ceilings; unknown, nonpositive, or excessive values
+are rejected. Defaults use keyed Storage Core projection reads. No request
+path may scan or mutate a corpus. See [retrieval](RETRIEVAL.md) for the exact
+[public retrieval types](../packages/application/src/retrieval-types.ts),
+physical work limits, lexical behavior, and repair design.
+
+| Methods                                                              | Required current authority                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `listPortalCollections`, `searchPublishedArticles`                   | `articleRead` and the relevant portal audience                           |
+| `retrieveAnswerSources`, `confirmAnswerSources`                      | Effective customer's `articleRead`, `botRead`, and relevant bot audience |
+| `repairArticleIndex`, `repairRetrievalPage`, `getArticleIndexStatus` | `indexManage`; staff-only DTOs                                           |
+
+Resolve bot calls from the effective customer, not an unrestricted service or
+staff principal. Portal permission alone does not authorize bot use, and bot
+permission does not grant portal browsing. Search and bot applicability are
+exact tuples; an absent build/locale is not a wildcard. Safe no-result DTOs
+contain no candidate totals or unconfirmed text.
+
+`SourceTokenCounter.count(serializedSources)` is a trusted synchronous local
+port required for counted bot payloads. Count the complete deterministic
+source serialization, not just article bodies. `AnswerSourcesResult` returns
+that `serializedSources` and `sourceTokens`. Retrieval fits the largest ranked
+prefix of whole sources within aggregate byte/token limits, requiring a
+positive safe-integer count for nonempty sources. Reconfirmation is exact and
+all-or-nothing, without prefix fitting. The owning support integration
+separately budgets the full prompt and output. Do not send customer text to an
+external tokenizer merely to count it.
+
+A host `KnowledgeCandidateAdapter` supplies source-free hints and truthful
+bounded work accounting, including empty pages and discarded rows. Reported
+work is checked before hints are consumed; the library cannot meter hidden
+remote-provider work. Candidate IDs, ranking, and counts never authorize
+content. Current publication, policy, source eligibility, and applicability
+are independently confirmed by the shared checker.
+The application preserves first-seen adapter order for bounded preselection;
+host adapters supply stable ordering across pages and may return
+approved body/synonym matches with zero local metadata overlap. Confirmed
+metadata scores rank results, with adapter order breaking ties; the default
+Store lexical path retains ordinal ID ties. Hosts evaluate adapter relevance
+and own provider data controls.
+
+Citations contain a safe label and optional `portalArticle` ID/revision, never
+a URL. That browse reference exists only when the same customer independently
+passes portal authority. Resolve it into the host's safe article route; never
+resolve a private provenance reference into a customer citation. Exact answer
+source references are observation fences, not leases. Reconfirm under fresh
+effective-customer access before later answer use, then enforce the Support
+Desk ticket/turn fence before reply commit.
+
+Schedule bounded `repairRetrievalPage` cycles with its opaque cursor and
+staff-visible progress. `getArticleIndexStatus` reports pending/ready/blocked
+and `indexed`; a ready withdrawal has `indexed: false`. Projection admission
+or partial failure must remain visible. Repair convergence is separate from
+live authoritative revocation; do not imply a cross-partition transaction.
+Page scans are also bounded by the shared batch allowance (at most 32 physical
+rows by default), with one registration/advancement per unique collection or
+article. Current collection hints also make empty collections discoverable;
+directory IDs do not grant access to their labels. Persist the actual
+backend cursor and repeat complete cycles; a single pass may leave pending
+work. Authoritative jobs remain hints rather than being acknowledged or
+deleted by repair.
+Unexpected configuration, adapter, or storage errors in staff maintenance
+fail visibly rather than becoming a customer `no_result`; documented admission
+and source-hold status paths remain in force.
 
 ## Replay, failure, and host operation
 
@@ -218,9 +288,9 @@ and byte accounting definition.
 
 Hosts remain responsible for authorized evidence downloads, retention/deletion,
 backup/recovery, blob orphan cleanup, safe Markdown/plain-text rendering,
-rate limits, and later worker wakeups/checkpoints. Signed-in web/API integration
+rate limits, and worker scheduling/checkpoints. Signed-in web/API integration
 and a supervised deployment require their own task evidence. Passing local
-application tests does not establish KB-03 retrieval, MCP authentication,
+application tests does not establish MCP authentication,
 provider ZDR configuration, either real host, or production readiness.
 
 Built in the open by RetireGolden, LLC.

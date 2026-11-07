@@ -9,8 +9,9 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
 - Contracts and core own collection policy, immutable article revisions,
   validation/evidence bindings, approval, publication, and retirement.
 - KB-01 owns pure domain work. KB-02 adds declared persistence and authorized
-  application services. Retrieval/search, API/MCP, and live host interfaces
-  remain later tasks; do not create their packages early.
+  application services. KB-03 extends the application with bounded retrieval,
+  authoritative confirmation, and repair; it adds no package. API/MCP and live
+  host interfaces remain later tasks; do not create their packages early.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -34,6 +35,11 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   not provide a global policy fence; current reads must reject stale authority.
 - Replay rechecks current operation/resource permission and returns a bounded
   historical acknowledgement, not raw content or restored publication authority.
+- Retrieval projections are derived hints. Count physical work before filtering;
+  request paths use keyed reads, never a corpus scan. Confirm current publication,
+  applicability, and effective portal/bot audience before exposing any title,
+  count, content, or citation. Whole source serialization uses the trusted local
+  token counter; do not truncate article procedures into partial steps.
 - Base packages require no Support Desk, GitHub, model, framework, HTTP, or
   provider SDK. Evidence is data; never execute code or fetch submitted URLs.
 - Constrain content and links; host renderers must disable executable content
@@ -63,3 +69,5 @@ explicit file ownership boundary; do not revert another worker's edits.
 For KB-02, read [declared collections](docs/COLLECTIONS.md) before changing
 durable operations and [host composition](docs/HOST_COMPOSITION.md) before
 changing authorization, verifier, replay, or DTO boundaries.
+For KB-03, read [retrieval](docs/RETRIEVAL.md) and the declared projection
+layout before changing query work, citations, or repair.
