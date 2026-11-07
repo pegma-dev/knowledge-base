@@ -310,8 +310,13 @@ async function npmContext(options, seams, directory, publishing) {
   ) {
     fail("release operations require the reviewed pinned npm CLI");
   }
-  const metadata = await lstat(cli);
-  if (!metadata.isFile() || metadata.isSymbolicLink()) {
+  const resolvedCli = resolve(cli);
+  const metadata = await lstat(resolvedCli);
+  if (
+    !metadata.isFile() ||
+    metadata.isSymbolicLink() ||
+    (await realpath(resolvedCli)) !== resolvedCli
+  ) {
     fail("release operations require the reviewed pinned npm CLI");
   }
   await writeFile(join(directory, "user.npmrc"), "", { flag: "wx" });
@@ -324,7 +329,7 @@ async function npmContext(options, seams, directory, publishing) {
   const invoke = async (arguments_) => {
     let result;
     try {
-      result = await run(process.execPath, [resolve(cli), ...arguments_], {
+      result = await run(process.execPath, [resolvedCli, ...arguments_], {
         cwd: directory,
         env,
       });

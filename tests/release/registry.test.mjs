@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import test from "node:test";
 import {
@@ -908,6 +908,50 @@ test("all four snapshot blobs are rehashed before the first privileged publish",
     publishing.calls.some(({ arguments_ }) => arguments_[1] === "publish"),
     false,
   );
+});
+
+test("a linked npm CLI ancestor is rejected before any npm subprocess", async (t) => {
+  for (const mode of ["publish", "verify"]) {
+    await t.test(mode, async (t) => {
+      const prepared = await fixture(t);
+      const canonicalDirectory = join(prepared.directory, "canonical-npm");
+      await mkdir(canonicalDirectory);
+      await writeFile(
+        join(canonicalDirectory, "npm-cli.js"),
+        "// Synthetic seam: never executed.\n",
+      );
+      const linkedDirectory = join(prepared.directory, "linked-npm");
+      await symlink(
+        canonicalDirectory,
+        linkedDirectory,
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      const options = {
+        ...prepared.options,
+        npmCli: join(linkedDirectory, "npm-cli.js"),
+      };
+      const state = fakeRegistry(prepared, mode === "publish" ? [] : undefined);
+      const calls = [];
+      const operation =
+        mode === "publish" ? publishPreparedRelease : verifyRegistryRelease;
+      await assert.rejects(
+        operation(options, {
+          env: trustedEnvironment(),
+          fetch: state.fetch,
+          run: async (...arguments_) => {
+            calls.push(arguments_);
+            throw new Error("Unexpected npm subprocess.");
+          },
+        }),
+        /pinned npm CLI/u,
+      );
+      assert.deepEqual(calls, []);
+      assert.equal(
+        state.present.size,
+        mode === "publish" ? 0 : prepared.artifacts.length,
+      );
+    });
+  }
 });
 
 test("an unexpected npm version cannot publish any prepared package", async (t) => {
