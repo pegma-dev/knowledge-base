@@ -10,8 +10,10 @@ document alone does not mark a task complete. The authoritative collection is
 `knowledge-base.records.v1`.
 The approved scope is the
 [implementation plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
-and its P-00 capacity/privacy requirements. MCP, real-host acceptance, and
-production readiness remain later gates.
+and its P-00 capacity/privacy requirements. KB-04's optional HTTP/MCP adapter
+source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Package
+publication, real-host acceptance, and production readiness remain separate
+gates.
 
 ## Partition and authority rules
 

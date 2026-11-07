@@ -1,8 +1,9 @@
 # Agent authoring and test-evidence workflow
 
-KB-04 adds optional authoring transports over the existing Knowledge Base
-application. Source work remains in progress until current-head gates and
-review pass. All four KB packages are unpublished at `0.1.0`; this document
+The [merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
+adds optional authoring transports over the existing Knowledge Base
+application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
+is also merged. All four KB packages are unpublished at `0.1.0`; this document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -105,14 +106,17 @@ temporary test consumer, and installs all four KB tarballs with the official
 MCP SDK `1.32.2`. It exercises OAuth and real SDK protocol calls through the
 five-operation loop, host-attested evidence, HTTP/MCP parity, and rejection
 cases. The fictional human session, staging run, and attester remain test
-inputs. Current-head gate output establishes execution; this document records
-no pass verdict.
+inputs. The merged-source gate results are recorded in
+[source preparation](SOURCE_PREPARATION.md); changed source requires fresh
+current-head gates.
 
-KB-04 source exit requires format, type, tests, synthetic example, artifact
-checks, and `agent:proof` on Node 22 and 24, plus a clean current-head OpenRouter
-review with zero actionable findings and the applicable security checks. It
-closes only the source slice. KB-05 owns reviewed publication of the four KB
-packages; Agent Access follows its separate first-publication and
+The merged KB-04 source exit passed format, type, tests, synthetic example,
+artifact checks, and `agent:proof` on Node 22 and 24, plus clean OpenRouter
+review with zero actionable findings and the applicable security checks.
+Changed source requires the same current-head gates. KB-05 release-preparation
+source is merged; full KB-05 publication remains open. Agent Access's
+[release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
+is also merged and follows its separate first-publication and
 trusted-publisher process. Both public releases precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.

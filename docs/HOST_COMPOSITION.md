@@ -3,16 +3,18 @@
 ## Status and ownership
 
 This documents the KB-02/KB-03 application and KB-04 transport host boundaries.
-KB-04 source is in progress until current-head gates and review pass; neither
-real host is ready on that evidence alone. The unpublished application composes
-contracts/core with host-supplied Storage Core and Authorization Core. The
+[KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) and
+[KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
+are merged; neither real host is ready on that evidence alone. The unpublished
+application composes contracts/core with host-supplied Storage Core and
+Authorization Core. The
 optional `@pegma/knowledge-base-mcp` package supplies bounded HTTP/MCP adapters
 over that application. All four KB packages are unpublished at `0.1.0`.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
 
-Independent partial KB-05 [source preparation](SOURCE_PREPARATION.md) adds
+Merged KB-05 [source preparation](SOURCE_PREPARATION.md) adds
 shared memory/Azurite/local-D1 conformance and a
 [public synthetic composition](../examples/composition/README.md). The D1
 fixture passes a real Miniflare binding directly to the released
@@ -24,8 +26,10 @@ AUTH-01's [merged public source](https://github.com/pegma-dev/agent-access/pull/
 provides KB-04's credential producer prerequisite. The separate `agent:proof`
 gate uses that reviewed pinned source only in a temporary consumer with the
 four KB tarballs and official SDK `1.32.2`. It tests the synthetic OAuth and
-draft/evidence transport loop. Actual existing-login/client acceptance on both
-hosts, Agent Access publication, and full KB-05 publication remain separate.
+draft/evidence transport loop. Agent Access's
+[release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
+is also merged. Actual existing-login/client acceptance on both hosts, Agent
+Access publication, and full KB-05 publication remain separate.
 
 The host owns identity verification, scoped local-agent credentials, current
 authorization resolution, browser/transport protections, store construction,

@@ -9,8 +9,9 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > transitions, authorized application/persistence, and bounded retrieval/repair.
 > [Merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) adds
 > the optional five-operation HTTP/MCP adapter and authenticated protocol proof.
-> KB-05 source preparation supplies local D1 conformance, a public synthetic
-> example, and exact-artifact release tooling. All four packages are unpublished
+> [Merged KB-05 source preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
+> supplies local D1 conformance, a public synthetic example, and exact-artifact
+> release tooling. All four packages are unpublished
 > at `0.1.0`. First publication, trusted-publisher setup, registry verification,
 > and actual two-host existing-login/client acceptance remain separate gates.
 > This repository is not an operational hosted KB or a production dependency.
@@ -47,7 +48,9 @@ Read the [agent API](docs/AGENT_API.md) for the exact contract and
 Hosts compose the separate [Agent Access](https://github.com/pegma-dev/agent-access)
 producer with their existing human login and current Admin consent. AUTH-01's
 [merged source](https://github.com/pegma-dev/agent-access/pull/1) supplies the
-source prerequisite; publication remains separate. Initial authoring grants are
+source prerequisite, and its
+[release preparation](https://github.com/pegma-dev/agent-access/pull/2) is merged.
+Agent Access remains unpublished at `0.1.0`. Initial authoring grants are
 app-instance-wide. Collection-specific delegation is a future host seam.
 The KB does not issue credentials or implement login, roles, or a limiter.
 

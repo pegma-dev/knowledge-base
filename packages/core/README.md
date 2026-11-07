@@ -70,8 +70,9 @@ to detect same-version mutation. It is only a policy-binding predicate. It does
 not authorize a read, authenticate external evidence, establish retained
 evidence availability/revocation, or implement customer retrieval. Never expose
 an aggregate or its private approval/evidence fields directly to customers or
-the model. Never expose or log raw aggregates. Authorized DTO construction,
-evidence access, retention, and deletion belong to KB-02 and the host.
+the model. Never expose or log raw aggregates. Authorized DTO construction
+and evidence access belong to the application. Hosts own retention/deletion;
+the bounded application history has no compaction operation.
 
 All times, identities, and policies are explicit inputs. A **ReviewContext**
 must come from the trusted application: it supplies current collection and
@@ -82,8 +83,9 @@ review or evidence operation cannot predate the supplied collection's latest
 update. Older evidence can remain valid when the operation uses current time
 and the evidence still satisfies its exact binding and freshness requirements.
 A caller inventing an attestation object has not produced verification proof.
-The later API/MCP boundary must verify receipts and authorize evidence
-submission before calling these transitions.
+The application verifies receipts through its trusted host port and authorizes
+evidence submission before calling these transitions. The optional HTTP/MCP
+adapter uses that same application boundary.
 
 A draft targeting a future build waits for matching verification or is revised;
 evidence for a different staging build fails closed.
@@ -104,8 +106,8 @@ rendered as text.
 32 current evidence records, 16 steps per record, and eight artifact references
 per record. Other strings and identity lists also have explicit bounds.
 These are validation ceilings, not measured production throughput, retention,
-rate limits, or model budgets. KB-02 must separately bound durable partitions,
-retained history, and transaction work.
+rate limits, or model budgets. The application separately bounds durable
+partitions, retained history, and transaction work.
 
 Domain failures are **KnowledgeBaseError** with code and field. Core does
 not implement HTTP mappings, replay receipts, concurrent storage updates,
