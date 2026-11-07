@@ -11,6 +11,7 @@ import type {
   ArticleRevision,
   ArticleApproval,
   Article,
+  PublishedArticle,
   Collection,
   ValidationPolicy,
 } from "@pegma/knowledge-base-contracts";
@@ -94,11 +95,29 @@ export interface RepositoryResult<T> {
   readonly value: T;
   readonly replayed: boolean;
 }
+/** Publication-only hydration; unrelated current draft/proofs remain private. */
+export interface ArticlePublicationState {
+  readonly articleId: string;
+  readonly generation: number;
+  readonly state: Article["state"];
+  readonly publicationHeld: boolean;
+  readonly published?: PublishedArticle;
+  readonly publishedProvenance?: SourceSnapshot;
+  readonly publicationReview?: ReviewSnapshot;
+}
 export interface KnowledgeRepository {
   readonly limits: KnowledgeRepositoryLimits;
   readArticleVersioned(
     id: string,
   ): Promise<VersionedState<StoredArticle> | null>;
+  readArticlePublicationVersioned(
+    id: string,
+  ): Promise<VersionedState<ArticlePublicationState> | null>;
+  /** One keyed head read; never hydrates draft, evidence, or private source rows. */
+  readResourceGeneration(
+    kind: ResourceKind,
+    id: string,
+  ): Promise<number | null>;
   readCollectionVersioned(
     id: string,
   ): Promise<VersionedState<StoredCollection> | null>;
@@ -608,6 +627,59 @@ export function createKnowledgeRepository(
       version: row.version,
     };
   }
+  async function readPublication(
+    id: string,
+  ): Promise<VersionedState<ArticlePublicationState> | null> {
+    const row = await getHead("article", id);
+    if (row === null) return null;
+    const pointer = (row.value.data as Head).pointer as ArticlePointer;
+    const value: ArticlePublicationState = {
+      articleId: id,
+      generation: pointer.generation,
+      state: pointer.state,
+      publicationHeld: pointer.publicationHeld,
+    };
+    if (pointer.published === undefined) return { value, version: row.version };
+    const [revision, approval, publishedProvenance, publicationReview] =
+      await Promise.all([
+        getRevision(id, pointer.published.revision),
+        required<ArticleApproval>(
+          "article",
+          id,
+          pointer.published.approval,
+          "publication",
+        ),
+        required<SourceSnapshot>(
+          "article",
+          id,
+          "provenance:" + pointer.publishedProvenance,
+          "provenance",
+        ),
+        required<ReviewSnapshot>(
+          "article",
+          id,
+          pointer.publicationReview!,
+          "review",
+        ),
+      ]);
+    if (
+      revision === null ||
+      approval.binding.articleId !== id ||
+      approval.binding.articleRevision !== revision.number ||
+      approval.binding.contentHash !== revision.contentHash
+    ) {
+      throw new RepositoryIntegrityError();
+    }
+    return {
+      value: {
+        ...value,
+        published: { revision, approval },
+        publishedProvenance,
+        publicationReview,
+      },
+      version: row.version,
+    };
+  }
   async function execute<T extends State>(
     kind: ResourceKind,
     input: MutationInput<T>,
@@ -1081,6 +1153,11 @@ export function createKnowledgeRepository(
   return {
     limits,
     readArticleVersioned: (id) => read<StoredArticle>("article", id),
+    readArticlePublicationVersioned: readPublication,
+    readResourceGeneration: async (kind, id) => {
+      const row = await getHead(kind, id);
+      return row === null ? null : (row.value.data as Head).pointer.generation;
+    },
     readCollectionVersioned: (id) => read<StoredCollection>("collection", id),
     readValidationPolicyVersioned: (id) =>
       read<StoredValidationPolicy>("validation", id),

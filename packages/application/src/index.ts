@@ -2,6 +2,11 @@ import { createArticleServices } from "./articles.js";
 import { createGovernanceServices } from "./governance.js";
 import { createReadServices } from "./reads.js";
 import { createKnowledgeRepository } from "./repository.js";
+import { createPublicationChecker } from "./publication.js";
+import { resolveRetrievalLimits } from "./retrieval-limits.js";
+import { createRetrievalMaintenanceServices } from "./retrieval-maintenance.js";
+import { createRetrievalRepository } from "./retrieval-repository.js";
+import { createRetrievalServices } from "./retrieval.js";
 import type {
   KnowledgeBaseApplication,
   KnowledgeBaseApplicationOptions,
@@ -15,6 +20,7 @@ export function createKnowledgeBaseApplication(
   const repository = createKnowledgeRepository(options.store, options.limits);
   const services: KnowledgeBaseServiceOptions = {
     clock: options.clock,
+    limits: repository.limits,
     ...(options.evidenceVerifier === undefined
       ? {}
       : { evidenceVerifier: options.evidenceVerifier }),
@@ -22,10 +28,29 @@ export function createKnowledgeBaseApplication(
       ? {}
       : { privateSources: options.privateSources }),
   };
+  const retrievalLimits = resolveRetrievalLimits(options.retrieval?.limits);
+  const retrievalRepository = createRetrievalRepository(
+    options.store,
+    retrievalLimits,
+  );
+  const publications = createPublicationChecker(repository, services);
   return Object.freeze({
     ...createArticleServices(repository, services),
     ...createGovernanceServices(repository, services),
     ...createReadServices(repository, services),
+    ...createRetrievalServices({
+      store: options.store,
+      services,
+      ...(options.retrieval === undefined
+        ? {}
+        : { options: options.retrieval }),
+    }),
+    ...createRetrievalMaintenanceServices(
+      repository,
+      retrievalRepository,
+      publications,
+      { store: options.store, retrievalLimits },
+    ),
   });
 }
 
@@ -42,4 +67,7 @@ export {
   RepositoryIntegrityError,
 } from "./storage-helpers.js";
 export type * from "./types.js";
+export type * from "./retrieval-types.js";
+export { defaultKnowledgeRetrievalLimits } from "./retrieval-types.js";
+export { retrievalRecords, type RetrievalRecord } from "./retrieval-records.js";
 export { knowledgePermissions } from "@pegma/knowledge-base-contracts";

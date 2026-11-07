@@ -1,15 +1,17 @@
 # @pegma/knowledge-base-application
 
-This unpublished KB-02 source package composes contracts/core with
+This unpublished KB-02/KB-03 source package composes contracts/core with
 host-supplied Storage Core, Authorization Core, Audit, and a clock. Source
-implementation and repository gates determine KB-02 completion; neither this
+implementation and repository gates determine task completion; neither this
 package nor local tests establish a live host or production readiness.
 
 The [declared layout](https://github.com/pegma-dev/knowledge-base/blob/main/docs/COLLECTIONS.md) records the agreement made
 before durable operations. [Host composition](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md) describes the host
 authentication, current-resource authorization, verified-evidence, and privacy
-boundaries. KB-03 retrieval, API/MCP, real-host acceptance, and production
-activation remain later tasks.
+boundaries. [Retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
+documents bounded lexical lookup, authoritative confirmation, citations, and
+repair. API/MCP, real-host acceptance, and production activation remain later
+tasks.
 
 GitHub links in this unpublished README track development `main`; they are
 not frozen version documentation. KB-05 release preparation must pin those
@@ -17,7 +19,8 @@ references to verified release source before first publication.
 
 The application API owns authorized commands, application-generation CAS,
 bounded immutable revision/evidence history, exact review/publication,
-transactional Audit/receipts/causal jobs, and safe published-content DTOs.
+transactional Audit/receipts/causal jobs, bounded retrieval/repair, and safe
+published-content DTOs.
 Collections own audience policy; articles inherit it without per-article ACLs.
 Role models, token issuance, sessions, HTTP, provider SDKs, arbitrary URL
 fetching, code execution, and a new database are outside this package.
@@ -32,7 +35,8 @@ or a support model.
 ## Composition and commands
 
 `createKnowledgeBaseApplication` takes `store` and `clock`, with optional
-`limits`, `evidenceVerifier`, and `privateSources`. Hosts authenticate callers
+`limits`, `evidenceVerifier`, `privateSources`, and nested `retrieval` settings.
+Hosts authenticate callers
 and resolve current scoped `AccessContext` values. The
 [public types](https://github.com/pegma-dev/knowledge-base/blob/main/packages/application/src/types.ts) define commands and purpose-specific results;
 the package owns no HTTP routes or credentials.
@@ -83,6 +87,35 @@ and publication use current time, while current policy/source eligibility,
 proof availability, and revocation remain live checks. Article CAS cannot
 globally fence separate collection/
 validation-policy partitions.
+
+## Bounded retrieval and repair
+
+`listPortalCollections` and `searchPublishedArticles` require current portal
+authority. `retrieveAnswerSources` and `confirmAnswerSources` use the effective
+customer's `articleRead`, `botRead`, independent bot audience, and exact product
+applicability. Read results report `results` or `no_result`, never candidate
+totals. Titles, snippets, content, and citations come from freshly confirmed
+publications rather than index text. Bot-only citations have a safe label;
+`portalArticle` appears only when that customer can also browse the article.
+
+The default lexical projection uses approved titles, summaries, and tags, not
+body text. Requests use only bounded keyed reads. Optional
+`retrieval.candidateAdapter` hints remain untrusted; the host adapter must
+report all physical work, including empty pages and discarded rows.
+`retrieval.tokenCounter` is a trusted local counter over the complete
+`serializedSources` returned with `sourceTokens`. Retrieval fits the largest
+ranked prefix of whole articles within aggregate byte/token budgets with a
+positive local count; reconfirmation is exact and all-or-nothing.
+`retrieval.limits` can only lower fixed component ceilings.
+See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
+for the exact API, limits, authority/reference fences, and evaluation boundary.
+
+`repairArticleIndex`, `repairRetrievalPage`, and `getArticleIndexStatus` require
+`indexManage`. Only maintenance performs bounded physical scans with opaque
+cursors. Pending/blocked status remains visible until repair converges;
+`ready` with `indexed: false` means a converged withdrawal. Projection cleanup
+may lag retirement/revocation, but current authority checks still reject
+ineligible publications. The host owns scheduling and recovery.
 
 ## Storage and limits
 

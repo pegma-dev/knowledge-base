@@ -4,9 +4,9 @@
 
 `@pegma/knowledge-base-contracts`, `@pegma/knowledge-base-core`, and
 `@pegma/knowledge-base-application` are prepared at synchronized source version
-`0.1.0`. All three package names are unpublished. KB-01/KB-02 establish domain
-and authorized application source plus packaging checks; their repository
-gates determine task completion. They do not publish, create tags/releases,
+`0.1.0`. All three package names are unpublished. KB-01 through KB-03 establish
+domain, authorized application, and bounded retrieval source plus packaging
+checks; their repository gates determine task completion. They do not publish, create tags/releases,
 configure credentials, or enable a publish workflow.
 
 Hosts must wait for an exact public registry release. Git branches, copied
@@ -70,7 +70,7 @@ release procedure, not proof that external publisher settings exist.
 
 - [ ] Confirm package-name ownership and organization publishing permissions.
 - [ ] Complete KB-05's advertised package/adapter and dual-store release
-      criteria. KB-02 memory/Azurite evidence does not establish the later D1
+      criteria. KB-02/KB-03 memory/Azurite evidence does not establish the later D1
       consumer fixture, MCP client flow, or either host's production readiness.
       Do not publish empty packages.
 - [ ] Merge reviewed release source and exact version/pin changes to protected

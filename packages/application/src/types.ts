@@ -23,6 +23,10 @@ import type {
 import type { Store } from "@pegma/storage-core";
 
 import type { KnowledgeRepositoryLimits } from "./repository.js";
+import type {
+  KnowledgeRetrievalApplication,
+  KnowledgeRetrievalOptions,
+} from "./retrieval-types.js";
 
 /** Opaque source identity only: no URL, source body, customer text, or credential. */
 export interface PrivateSourceReference {
@@ -107,6 +111,7 @@ export interface KnowledgeBaseApplicationOptions {
   readonly store: Store;
   readonly clock: Clock;
   readonly limits?: Partial<KnowledgeRepositoryLimits>;
+  readonly retrieval?: KnowledgeRetrievalOptions;
   /** Missing verifier fails closed for every evidence submission. */
   readonly evidenceVerifier?: EvidenceVerifier;
   /** Missing verifier fails closed wherever a nonempty source snapshot is needed. */
@@ -115,7 +120,7 @@ export interface KnowledgeBaseApplicationOptions {
 
 export type KnowledgeBaseServiceOptions = Omit<
   KnowledgeBaseApplicationOptions,
-  "store"
+  "store" | "retrieval"
 >;
 
 export interface CommandInput {
@@ -321,7 +326,7 @@ export interface ArticleReadInput {
   readonly articleId: string;
 }
 
-export interface KnowledgeBaseApplication {
+export interface KnowledgeBaseApplication extends KnowledgeRetrievalApplication {
   createCollection(
     access: AccessContext,
     input: CreateCollectionInput,

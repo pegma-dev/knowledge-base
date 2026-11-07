@@ -2,16 +2,8 @@ import { hasPermission } from "@pegma/authorization-core";
 import {
   articleKinds,
   knowledgePermissions,
-  type Article,
   type IsoTimestamp,
-  type VerificationEvidence,
 } from "@pegma/knowledge-base-contracts";
-import {
-  isPublicationBoundToCurrentPolicies,
-  KnowledgeBaseError,
-  knowledgeLimits,
-  publishArticle,
-} from "@pegma/knowledge-base-core";
 
 import {
   KnowledgeBaseNotFoundError,
@@ -19,11 +11,11 @@ import {
   requirePermission,
 } from "./errors.js";
 import { loadGovernanceContext } from "./governance.js";
+import { createPublicationChecker } from "./publication.js";
 import type { StoredArticle } from "./records.js";
 import type { KnowledgeRepository } from "./repository.js";
 import {
   canonicalJson,
-  RepositoryCapacityError,
   RepositoryConflictError,
   RepositoryIntegrityError,
   requireIdentifier,
@@ -84,39 +76,6 @@ function snapshotReferences(
   return snapshot.references;
 }
 
-/** Resolve only the bounded exact versions named by a retained publication. */
-async function publishedEvidence(
-  repository: KnowledgeRepository,
-  current: StoredArticle,
-): Promise<readonly VerificationEvidence[]> {
-  const published = current.article.published;
-  if (published === undefined) return [];
-  const binding = published.approval.binding;
-  if (
-    !Array.isArray(binding.evidence) ||
-    binding.evidence.length > knowledgeLimits.evidence
-  ) {
-    throw new RepositoryIntegrityError();
-  }
-  return Promise.all(
-    binding.evidence.map(async (reference) => {
-      const [evidence, revoked] = await Promise.all([
-        repository.getEvidenceVersion(
-          current.article.id,
-          published.revision.number,
-          reference.id,
-          reference.version,
-        ),
-        repository.isEvidenceRevoked(current.article.id, reference.hash),
-      ]);
-      if (evidence === null || revoked || evidence.hash !== reference.hash) {
-        throw new KnowledgeBaseNotFoundError("article");
-      }
-      return evidence;
-    }),
-  );
-}
-
 /** Explicit keyed staff reads and a separately authorized portal-only read. */
 export function createReadServices(
   repository: KnowledgeRepository,
@@ -133,6 +92,7 @@ export function createReadServices(
   | "getReview"
   | "getPublishedArticle"
 > {
+  const publications = createPublicationChecker(repository, options);
   return {
     async getCollection(access, request) {
       access = snapshotData(access);
@@ -333,168 +293,13 @@ export function createReadServices(
     },
 
     async getPublishedArticle(access, request) {
-      access = snapshotData(access);
       const input = readInput(request, "articleId");
-      const unavailable = () => new KnowledgeBaseNotFoundError("article");
-      if (!hasPermission(access, knowledgePermissions.articleRead))
-        throw unavailable();
-      try {
-        const current = await requiredArticle(repository, input.articleId);
-        const publication = current.article.published;
-        const review = current.publicationReview;
-        if (
-          current.article.state === "retired" ||
-          current.publicationHeld ||
-          publication === undefined ||
-          review === undefined
-        )
-          throw unavailable();
-        const at = clockTime(options);
-        const governance = await loadGovernanceContext(
-          repository,
-          publication.revision.collectionId,
-          at,
-        );
-        const portal = governance.context.collection.policy.portal;
-        if (
-          !portal.enabled ||
-          (portal.audience.kind === "permission" &&
-            !hasPermission(access, portal.audience.permission))
-        )
-          throw unavailable();
-        if (
-          review.governanceGeneration !== governance.governanceGeneration ||
-          canonicalJson(review.binding) !==
-            canonicalJson(publication.approval.binding)
-        )
-          throw unavailable();
-        const source = current.publishedProvenance;
-        if (
-          source === undefined ||
-          source.hash !== review.sourceSnapshotHash ||
-          source.generation !== review.sourceGeneration
-        )
-          throw unavailable();
-        const references = snapshotReferences(source);
-        if (references.length > 0) {
-          const verifier = options.privateSources;
-          if (
-            verifier === undefined ||
-            typeof verifier.canPublish !== "function" ||
-            typeof verifier.isCurrent !== "function"
-          )
-            throw unavailable();
-          let sourceEligibility: readonly boolean[];
-          try {
-            sourceEligibility = await Promise.all([
-              verifier.canPublish({
-                article: snapshotData(publication.revision),
-                snapshot: snapshotData(source),
-              }),
-              verifier.isCurrent({
-                article: snapshotData(publication.revision),
-                snapshot: snapshotData(source),
-              }),
-            ]);
-          } catch {
-            throw unavailable();
-          }
-          if (sourceEligibility.some((allowed) => allowed !== true))
-            throw unavailable();
-        }
-        const [revision, evidence] = await Promise.all([
-          repository.getArticleRevision(
-            current.article.id,
-            publication.revision.number,
-          ),
-          publishedEvidence(repository, current),
-        ]);
-        if (
-          revision === null ||
-          canonicalJson(revision) !== canonicalJson(publication.revision)
-        )
-          throw unavailable();
-        if (
-          !(await isPublicationBoundToCurrentPolicies(
-            current.article,
-            governance.context.collection,
-            governance.context.validationPolicy,
-          ))
-        )
-          throw unavailable();
-        const proof: Article = {
-          id: current.article.id,
-          state: "in-review",
-          current: revision,
-          evidence,
-          review: publication.approval.binding,
-        };
-        const approvedAt = publication.approval.reviewedAt;
-        if (
-          typeof approvedAt !== "string" ||
-          !Number.isFinite(Date.parse(approvedAt)) ||
-          new Date(approvedAt).toISOString() !== approvedAt ||
-          Date.parse(approvedAt) > Date.parse(at) ||
-          Date.parse(approvedAt) < Date.parse(revision.createdAt)
-        )
-          throw unavailable();
-        // Evidence maxAge applies at approval; live revocation and authority still gate every read.
-        await publishArticle(proof, {
-          expectedRevision: revision.number,
-          binding: publication.approval.binding,
-          reviewerId: publication.approval.reviewerId,
-          context: { ...governance.context, at: approvedAt },
-        });
-        const [latestArticle, latestCollection, latestValidation] =
-          await Promise.all([
-            repository.readArticleVersioned(input.articleId),
-            repository.readCollectionVersioned(
-              publication.revision.collectionId,
-            ),
-            repository.readValidationPolicyVersioned(
-              governance.context.validationPolicy.id,
-            ),
-          ]);
-        if (
-          !hasPermission(access, knowledgePermissions.articleRead) ||
-          latestArticle === null ||
-          latestArticle.value.generation !== current.generation ||
-          latestCollection === null ||
-          latestCollection.value.generation !==
-            governance.governanceGeneration ||
-          latestValidation === null ||
-          latestValidation.value.generation !== governance.validationGeneration
-        )
-          throw unavailable();
-        if (
-          portal.audience.kind === "permission" &&
-          !hasPermission(access, portal.audience.permission)
-        )
-          throw unavailable();
-        return snapshotData({
-          articleId: current.article.id,
-          collectionId: revision.collectionId,
-          revision: revision.number,
-          kind: revision.kind,
-          title: revision.title,
-          summary: revision.summary,
-          content: revision.content,
-          tags: revision.tags,
-          applicability: revision.applicability,
-          contentHash: revision.contentHash,
-        });
-      } catch (error) {
-        if (
-          error instanceof KnowledgeBaseError ||
-          error instanceof KnowledgeBaseNotFoundError ||
-          error instanceof KnowledgeBasePrerequisiteError ||
-          error instanceof RepositoryCapacityError ||
-          error instanceof RepositoryConflictError ||
-          error instanceof RepositoryIntegrityError
-        )
-          throw unavailable();
-        throw error;
-      }
+      const checked = await publications.check({
+        access,
+        articleId: input.articleId,
+        purpose: "portal",
+      });
+      return checked.article;
     },
   };
 }

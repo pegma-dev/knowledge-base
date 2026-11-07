@@ -6,17 +6,17 @@ Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
 > Development status: KB-01 provides contracts and pure domain transitions;
-> KB-02 adds authorized application/persistence source. Its implementation and
-> repository gates determine completion. All three packages are unpublished.
-> Retrieval/search, API/MCP, and live customer/staff interfaces remain later
-> tasks. This repository is not yet an operational hosted KB or a production
-> dependency.
+> KB-02 adds authorized application/persistence source, and KB-03 extends that
+> application with bounded retrieval and repair. Implementation and repository
+> gates determine completion. All three packages are unpublished. API/MCP and
+> live customer/staff interfaces remain later tasks. This repository is not yet
+> an operational hosted KB or a production dependency.
 
-| Package                                                               | Scope                                                                                  |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [`@pegma/knowledge-base-contracts`](packages/contracts/README.md)     | Collection, article, evidence, and approval vocabulary                                 |
-| [`@pegma/knowledge-base-core`](packages/core/README.md)               | Pure validation and lifecycle transitions                                              |
-| [`@pegma/knowledge-base-application`](packages/application/README.md) | Authorized services, bounded declared persistence, private DTOs, and exact publication |
+| Package                                                               | Scope                                                                                   |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`@pegma/knowledge-base-contracts`](packages/contracts/README.md)     | Collection, article, evidence, and approval vocabulary                                  |
+| [`@pegma/knowledge-base-core`](packages/core/README.md)               | Pure validation and lifecycle transitions                                               |
+| [`@pegma/knowledge-base-application`](packages/application/README.md) | Authorized services, bounded persistence/retrieval, private DTOs, and exact publication |
 
 Collections default to private and independently specify portal and bot-answer
 audiences. Articles inherit collection policy. Staff approval binds the exact
@@ -41,6 +41,13 @@ reject stale authority; no cross-partition policy transaction is promised.
 Read [declared collections](docs/COLLECTIONS.md) and
 [host composition](docs/HOST_COMPOSITION.md) for the layout, limits, verifier
 contract, and safe read boundaries.
+
+KB-03 adds deterministic lexical retrieval over a bounded, repairable
+projection. Hints are confirmed against current authoritative publication,
+audience, applicability, and source eligibility before disclosure. Portal and
+bot-answer uses have separate safe citations; bot-only knowledge does not
+grant an article browse capability. Read [retrieval](docs/RETRIEVAL.md) for
+physical work/source budgets, whole-article token accounting, and repair.
 
 Develop on Node 22 or 24 with pnpm 10.34.5:
 
