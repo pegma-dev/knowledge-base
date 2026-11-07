@@ -10,11 +10,14 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   validation/evidence bindings, approval, publication, and retirement.
 - KB-01 owns pure domain work. KB-02 adds declared persistence and authorized
   application services. KB-03 extends the application with bounded retrieval,
-  authoritative confirmation, and repair; it adds no package. API/MCP and live
-  host interfaces remain later tasks; do not create their packages early.
+  authoritative confirmation, and repair; it adds no package. KB-04 adds the
+  optional `@pegma/knowledge-base-mcp` package for the shared five-operation
+  dispatcher, versioned HTTP contract, and MCP transport. Live host interfaces
+  remain host work; do not create later packages early.
 - Independent partial KB-05 source preparation adds local D1 conformance and
   a public synthetic composition. It does not complete KB-04 credentials or
-  the full KB-05 release/publication task. All three packages remain unpublished.
+  the full KB-05 release/publication task. KB-04 source is in progress; all four
+  packages remain unpublished at synchronized version `0.1.0`.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -44,7 +47,20 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   count, content, or citation. Whole source serialization uses the trusted local
   token counter; do not truncate article procedures into partial steps.
 - Base packages require no Support Desk, GitHub, model, framework, HTTP, or
-  provider SDK. Evidence is data; never execute code or fetch submitted URLs.
+  provider SDK. Only the optional MCP package depends on the official MCP SDK
+  and Zod. Evidence is data; never execute code or fetch submitted URLs.
+- Initial agent access exposes exactly `getDraft`, `createDraft`, `updateDraft`,
+  `getValidationRequirements`, and `submitEvidence`. Reuse `knowledgePermissions`
+  draft-read/write/evidence-submit values as scopes; requirements need
+  `draftWrite` or `evidenceSubmit`, never `draftRead` or `validationManage` alone.
+  Agent credentials grant no staff/Admin role, collection/evidence/provenance
+  reads, review, publication, policy administration, or grant management.
+- The host composes Agent Access with its existing human login and current
+  Admin-only consent. Device linking uses RFC 8628; authorization-code linking
+  requires S256 PKCE. Initial authoring consent is app-instance-wide;
+  collection-specific delegation is a future host seam. New capabilities need
+  explicit scope registration, policy, and fresh consent. KB owns no credential
+  issuer, login, role model, or request limiter.
 - Constrain content and links; host renderers must disable executable content
   and raw HTML. Staff evidence/provenance never enters customer or bot DTOs.
 - Use fictional fixtures only. Commercial host internals, credentials, customer
@@ -60,9 +76,11 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
 ## Workflow
 
 Work on a `claude/*` branch and open a PR. Required checks are
-`pnpm run format:check`, `pnpm run check`, `pnpm test`, `pnpm example`, and
-`pnpm run release:check`, on Node 22 and 24. Run the applicable review/security
-checks for the current head. Do not bypass pending, skipped, or failing gates.
+`pnpm run format:check`, `pnpm run check`, `pnpm test`, `pnpm example`,
+`pnpm run release:check`, and `pnpm run agent:proof`, on Node 22 and 24.
+Require a clean current-head OpenRouter review with zero actionable findings
+and the applicable current-head security checks. Do not bypass pending,
+skipped, or failing gates.
 Repository development and the TypeScript example require Node 22.6.0+ or 24.
 The root engine floor covers the example's `--experimental-strip-types` flag;
 published package engines remain `>=22`, and CI tracks current Node 22/24.
@@ -71,6 +89,12 @@ Each published package needs its own README and MIT LICENSE, a build-on-prepack
 script, and compiled-test exclusion. Merging source does not publish packages.
 See [release operations](docs/RELEASING.md); first publication and external
 trusted-publisher configuration are separate maintainer operations.
+The protocol proof may build the reviewed, pinned public AUTH-01 source in an
+isolated temporary consumer with all four KB tarballs and the official SDK.
+That test-only exception never authorizes an unpublished production dependency.
+Agent Access publication and KB-05 publication both precede real host assembly.
+Keep actual existing-login/Admin-consent and every requested client/mode proof
+open in P-00 and PG-01/RG-01 until both hosts record them before activation.
 
 ## Reading order
 
@@ -82,5 +106,8 @@ durable operations and [host composition](docs/HOST_COMPOSITION.md) before
 changing authorization, verifier, replay, or DTO boundaries.
 For KB-03, read [retrieval](docs/RETRIEVAL.md) and the declared projection
 layout before changing query work, citations, or repair.
+For KB-04, read the [agent API](docs/AGENT_API.md) and
+[agent workflow](docs/AGENT_WORKFLOW.md) before changing transport, credential,
+client, or evidence-proof boundaries.
 For partial KB-05, read [source preparation](docs/SOURCE_PREPARATION.md) before
 changing local D1 fixtures, synthetic composition, or release-readiness claims.

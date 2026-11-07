@@ -5,20 +5,22 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status: KB-01 provides contracts and pure domain transitions;
-> KB-02 adds authorized application/persistence source, and KB-03 extends that
-> application with bounded retrieval and repair. Implementation and repository
-> gates determine source evidence. Independent partial KB-05 preparation adds
-> local D1 conformance and a public synthetic example. KB-04 credentials and the
-> full KB-05 release task remain unfinished. All three packages are unpublished
-> at `0.1.0`. API/MCP and live customer/staff interfaces remain later tasks. This
-> repository is not yet an operational hosted KB or a production dependency.
+> Development status: KB-01 through KB-03 provide contracts, pure domain
+> transitions, authorized application/persistence, and bounded retrieval/repair.
+> Independent partial KB-05 preparation adds local D1 conformance and a public
+> synthetic example. KB-04 source work adds the optional five-operation HTTP/MCP
+> adapter and authenticated protocol proof; it is in progress until current-head
+> gates and review pass. All four packages are unpublished at `0.1.0`.
+> KB-05 publication and actual two-host existing-login/client acceptance remain
+> separate gates. This repository is not an operational hosted KB or a
+> production dependency.
 
 | Package                                                               | Scope                                                                                   |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | [`@pegma/knowledge-base-contracts`](packages/contracts/README.md)     | Collection, article, evidence, and approval vocabulary                                  |
 | [`@pegma/knowledge-base-core`](packages/core/README.md)               | Pure validation and lifecycle transitions                                               |
 | [`@pegma/knowledge-base-application`](packages/application/README.md) | Authorized services, bounded persistence/retrieval, private DTOs, and exact publication |
+| [`@pegma/knowledge-base-mcp`](packages/mcp/README.md)                 | Optional bounded agent dispatcher, versioned HTTP API, and MCP adapter                  |
 
 Collections default to private and independently specify portal and bot-answer
 audiences. Articles inherit collection policy. Staff approval binds the exact
@@ -26,14 +28,28 @@ revision, content, collection policy, applicability, validation requirements,
 and evidence. A revised guide requires fresh review; prior publication never
 authorizes edited content.
 
-Core transitions accept explicit inputs and return new values. They do not
-authenticate a runner or staff member, enforce host roles, fetch evidence URLs,
-or execute guide steps. The application enforces current named permissions
-and resource checks; hosts authenticate scoped access contexts and trusted
-evidence/source facts. Private draft, evidence, provenance, and review reads
-have separate DTOs. The keyed published read returns portal-safe content only.
-Local agents will test guides against authorized staging and submit evidence
-through the later API/MCP adapter.
+Core transitions accept explicit inputs and return new values. The application
+enforces current named permissions and resource checks; hosts authenticate
+access contexts and evidence/source facts. Private draft, evidence, provenance,
+and review reads have separate DTOs. The keyed published read returns
+portal-safe content only. The three base packages remain independent of HTTP,
+MCP, and provider SDKs.
+
+The optional adapter exposes exactly `getDraft`, `createDraft`, `updateDraft`,
+`getValidationRequirements`, and `submitEvidence` over the same application.
+Its scopes reuse `knowledgePermissions.draftRead`, `draftWrite`, and
+`evidenceSubmit`; validation requirements need write or evidence-submit
+authority. Agents receive no Admin/staff role, collection or evidence reads,
+private provenance, review, publication, policy, or grant-management operations.
+Read the [agent API](docs/AGENT_API.md) for the exact contract and
+[agent workflow](docs/AGENT_WORKFLOW.md) for linking and draft/test/evidence use.
+
+Hosts compose the separate [Agent Access](https://github.com/pegma-dev/agent-access)
+producer with their existing human login and current Admin consent. AUTH-01's
+[merged source](https://github.com/pegma-dev/agent-access/pull/1) supplies the
+source prerequisite; publication remains separate. Initial authoring grants are
+app-instance-wide. Collection-specific delegation is a future host seam.
+The KB does not issue credentials or implement login, roles, or a limiter.
 
 KB-02 stores normalized heads and bounded immutable history with same-partition
 CAS, Audit, replay receipts, and causal jobs. Application generation is separate
@@ -54,9 +70,12 @@ physical work/source budgets, whole-article token accounting, and repair.
 Partial [source preparation](docs/SOURCE_PREPARATION.md) runs shared public KB
 conformance against memory, local Azurite, and real local Miniflare D1 through
 the released D1 adapter. The [synthetic composition](examples/composition/README.md)
-demonstrates the public author/test/review/publish/retrieve flow with fictional
-trust inputs. Local emulators and that example establish neither live Workers
-deployment nor scoped API/MCP credentials, publication, or host acceptance.
+demonstrates author/test/review/publish/retrieve with fictional trust inputs.
+The separate `agent:proof` gate composes reviewed pinned AUTH-01 source and all
+four packed KB artifacts in a temporary consumer with the official MCP SDK
+`1.32.2`, exercising OAuth, the five tools, evidence binding, and HTTP/MCP parity.
+Current-head results establish execution; these proofs establish neither actual
+requested-client compatibility nor either real host's login/staging acceptance.
 
 Develop on Node 22.6.0+ or 24 with pnpm 10.34.5:
 
@@ -67,25 +86,33 @@ pnpm run check
 pnpm test
 pnpm example
 pnpm run release:check
+pnpm run agent:proof
 ```
 
-The npm and pnpm workspace declarations deliberately name the same source
+The npm and pnpm workspace declarations deliberately name the same four source
 packages: pnpm links them for development, while npm supplies artifact packing.
-The release check installs all three tarballs in a consumer outside either workspace
-to verify dependency resolution without source links.
+The release check installs all four tarballs in a consumer outside either
+workspace to verify dependency resolution without source links. The Agent
+Access source fixture is confined to the temporary protocol-proof consumer;
+production hosts must consume exact published Agent Access and KB versions.
 Frozen installation permits the pinned native `workerd` install script only;
 test workers/timeouts and per-factory D1 disposal remain bounded.
 
 The [approved enhancement plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
 defines KB-01 through KB-05 and the later Support Desk/host integrations.
 Its [P-00 handoff](https://github.com/pegma-dev/support-desk/pull/33) records
-source/registry baselines, synthetic acceptance cases, and open activation
-prerequisites. These two launch hosts use separate stores and policies; the
-packages do not introduce a shared tenant control plane.
+frozen baselines and activation prerequisites; the
+[source/publication clarification](https://github.com/pegma-dev/support-desk/pull/36)
+retains actual two-host acceptance in PG-01/RG-01 before activation and pilots.
+Codex, Claude Code, Grok Bot's desktop hosted agent, and T3 Code's Codex-provider
+mode each need real recorded runs on both hosts. SDK proof cannot close those
+gates. The two hosts keep separate stores and policies without a shared control
+plane.
 
 Read [AGENTS.md](AGENTS.md) before changing code and
 [release operations](docs/RELEASING.md) before preparing artifacts. Merging
-source does not publish a package. Each new npm name needs the maintainer's
-first publication and trusted-publisher setup before hosts can consume it.
+source does not publish a package. Each of the four npm names needs the
+maintainer's first publication and its own trusted-publisher setup before host
+consumption; Agent Access follows its separate release process.
 
 Built in the open by RetireGolden, LLC.

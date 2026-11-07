@@ -17,9 +17,30 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const packages = [
-  { directory: "contracts", name: "@pegma/knowledge-base-contracts" },
-  { directory: "core", name: "@pegma/knowledge-base-core" },
-  { directory: "application", name: "@pegma/knowledge-base-application" },
+  {
+    directory: "contracts",
+    name: "@pegma/knowledge-base-contracts",
+    runtimeExport: "knowledgePermissions",
+    runtimeExportType: "object",
+  },
+  {
+    directory: "core",
+    name: "@pegma/knowledge-base-core",
+    runtimeExport: "createArticle",
+    runtimeExportType: "function",
+  },
+  {
+    directory: "application",
+    name: "@pegma/knowledge-base-application",
+    runtimeExport: "createKnowledgeBaseApplication",
+    runtimeExportType: "function",
+  },
+  {
+    directory: "mcp",
+    name: "@pegma/knowledge-base-mcp",
+    runtimeExport: "createKnowledgeAgentDispatcher",
+    runtimeExportType: "function",
+  },
 ];
 const stableVersion = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u;
 
@@ -105,18 +126,28 @@ async function validatePackages() {
     });
     assert.deepEqual(
       manifest.dependencies,
-      specification.directory === "application"
+      specification.directory === "mcp"
         ? {
-            "@pegma/audit": "0.2.0",
+            "@cfworker/json-schema": "4.1.6",
+            "@modelcontextprotocol/sdk": "1.32.2",
             "@pegma/authorization-core": "0.4.0",
+            "@pegma/knowledge-base-application": manifest.version,
             "@pegma/knowledge-base-contracts": manifest.version,
             "@pegma/knowledge-base-core": manifest.version,
-            "@pegma/spine": "0.1.2",
-            "@pegma/storage-core": "0.4.0",
+            zod: "4.6.7",
           }
-        : specification.directory === "core"
-          ? { "@pegma/knowledge-base-contracts": manifest.version }
-          : { "@pegma/spine": "0.1.2" },
+        : specification.directory === "application"
+          ? {
+              "@pegma/audit": "0.2.0",
+              "@pegma/authorization-core": "0.4.0",
+              "@pegma/knowledge-base-contracts": manifest.version,
+              "@pegma/knowledge-base-core": manifest.version,
+              "@pegma/spine": "0.1.2",
+              "@pegma/storage-core": "0.4.0",
+            }
+          : specification.directory === "core"
+            ? { "@pegma/knowledge-base-contracts": manifest.version }
+            : { "@pegma/spine": "0.1.2" },
     );
     for (const document of ["README.md", "LICENSE"]) {
       const content = await readFile(join(directory, document), "utf8");
@@ -250,9 +281,13 @@ async function prepare(mode) {
       [
         "--input-type=module",
         "--eval",
-        packages
-          .map(({ name }) => `await import(${JSON.stringify(name)});`)
-          .join("\n"),
+        [
+          'import assert from "node:assert/strict";',
+          ...packages.map(
+            ({ name, runtimeExport, runtimeExportType }, index) =>
+              `const package${index} = await import(${JSON.stringify(name)});\nassert.equal(typeof package${index}[${JSON.stringify(runtimeExport)}], ${JSON.stringify(runtimeExportType)});`,
+          ),
+        ].join("\n"),
       ],
       consumer,
       env,

@@ -2,17 +2,27 @@
 
 ## Source status
 
-`@pegma/knowledge-base-contracts`, `@pegma/knowledge-base-core`, and
-`@pegma/knowledge-base-application` are prepared at synchronized source version
-`0.1.0`. All three package names are unpublished. KB-01 through KB-03 establish
-domain, authorized application, and bounded retrieval source plus packaging
-checks; their repository gates determine task completion. They do not publish, create tags/releases,
-configure credentials, or enable a publish workflow.
+`@pegma/knowledge-base-contracts`, `@pegma/knowledge-base-core`,
+`@pegma/knowledge-base-application`, and `@pegma/knowledge-base-mcp` use
+synchronized source version `0.1.0`. All four package names are unpublished.
+KB-01 through KB-03 establish domain, authorized application, and bounded
+retrieval source. KB-04 adds the optional five-operation HTTP/MCP adapter and
+authenticated source protocol proof; this work remains in progress until its
+current-head gates and review pass. Source changes do not publish, create
+tags/releases, configure production credentials, or enable a publish workflow.
 
 Independent partial KB-05 [source preparation](SOURCE_PREPARATION.md) adds the
 local Miniflare D1 consumer fixture, shared three-backend conformance, and a
-public synthetic example. This is not completion of KB-04 or full KB-05. No
-package is added or published; all three remain unpublished at `0.1.0`.
+public synthetic example. That earlier slice added no package. KB-04 now adds
+the fourth package; full KB-05 publication remains pending.
+
+[AUTH-01 merged source](https://github.com/pegma-dev/agent-access/pull/1) is the
+KB-04 source prerequisite. `agent:proof` builds its reviewed public commit
+`a444e2113db98455b638b2ef8aa7c2faccb16b62` only in an isolated temporary
+consumer with all four KB tarballs and official MCP SDK `1.32.2`. This proves
+source protocol behavior when its current-head gate passes, without publishing
+Agent Access. Its first publication and trusted-publisher setup belong to its
+own release process, not this repository's four-package release.
 
 Hosts must wait for an exact public registry release. Git branches, copied
 source, local paths, and unpublished production tarballs are not substitutes.
@@ -31,9 +41,10 @@ pnpm run check
 pnpm test
 pnpm example
 pnpm run release:check
+pnpm run agent:proof
 ```
 
-`release:check` packs contracts, core, then application using npm. Each package's
+`release:check` packs contracts, core, application, then MCP using npm. Each package's
 `prepack` builds its own output, so a package cannot silently ship a stale
 distribution. The checker verifies:
 
@@ -45,8 +56,9 @@ distribution. The checker verifies:
   and JavaScript/declaration output and maps under `dist`, with compiled tests
   excluded and both entry-point files present;
 - the actual tarball bytes against npm's reported SHA-1 and SHA-512 integrity;
-- an isolated consumer installation of all three tarballs and successful ESM
-  imports of all three public packages.
+- an isolated consumer installation of all four tarballs and successful ESM
+  imports of all four public packages, including the optional adapter's SDK
+  dependency resolution.
 
 The consumer disables install scripts, audit, and funding requests and obtains
 released external dependencies from the public npm registry. It has no workspace
@@ -63,11 +75,20 @@ pnpm run release:pack
 ```
 
 This runs the same checks, then writes a new `.release/knowledge-base-*`
-directory containing the three tarballs and `manifest.json` with their inventory
+directory containing the four tarballs and `manifest.json` with their inventory
 and integrity values. Existing artifact directories are preserved. These files
 are local preparation artifacts, not proof of a released version or provenance.
 The checker does not verify a source tag, main ancestry, registry publication,
 or trusted-publisher configuration. Those are release prerequisites below.
+
+`agent:proof` is a separate gate from artifact inventory/import checks. It uses
+the real Agent Access implementation and official SDK against a test-only
+synthetic composition for OAuth, the five draft/evidence operations, HTTP/MCP
+parity, and rejected credential/evidence cases. It establishes neither actual
+requested-client compatibility nor real existing-login/host staging acceptance.
+Both source gates and the synthetic composition run on Node 22 and 24, with a
+clean current-head OpenRouter review containing zero actionable findings and
+the applicable security checks before source exit.
 
 ## Maintainer prerequisites before first publication
 
@@ -76,12 +97,14 @@ Recheck npm's current [trusted-publishing guidance](https://docs.npmjs.com/trust
 when implementing the release workflow; this checklist records the Pegma
 release procedure, not proof that external publisher settings exist.
 
-- [ ] Confirm package-name ownership and organization publishing permissions.
+- [ ] Confirm ownership and organization publishing permissions for all four
+      package names.
 - [ ] Complete KB-05's advertised package/adapter and dual-store release
       criteria. Partial source preparation supplies a real local D1 consumer
-      fixture and synthetic composition subject to current-head gates. It does
-      not establish KB-04's authenticated real-client flow, live Workers/host
-      acceptance, or complete package/bootstrap/publication readiness.
+      fixture and synthetic composition subject to current-head gates. KB-04
+      must close its separate source exit with actual-SDK synthetic transport
+      proof. Actual requested-client/existing-login/host acceptance remains a
+      later PG-01/RG-01 activation gate; no source run can close it.
       Do not publish empty packages.
 - [ ] Merge reviewed release source and exact version/pin changes to protected
       `origin/main`; require every current-head review, test, build, security,
@@ -89,11 +112,12 @@ release procedure, not proof that external publisher settings exist.
 - [ ] Configure protection for immutable `v*` tags and approved release signers.
 - [ ] Prepare and verify the exact artifacts from a protected signed annotated
       `vX.Y.Z` tag whose commit is already on `origin/main`.
-- [ ] The maintainer performs the new package names' one-time manual 2FA
-      publication of those exact verified tarballs. Choose and document the
+- [ ] The maintainer performs each of the four new package names' one-time
+      manual 2FA publication of those exact verified tarballs. Choose and document the
       bootstrap/first advertised release procedure before this operation.
-- [ ] Configure npm trusted publishers for this repository, the reviewed future
-      publish workflow, and its protected publishing environment.
+- [ ] Separately configure an npm trusted publisher for each of the four package
+      names, this repository's reviewed future publish workflow, and its
+      protected publishing environment.
 - [ ] Establish the future workflow: unprivileged signature/main/gate/pack
       preparation, followed by a minimal environment-approved OIDC publish job
       receiving only the exact prepared artifacts.
@@ -107,3 +131,11 @@ annotated tag and trusted-publisher path, preserve published version immutabilit
 and recover partial publication by verifying identical existing artifacts rather
 than overwriting a version. Define that workflow in the release task before
 enabling publication.
+
+Before real host assembly, verify both the exact KB release set and the
+separately published Agent Access dependency. Preserve P-00 and PG-01/RG-01's
+actual existing-login/current-Admin consent, every requested client/mode,
+host-attested staging evidence, and failure-case acceptance until both hosts
+record it. Those gates, staff review/publication, privacy, isolation, bounded
+work, and full human workflows remain required before activation, A-01, and
+either supervised pilot. No release artifact alone proves host readiness.

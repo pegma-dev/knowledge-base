@@ -45,3 +45,5 @@ jobs:
         run: pnpm example
       - name: Check package artifacts
         run: pnpm run release:check
+      - name: Prove authenticated agent protocol
+        run: pnpm run agent:proof

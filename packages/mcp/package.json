@@ -1,0 +1,45 @@
+{
+  "name": "@pegma/knowledge-base-mcp",
+  "version": "0.1.0",
+  "description": "Optional MCP transport for authorized Pegma knowledge authoring and validation.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist/**/*.d.ts",
+    "dist/**/*.d.ts.map",
+    "dist/**/*.js",
+    "dist/**/*.js.map"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pegma-dev/knowledge-base.git",
+    "directory": "packages/mcp"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "4.1.6",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@pegma/authorization-core": "0.4.0",
+    "@pegma/knowledge-base-application": "0.1.0",
+    "@pegma/knowledge-base-contracts": "0.1.0",
+    "@pegma/knowledge-base-core": "0.1.0",
+    "zod": "4.6.7"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm run --silent build"
+  }
+}

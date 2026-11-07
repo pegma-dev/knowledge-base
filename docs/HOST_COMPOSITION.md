@@ -2,11 +2,13 @@
 
 ## Status and ownership
 
-This documents the agreed KB-02/KB-03 source API and host boundary. Implementation
-and repository gates determine task completion; this document does not assert
-that either real host is ready. The unpublished application composes
-contracts/core with host-supplied Storage Core and Authorization Core. It is
-not an HTTP server, an identity system, or an operational MCP endpoint.
+This documents the KB-02/KB-03 application and KB-04 transport host boundaries.
+KB-04 source is in progress until current-head gates and review pass; neither
+real host is ready on that evidence alone. The unpublished application composes
+contracts/core with host-supplied Storage Core and Authorization Core. The
+optional `@pegma/knowledge-base-mcp` package supplies bounded HTTP/MCP adapters
+over that application. All four KB packages are unpublished at `0.1.0`.
+No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
 
@@ -18,7 +20,12 @@ fixture passes a real Miniflare binding directly to the released
 It is local consumer evidence, not a deployed Workers binding or production
 acceptance. The example's resolved contexts and receipt registry stand in for
 trusted host facts; they authenticate no real browser, agent, or staging run.
-KB-04's credential/client flow and full KB-05 publication remain unfinished.
+AUTH-01's [merged public source](https://github.com/pegma-dev/agent-access/pull/1)
+provides KB-04's credential producer prerequisite. The separate `agent:proof`
+gate uses that reviewed pinned source only in a temporary consumer with the
+four KB tarballs and official SDK `1.32.2`. It tests the synthetic OAuth and
+draft/evidence transport loop. Actual existing-login/client acceptance on both
+hosts, Agent Access publication, and full KB-05 publication remain separate.
 
 The host owns identity verification, scoped local-agent credentials, current
 authorization resolution, browser/transport protections, store construction,
@@ -43,14 +50,36 @@ the host's identity or policy system during an in-flight call. Resolve access
 anew for each call/replay and bound operation duration and authority freshness
 to the host's required revocation behavior.
 
-API/MCP author credentials initially permit draft authoring and evidence
-submission. They do not acquire review/publication or collection-management
-authority by declaring a runner, reviewer, attester, or permission string.
-Hosts map named KB permissions into existing policy and role administration;
-the KB does not issue credentials, create roles, parse cookies, or implement
-OAuth. Existing public catalog MCP connectivity is not private authoring
-authentication. The live credential/protected-resource proofs remain
-KB-04/host activation prerequisites.
+Compose Agent Access through the adapter's host authentication port. It owns
+credential issuance, expiry, refresh, replay handling, and revocation; the KB
+transport consumes its authenticated restricted identity. The host validates
+issuer, exact protected resource/audience, registered client, and current
+principal/permission authority for each call. It also owns protected-resource
+discovery, browser-route protections, origin/CORS configuration, and durable
+request admission through its existing limiter. Public catalog MCP connectivity
+does not authenticate private authoring.
+
+Linking uses the host's existing human login and current Admin-only consent.
+The device flow follows RFC 8628, including user code, polling interval, and
+`slow_down`; the authorization-code flow requires S256 PKCE. Agents receive
+neither a browser session nor the consenting Admin's role. A bearer cannot
+link, approve, or manage grants. Initial consent is app-instance-wide authoring;
+per-collection delegated consent remains a future host seam, while current KB
+collection/resource checks continue to apply.
+
+Register only `knowledge.article.draft.read`, `knowledge.article.draft.write`,
+and `knowledge.article.evidence.submit`, using the existing `knowledgePermissions`
+values. The dispatcher intersects consented known scopes with current permission
+authority and strips roles, entitlements, and other permissions. It exposes
+exactly `getDraft`, `createDraft`, `updateDraft`, `getValidationRequirements`,
+and `submitEvidence`. Validation requirements need `draftWrite` or
+`evidenceSubmit`; `draftRead` or `validationManage` alone is insufficient.
+There are no collection/evidence/provenance reads, review/publication,
+administration, or grant-management tools. New capabilities require explicit
+scope registration, host policy, and fresh consent; adding a tool never silently
+widens an existing grant. The KB does not issue credentials, create roles,
+parse login cookies, implement OAuth, or supply a request limiter.
+See the [agent API](AGENT_API.md) and [agent workflow](AGENT_WORKFLOW.md).
 
 For each operation, check its named permission and current resource scope.
 An article's collection is authoritative data loaded by the application, not
@@ -300,7 +329,14 @@ Hosts remain responsible for authorized evidence downloads, retention/deletion,
 backup/recovery, blob orphan cleanup, safe Markdown/plain-text rendering,
 rate limits, and worker scheduling/checkpoints. Signed-in web/API integration
 and a supervised deployment require their own task evidence. Passing local
-application tests does not establish MCP authentication,
-provider ZDR configuration, either real host, or production readiness.
+application tests does not establish live MCP authentication,
+provider ZDR configuration, either real host, or production readiness. The
+synthetic actual-SDK proof closes only its source protocol evidence when gates
+pass. PG-01/RG-01 must consume exact published Agent Access and KB dependencies,
+then record existing-login/current-Admin consent and every requested client/mode
+against each host's real staging evidence attester before activation. Keep this
+acceptance open in P-00 and the parent plan; source proof does not waive staff
+review/publication, privacy, isolation, bounded work, or full human-workflow
+acceptance before A-01 and either pilot.
 
 Built in the open by RetireGolden, LLC.
