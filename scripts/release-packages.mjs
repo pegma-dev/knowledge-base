@@ -283,10 +283,77 @@ async function prepare(mode) {
         "--eval",
         [
           'import assert from "node:assert/strict";',
+          'import { readFile } from "node:fs/promises";',
+          'import { createMemoryStore } from "@pegma/storage-core";',
+          'import { createKnowledgeBaseApplication } from "@pegma/knowledge-base-application";',
+          'import { createKnowledgeAgentDispatcher, createKnowledgeAgentMcp } from "@pegma/knowledge-base-mcp";',
           ...packages.map(
             ({ name, runtimeExport, runtimeExportType }, index) =>
               `const package${index} = await import(${JSON.stringify(name)});\nassert.equal(typeof package${index}[${JSON.stringify(runtimeExport)}], ${JSON.stringify(runtimeExportType)});`,
           ),
+          `
+const mcpManifest = JSON.parse(await readFile(
+  new URL("../package.json", import.meta.resolve("@pegma/knowledge-base-mcp")),
+  "utf8",
+));
+const resource = "https://knowledge-artifact.example/mcp";
+const application = createKnowledgeBaseApplication({
+  store: createMemoryStore(),
+  clock: { now: () => "2026-11-07T12:00:00.000Z" },
+});
+const dispatcher = createKnowledgeAgentDispatcher({ application, resource });
+const identity = {
+  clientId: "synthetic-artifact-client",
+  resource,
+  scopes: [],
+  access: {
+    principalId: "synthetic/artifact-principal",
+    policyVersion: "synthetic-artifact-policy-1",
+    roles: [],
+    entitlements: [],
+    permissions: [],
+  },
+};
+const mcp = createKnowledgeAgentMcp({
+  dispatcher,
+  resource,
+  mcpUrl: resource,
+  protectedResourceMetadataUrl:
+    "https://knowledge-artifact.example/.well-known/oauth-protected-resource/mcp",
+  allowedOrigins: [],
+  limit: () => true,
+  authenticate(request) {
+    assert.equal(request.headers.get("Authorization"), "Bearer synthetic-artifact-smoke");
+    return identity;
+  },
+});
+const initialized = await mcp.handle(new Request(resource, {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer synthetic-artifact-smoke",
+    "Content-Type": "application/json",
+    Accept: "application/json, text/event-stream",
+  },
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: {
+      protocolVersion: "2025-11-25",
+      capabilities: {},
+      clientInfo: { name: "knowledge-base-artifact-smoke", version: "1.0.0" },
+    },
+  }),
+}));
+assert.ok(initialized instanceof Response);
+assert.equal(initialized.status, 200);
+const initializedBody = await initialized.json();
+assert.equal(initializedBody.jsonrpc, "2.0");
+assert.equal(initializedBody.id, 1);
+assert.equal(initializedBody.error, undefined);
+assert.equal(initializedBody.result.serverInfo.name, mcpManifest.name);
+assert.equal(initializedBody.result.serverInfo.version, mcpManifest.version);
+`,
         ].join("\n"),
       ],
       consumer,
@@ -306,7 +373,7 @@ async function prepare(mode) {
       console.log(`Prepared verified artifacts in ${destination}`);
     }
     console.log(
-      `Verified packaging and clean-consumer imports for ${artifacts.length} packages.`,
+      `Verified packaging and clean-consumer imports for ${artifacts.length} packages, including MCP server metadata.`,
     );
   } finally {
     const cleanup = await realpath(temporary);

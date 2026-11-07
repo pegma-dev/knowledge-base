@@ -1,4 +1,4 @@
-import type { KnowledgeAgentIdentity } from "./types.js";
+import type { KnowledgeAgentIdentity, KnowledgeAgentLimits } from "./types.js";
 import { KnowledgeAgentBoundaryError } from "./errors.js";
 import { parseKnowledgeAgentJson } from "./schemas.js";
 
@@ -451,8 +451,9 @@ export async function authorizeKnowledgeAgentRequest(
 /** Read actual bytes/chunks before decoding or parsing; never trust Length alone. */
 export async function readKnowledgeAgentJsonRequest(
   request: Request,
-  maxBytes: number,
+  limits: KnowledgeAgentLimits,
 ): Promise<{ readonly value: unknown } | Response> {
+  const maxBytes = limits.maxRequestBytes;
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
     return rawTransportError("unavailable");
   const contentType = request.headers.get("Content-Type") ?? "";
@@ -510,7 +511,7 @@ export async function readKnowledgeAgentJsonRequest(
       ignoreBOM: true,
     }).decode(body);
     return {
-      value: parseKnowledgeAgentJson(text, { maxRequestBytes: maxBytes }),
+      value: parseKnowledgeAgentJson(text, limits),
     };
   } catch (error) {
     if (

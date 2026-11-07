@@ -381,6 +381,218 @@ describe("KB agent least-authority security", () => {
 });
 
 describe("KB agent hostile request and transport boundary", () => {
+  it("authenticates and admits valid MCP notifications without dispatching domain commands", async () => {
+    const f = agentFixture(createMemoryStore());
+    await f.setupCollection();
+    const application = { ...f.app };
+    const serviceCalls = [
+      vi.spyOn(application, "getDraft"),
+      vi.spyOn(application, "createDraft"),
+      vi.spyOn(application, "updateDraft"),
+      vi.spyOn(application, "getValidationRequirements"),
+      vi.spyOn(application, "submitEvidence"),
+    ];
+    const dispatcher = createKnowledgeAgentDispatcher({
+      application,
+      resource: agentResource,
+    });
+    const mcp = createKnowledgeAgentMcp({
+      ...f.common,
+      dispatcher,
+      mcpUrl: agentResource,
+    });
+    const client = await f.sdk(mcp);
+    const before = await allKnowledgeRows(f.store);
+    f.authenticate.mockClear();
+    f.limit.mockClear();
+    f.responses.length = 0;
+    await client.notification({
+      method: "notifications/cancelled",
+      params: { requestId: 42, reason: "Synthetic operation was cancelled." },
+    });
+    expect(f.responses).toHaveLength(1);
+    expect(f.responses[0]!.status).toBe(202);
+    expect(await f.responses[0]!.text()).toBe("");
+    expect(f.authenticate).toHaveBeenCalledTimes(1);
+    expect(f.limit).toHaveBeenCalledTimes(1);
+
+    const notifications = [
+      {
+        jsonrpc: "2.0",
+        method: "notifications/synthetic-extension",
+        params: { requestId: 43 },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: {
+          name: knowledgeAgentToolNames.createDraft,
+          arguments: {
+            ...f.command("notification-must-not-create", 0),
+            articleId: "article/notification-must-not-exist",
+            collectionId: "collection/workshop",
+            draft: draft(),
+          },
+        },
+      },
+    ];
+    for (const notification of notifications) {
+      const admittedBefore = f.limit.mock.calls.length;
+      const authenticatedBefore = f.authenticate.mock.calls.length;
+      const response = await mcp.handle(
+        request(
+          JSON.stringify(notification),
+          { headers: { Accept: "application/json, text/event-stream" } },
+          agentResource,
+        ),
+      );
+      expect(response?.status).toBe(202);
+      expect(await response!.text()).toBe("");
+      expect(f.limit).toHaveBeenCalledTimes(admittedBefore + 1);
+      expect(f.authenticate).toHaveBeenCalledTimes(authenticatedBefore + 1);
+    }
+    const malformed = [
+      {
+        jsonrpc: "1.0",
+        method: "notifications/cancelled",
+        params: { requestId: 42 },
+      },
+      {
+        jsonrpc: "2.0",
+        method: "notifications/cancelled",
+        params: { requestId: {} },
+      },
+      { jsonrpc: "2.0", method: "notifications/cancelled", params: {} },
+    ];
+    for (const notification of malformed) {
+      const response = await mcp.handle(
+        request(
+          JSON.stringify(notification),
+          { headers: { Accept: "application/json, text/event-stream" } },
+          agentResource,
+        ),
+      );
+      expect(response?.status).toBe(400);
+      expect(JSON.stringify(await response!.json())).not.toContain(
+        "Synthetic operation",
+      );
+    }
+    for (const service of serviceCalls) expect(service).not.toHaveBeenCalled();
+    expect(await allKnowledgeRows(f.store)).toEqual(before);
+  });
+
+  it("enforces each reduced graph budget before parsing JSON on HTTP and MCP", async () => {
+    const cases = [
+      { limits: { maxDepth: 1 }, body: { child: { value: 0 } } },
+      { limits: { maxNodes: 3 }, body: [0, 1, 2, 3] },
+      { limits: { maxArrayLength: 2 }, body: [0, 1, 2] },
+      { limits: { maxObjectKeys: 2 }, body: { first: 0, second: 1, third: 2 } },
+    ];
+    for (const test of cases) {
+      const f = agentFixture(createMemoryStore(), test.limits);
+      const dispatch = vi.fn(f.dispatcher.dispatch);
+      const dispatcher = { ...f.dispatcher, dispatch };
+      const handlers = [
+        [
+          agentApiUrl,
+          createKnowledgeAgentHttp({
+            ...f.common,
+            dispatcher,
+            apiUrl: agentApiUrl,
+          }),
+        ],
+        [
+          agentResource,
+          createKnowledgeAgentMcp({
+            ...f.common,
+            dispatcher,
+            mcpUrl: agentResource,
+          }),
+        ],
+      ] as const;
+      const source = JSON.stringify(test.body);
+      for (const [url, handler] of handlers) {
+        const incoming = request(source, {}, url);
+        const parse = vi.spyOn(JSON, "parse");
+        let response: Response | null;
+        try {
+          response = await handler.handle(incoming);
+          // Filter by the exact caller body so unrelated runtime JSON activity
+          // cannot satisfy or invalidate the parse-order assertion.
+          expect(
+            parse.mock.calls.filter(([input]) => input === source),
+          ).toHaveLength(0);
+        } finally {
+          parse.mockRestore();
+        }
+        await error(response!, 413, "capacity");
+        expect(dispatch).not.toHaveBeenCalled();
+      }
+    }
+  });
+
+  it("accepts explicit IPv6 loopback configuration for synthetic HTTP and MCP hosts", () => {
+    const f = agentFixture(createMemoryStore());
+    const resource = "http://[::1]:19999/agent/mcp";
+    const dispatcher = createKnowledgeAgentDispatcher({
+      application: f.app,
+      resource,
+    });
+    const common = {
+      ...f.common,
+      dispatcher,
+      resource,
+      protectedResourceMetadataUrl:
+        "http://[::1]:19999/.well-known/oauth-protected-resource/agent/mcp",
+      allowedOrigins: ["http://[::1]:19999"],
+      allowInsecureLoopback: true,
+    };
+    expect(() =>
+      createKnowledgeAgentHttp({
+        ...common,
+        apiUrl: "http://[::1]:19999/agent/v1",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      createKnowledgeAgentMcp({ ...common, mcpUrl: resource }),
+    ).not.toThrow();
+  });
+
+  it("rejects a UTF-8 BOM instead of accepting otherwise valid HTTP and MCP messages", async () => {
+    const f = agentFixture(createMemoryStore());
+    await f.setupCollection();
+    await f.createDraft();
+    const messages = [
+      [agentApiUrl, f.http, read],
+      [
+        agentResource,
+        f.mcp,
+        {
+          jsonrpc: "2.0",
+          id: 73,
+          method: "tools/call",
+          params: {
+            name: knowledgeAgentToolNames.getDraft,
+            arguments: read.input,
+          },
+        },
+      ],
+    ] as const;
+    for (const [url, handler, message] of messages) {
+      const source = JSON.stringify(message);
+      const headers = { Accept: "application/json, text/event-stream" };
+      const accepted = await handler.handle(request(source, { headers }, url));
+      expect(accepted?.status).toBe(200);
+      await accepted!.body?.cancel();
+      const bytes = new TextEncoder().encode(`\ufeff${source}`);
+      await error(
+        await handler.handle(request(bytes, { headers }, url)),
+        400,
+        "invalid_request",
+      );
+    }
+  });
+
   it("requires host admission configuration and refuses insecure or ambiguous endpoint URLs", () => {
     const f = agentFixture(createMemoryStore());
     const options = { ...f.common, apiUrl: agentApiUrl };

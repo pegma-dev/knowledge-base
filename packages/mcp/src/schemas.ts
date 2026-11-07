@@ -361,7 +361,7 @@ export function snapshotKnowledgeAgentJson(
   return visit(value, 0);
 }
 
-/** Bound UTF-8 bytes, nesting, and parse work before invoking JSON.parse. */
+/** Bound UTF-8 bytes and every structural ceiling before invoking JSON.parse. */
 export function parseKnowledgeAgentJson(
   source: string,
   requested?: Partial<KnowledgeAgentLimits>,
@@ -375,7 +375,19 @@ export function parseKnowledgeAgentJson(
   ) {
     throw new KnowledgeAgentBoundaryError("capacity");
   }
-  let depth = 0;
+  type Frame =
+    | { kind: "array"; entries: number; expectsValue: boolean }
+    | { kind: "object"; keys: number };
+  const frames: Frame[] = [];
+  const beginValue = () => {
+    const frame = frames.at(-1);
+    if (frame?.kind === "array" && frame.expectsValue) {
+      frame.entries += 1;
+      frame.expectsValue = false;
+      if (frame.entries > limits.maxArrayLength)
+        throw new KnowledgeAgentBoundaryError("capacity");
+    }
+  };
   let nodes = 0;
   let quoted = false;
   let escaped = false;
@@ -388,23 +400,44 @@ export function parseKnowledgeAgentJson(
       continue;
     }
     if (character === '"') {
+      beginValue();
       quoted = true;
       primitive = false;
       nodes += 1;
     } else if (character === "{" || character === "[") {
-      depth += 1;
+      beginValue();
+      frames.push(
+        character === "["
+          ? { kind: "array", entries: 0, expectsValue: true }
+          : { kind: "object", keys: 0 },
+      );
       nodes += 1;
       primitive = false;
     } else if (character === "}" || character === "]") {
-      depth -= 1;
+      frames.pop();
       primitive = false;
-    } else if (/\s|[:,]/u.test(character)) {
+    } else if (character === ",") {
+      const frame = frames.at(-1);
+      if (frame?.kind === "array") frame.expectsValue = true;
+      primitive = false;
+    } else if (character === ":") {
+      // For valid JSON, each structural colon belongs to exactly one object
+      // key. Counting physical keys also bounds duplicate-key parse work.
+      const frame = frames.at(-1);
+      if (frame?.kind === "object") {
+        frame.keys += 1;
+        if (frame.keys > limits.maxObjectKeys)
+          throw new KnowledgeAgentBoundaryError("capacity");
+      }
+      primitive = false;
+    } else if (/\s/u.test(character)) {
       primitive = false;
     } else if (!primitive) {
+      beginValue();
       primitive = true;
       nodes += 1;
     }
-    if (depth > limits.maxDepth || nodes > limits.maxNodes)
+    if (frames.length > limits.maxDepth || nodes > limits.maxNodes)
       throw new KnowledgeAgentBoundaryError("capacity");
   }
   let parsed: unknown;

@@ -70,7 +70,7 @@ export function agentFixture(
   let client: Client | undefined;
   const requests: Request[] = [];
   const responses: Response[] = [];
-  async function sdk() {
+  async function sdk(handler = mcp) {
     if (client !== undefined) return client;
     const connected = new Client({ name: "synthetic-kb-agent", version: "1" });
     onTestFinished(() => connected.close());
@@ -83,7 +83,7 @@ export function agentFixture(
         fetch: async (input, init) => {
           const request = new Request(input, init);
           requests.push(request.clone());
-          const response = await mcp.handle(request);
+          const response = await handler.handle(request);
           if (response === null) throw new Error("MCP request was not routed");
           responses.push(response.clone());
           return response;

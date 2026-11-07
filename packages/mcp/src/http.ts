@@ -47,7 +47,7 @@ export function createKnowledgeAgentHttp(
         );
       const parsed = await readKnowledgeAgentJsonRequest(
         request,
-        dispatcher.limits.maxRequestBytes,
+        dispatcher.limits,
       );
       if (parsed instanceof Response)
         return secureKnowledgeAgentResponse(parsed, request, configuration);

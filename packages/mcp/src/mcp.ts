@@ -141,6 +141,29 @@ const methods = new Set([
   "tools/call",
   "notifications/initialized",
 ]);
+const cancelledParams = basicParams.extend({
+  requestId,
+  reason: z.string().max(1_024).optional(),
+});
+// Idless envelopes use only SDK notification handlers, even for a tool method.
+// Unknown notifications are ignored; cancellation is best-effort and stateless.
+const rpcNotification = z
+  .object({
+    jsonrpc: z.literal("2.0"),
+    method: z.string().min(1).max(128),
+    params: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict()
+  .refine((notification) => {
+    if (notification.method === "notifications/initialized")
+      return (
+        notification.params === undefined ||
+        basicParams.safeParse(notification.params).success
+      );
+    if (notification.method === "notifications/cancelled")
+      return cancelledParams.safeParse(notification.params).success;
+    return true;
+  });
 const rpcRequest = z.union([
   z
     .object({
@@ -177,13 +200,7 @@ const rpcRequest = z.union([
       }),
     })
     .strict(),
-  z
-    .object({
-      jsonrpc: z.literal("2.0"),
-      method: z.literal("notifications/initialized"),
-      params: basicParams.optional(),
-    })
-    .strict(),
+  rpcNotification,
 ]);
 
 const descriptions: Readonly<Record<KnowledgeAgentOperation, string>> = {
@@ -276,7 +293,7 @@ export function createKnowledgeAgentMcp(
         );
       const parsed = await readKnowledgeAgentJsonRequest(
         request,
-        dispatcher.limits.maxRequestBytes,
+        dispatcher.limits,
       );
       if (parsed instanceof Response)
         return secureKnowledgeAgentResponse(parsed, request, configuration);
@@ -352,7 +369,7 @@ export function createKnowledgeAgentMcp(
         });
         const bytes = await response.arrayBuffer();
         if (bytes.byteLength > wireBudget) {
-          if (rpc.method === "tools/call")
+          if ("id" in rpc && rpc.method === "tools/call")
             return json(
               {
                 jsonrpc: "2.0",

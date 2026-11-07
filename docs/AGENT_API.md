@@ -192,11 +192,13 @@ including a 200-character identifier at four UTF-8 bytes per character, two
 maximum safe integers, a SHA-256 digest, and fixed versioned-envelope framing.
 Smaller configurations fail before serving any operation, so a committed
 command and its exact historical replay always fit the admitted byte allowance.
-Oversized read results fail
-as a whole. Guides and procedures are never truncated into incomplete steps.
-The shared JSON parser checks raw UTF-8 bytes, nesting, and parse work before
-`JSON.parse`. Its schemas and parsing helpers remain internal; the public
-factories supply the shared boundary. The dispatcher checks object graph bounds before Zod and detaches
+Oversized read results fail as a whole. Guides and procedures are never
+truncated into incomplete steps. The shared JSON reader applies the complete
+configured byte, depth, node, per-array item, and per-object key ceilings before
+`JSON.parse`. Its bounded lexical scan respects quoted/escaped text and nested
+containers; `JSON.parse` remains responsible for JSON syntax. Schemas and
+parsing helpers remain internal; the public factories supply the shared
+boundary. The dispatcher checks object graph bounds before Zod and detaches
 and freezes input and effective authority before any application await. It
 rejects getters, custom prototypes, symbols, cycles, and sparse arrays rather
 than invoking coercion hooks. Zod validates transport shape; the application
