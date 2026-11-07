@@ -9,8 +9,13 @@ The release set is exactly these packages, in dependency order:
 3. `@pegma/knowledge-base-application`
 4. `@pegma/knowledge-base-mcp`
 
-As of **2026-11-07**, all four have synchronized source version `0.1.0` and
-remain unpublished. [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
+As of **2026-11-07T21:56:24Z**, all four `0.1.0` packages completed manual
+bootstrap with exact-byte postflight and no OIDC provenance. Source `0.1.1` is
+the candidate for the first advertised trusted release; it remains subject to
+review, current-head gates, publication, and strict registry/provenance
+verification. Package README source links target the expected `v0.1.1` release
+tag; that candidate tag and trusted release remain pending.
+[KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 and [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
 are merged. The separate earlier [partial KB-05 source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
 supplied local D1 conformance and public synthetic composition; PR #6 added
@@ -20,17 +25,28 @@ CI links, counts, review, and security receipts. Full KB-05 publication remains
 open.
 Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
-packages. Follow the [maintainer bootstrap handoff](BOOTSTRAP.md) for first use.
+packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
+manual commands/stdout, exact identities, preparation runs/artifacts, and
+independently retained digests. The four KB packages' `latest` tags still
+resolve to `0.1.0` despite bootstrap tagging. A verified KB `0.1.1` release is
+intended to advance them. An earlier attempt to delete Agent Access's `latest`
+tag returned HTTP 400 before its `0.1.1` release. Agent Access
+now has `latest: 0.1.1` and `bootstrap: 0.1.0`. This is not approval to consume
+the KB bootstrap.
 
-[Agent Access](https://github.com/pegma-dev/agent-access/pull/1) is a separate
-release. Its reviewed commit `a444e2113db98455b638b2ef8aa7c2faccb16b62` is built
-only in `agent:proof`'s isolated test consumer with the four KB tarballs and
-official MCP SDK `1.32.2`. Its separate
-[release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
-is also merged; [source preparation](SOURCE_PREPARATION.md) records its
-reviewed-head CI and merge identity. It remains unpublished at `0.1.0`; that release-only merge
-does not replace the protocol fixture's original implementation pin.
-Production hosts require exact published versions of both components.
+[Agent Access](https://github.com/pegma-dev/agent-access) is a separate release.
+Its `0.1.1` trusted publication and strict registry verification completed at
+**2026-11-07T22:32:42Z** for signed source
+`ffe4d8616632ce9d057caaf65124746f03d4d349`. The
+[verified prerequisite receipt](BOOTSTRAP.md#verified-agent-access-prerequisite)
+retains its exact artifact/digest, successful attempt-2 workflow, and unprivileged
+verification job. That public producer prerequisite is closed.
+The active `agent:proof` installs exact registry `@pegma/agent-access@0.1.1`
+with four packed KB artifacts and official MCP SDK `1.32.2` in a fresh consumer.
+The KB candidate still needs its own current-head gates, review, PR, publication,
+and strict verification; historical source-proof results do not validate this
+changed composition. Production hosts require verified trusted versions of
+both components and their separately retained acceptance.
 
 ## Repository and development artifact gates
 
@@ -80,8 +96,12 @@ repository, with complete ancestry and the commit contained in `origin/main`.
 Signature verification must use independently approved signer configuration.
 Neither a lightweight tag nor a tag at an unmerged commit qualifies.
 
-After the complete gate, prepare from that exact clean checkout. The example
-uses the current source version; substitute the full approved commit SHA:
+After the complete gate, prepare from that exact clean checkout. In all current
+runbook commands, replace `vX.Y.Z` with the approved synchronized release tag,
+`FULL_COMMIT_SHA` with its full approved source commit, `PREPARED_DIRECTORY` with
+the verified artifact directory, and `INDEPENDENT_SHA256` with the independently
+retained manifest digest. The literal `v0.1.0` commands in the bootstrap ledger
+are historical receipts, not current release instructions.
 
 Strict `prepare` requires both `RELEASE_NPM_CLI` and
 `RELEASE_NPM_VERSION=11.18.0`. The CLI path must be canonical, absolute, and name
@@ -92,7 +112,7 @@ both variables before standalone preparation. The workflow configures them
 automatically. Development `check` and `pack` continue to use ambient npm.
 
 ```sh
-node scripts/release-packages.mjs prepare --tag v0.1.0 --expected-commit FULL_COMMIT_SHA
+node scripts/release-packages.mjs prepare --tag vX.Y.Z --expected-commit FULL_COMMIT_SHA
 ```
 
 An optional `--out EMPTY_DIRECTORY` selects a new empty output directory.
@@ -133,7 +153,9 @@ registry packages in its temporary consumer. It verifies bytes, signatures, and
 provenance using the same immutable artifact ID and independent digest. Manual
 dispatch skips both publishing and registry verification.
 
-These external settings must be configured and recorded by the maintainer:
+All five KB/Agent Access trusted-publisher entries have been configured through
+the CLI. Configuration alone does not prove a trusted publish. The maintainer
+must verify and record the full external checklist for each release:
 
 - ownership and organization publishing permission for all four npm names;
 - protected `origin/main`, immutable release tags, and approved SSH signers in
@@ -142,8 +164,8 @@ These external settings must be configured and recorded by the maintainer:
   restrictions;
 - a separate npm trusted publisher for each package, bound to
   `pegma-dev/knowledge-base`, `publish.yml`, and `npm-publish`;
-- explicit permission for direct `npm publish`, plus restrictions disallowing
-  token-based publishing. There is no repository npm token or token fallback.
+- explicit permission for direct `npm publish`, with 2FA required and token-based
+  publishing disallowed. There is no repository npm token or token fallback.
 
 As checked on 2026-11-07, npm requires Node 22.14.0+ and npm 11.5.1+ for trusted
 publishing. New publisher configurations allow staged publishing by default;
@@ -158,7 +180,7 @@ before changing these external settings.
 The read-only preflight is also the first-publication inspection command:
 
 ```sh
-node scripts/release-packages.mjs preflight --prepared-dir PREPARED_DIRECTORY --manifest-sha256 INDEPENDENT_SHA256 --tag v0.1.0 --expected-commit FULL_COMMIT_SHA
+node scripts/release-packages.mjs preflight --prepared-dir PREPARED_DIRECTORY --manifest-sha256 INDEPENDENT_SHA256 --tag vX.Y.Z --expected-commit FULL_COMMIT_SHA
 ```
 
 It validates the schema-2 artifact set, then checks every exact package version
@@ -240,20 +262,21 @@ A second isolated run installed all seven exact external runtime pins used by
 the two components, resolving 102 packages. Root lock versions and public
 registry URLs matched; the real audit reported `invalid=0`, `missing=0`,
 and `verified=21`. Lifecycle scripts and runtime imports remained disabled.
-This checks the existing external dependency graph without publishing either
-new component.
+This historical check examined the existing external dependency graph without
+publishing either new component.
 
 The observed public source was [pegma-dev/spine](https://github.com/pegma-dev/spine)
 at `refs/tags/v0.1.2`. This records the pinned CLI's working flag, output, and
-certificate shape. It proves no provenance for unpublished KB or Agent Access
+certificate shape. It proves no provenance for KB or Agent Access
 packages and performs no publisher operation. Their own exact repository,
 workflow, tag, and source-commit post-release verification remains mandatory.
 Raw bundles and certificate bytes are intentionally omitted.
 
 ## Consumers and retained host gates
 
-KB publication precedes SD-02. Before real host assembly, verify both the exact
-KB release set and the separately published Agent Access dependency. Git
+The verified trusted KB release precedes SD-02. Before real host assembly,
+verify both the exact trusted KB release set and the separately released Agent
+Access dependency. The manual `0.1.0` bootstraps do not satisfy that gate. Git
 branches, copied source, local paths, and unpublished production tarballs do
 not substitute for registry releases.
 

@@ -1,4 +1,4 @@
-/** TEST ONLY: immutable public producer -> packed consumer -> loopback SDK proof. */
+/** TEST ONLY: exact registry producer + four packed KB artifacts -> loopback SDK proof. */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
@@ -16,8 +16,10 @@ import { basename, delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const reviewedAgentAccess = "a444e2113db98455b638b2ef8aa7c2faccb16b62";
-const publicProducer = "https://github.com/pegma-dev/agent-access.git";
+const registry = "https://registry.npmjs.org/";
+const agentAccessVersion = "0.1.1";
+const agentAccessIntegrity =
+  "sha512-C8t2kkv2piE9Jxt48hrRj+dYDoBd4BMgyO9JpgBQT5ycr8xZx4hq43DSG9I/KjjPQhEvRhp7obYnZ/IiBme/Jw==";
 const packageManagerVersion = "10.34.5";
 const packages = ["contracts", "core", "application", "mcp"];
 let stage = 0;
@@ -120,15 +122,27 @@ async function proof() {
   );
   try {
     stage = 1;
+    assert.equal(
+      process.env.AGENT_ACCESS_SOURCE,
+      undefined,
+      "Source producer overrides are not supported.",
+    );
     const npm = await npmCliPath();
     const npmrc = join(temporary, "npmrc");
-    await writeFile(npmrc, "registry=https://registry.npmjs.org/\n");
+    await writeFile(
+      npmrc,
+      `registry=${registry}\n@pegma:registry=${registry}\n`,
+    );
     let env = {
-      ...process.env,
+      ...Object.fromEntries(
+        Object.entries(process.env).filter(
+          ([key]) => !key.toLowerCase().startsWith("npm_config_"),
+        ),
+      ),
       npm_config_userconfig: npmrc,
-      npm_config_registry: "https://registry.npmjs.org/",
+      npm_config_registry: registry,
     };
-    // Pin the producer's toolchain even when invoked directly with `node`.
+    // Pin the KB packing toolchain even when invoked directly with `node`.
     const toolchain = join(temporary, "toolchain");
     await mkdir(toolchain);
     await writeFile(join(toolchain, "package.json"), '{"private":true}\n');
@@ -179,55 +193,6 @@ async function proof() {
     }
 
     stage = 3;
-    const suppliedSource = process.env.AGENT_ACCESS_SOURCE;
-    if (suppliedSource) {
-      // Read only. Clone committed Git objects; never copy a dirty source tree
-      // or install/build in the user's checkout.
-      assert.equal(
-        run("git", ["rev-parse", "HEAD"], suppliedSource, env),
-        reviewedAgentAccess,
-      );
-    }
-    const producer = join(temporary, "agent-access-producer");
-    run(
-      "git",
-      [
-        "clone",
-        "--no-local",
-        "--no-checkout",
-        suppliedSource ?? publicProducer,
-        producer,
-      ],
-      temporary,
-      env,
-    );
-    run("git", ["checkout", "--detach", reviewedAgentAccess], producer, env);
-    assert.equal(
-      run("git", ["rev-parse", "HEAD"], producer, env),
-      reviewedAgentAccess,
-    );
-    const manifest = JSON.parse(
-      await readFile(join(producer, "package.json"), "utf8"),
-    );
-    assert.equal(manifest.packageManager, `pnpm@${packageManagerVersion}`);
-    run(
-      process.execPath,
-      [pnpm, "install", "--frozen-lockfile"],
-      producer,
-      env,
-    );
-    run(process.execPath, [pnpm, "run", "build"], producer, env);
-    dependencies.push(
-      await pack(
-        join(producer, "packages", "agent-access"),
-        artifacts,
-        "@pegma/agent-access",
-        npm,
-        env,
-      ),
-    );
-
-    stage = 4;
     const consumer = join(temporary, "consumer");
     await mkdir(consumer);
     await writeFile(
@@ -238,6 +203,7 @@ async function proof() {
         type: "module",
         dependencies: {
           ...Object.fromEntries(dependencies),
+          "@pegma/agent-access": agentAccessVersion,
           "@modelcontextprotocol/sdk": "1.32.2",
           "@pegma/sessions": "0.2.0",
           "@pegma/authorization-core": "0.4.0",
@@ -246,19 +212,46 @@ async function proof() {
         },
       }),
     );
+    stage = 4;
     run(
       process.execPath,
       [
         npm,
         "install",
+        `--registry=${registry}`,
         "--ignore-scripts",
-        "--package-lock=false",
+        "--package-lock=true",
         "--no-audit",
         "--no-fund",
       ],
       consumer,
       env,
     );
+    const installedProducer = JSON.parse(
+      await readFile(
+        join(
+          consumer,
+          "node_modules",
+          "@pegma",
+          "agent-access",
+          "package.json",
+        ),
+        "utf8",
+      ),
+    );
+    assert.equal(installedProducer.name, "@pegma/agent-access");
+    assert.equal(installedProducer.version, agentAccessVersion);
+    const lockfile = JSON.parse(
+      await readFile(join(consumer, "package-lock.json"), "utf8"),
+    );
+    const lockedProducer =
+      lockfile.packages["node_modules/@pegma/agent-access"];
+    assert.equal(lockedProducer.version, agentAccessVersion);
+    assert.equal(
+      lockedProducer.resolved,
+      `${registry}@pegma/agent-access/-/agent-access-${agentAccessVersion}.tgz`,
+    );
+    assert.equal(lockedProducer.integrity, agentAccessIntegrity);
     await copyFile(
       join(root, "scripts", "agent-protocol-fixture.mjs"),
       join(consumer, "proof.mjs"),
@@ -269,9 +262,10 @@ async function proof() {
     );
     assert.equal(receipt.passed, true);
     return {
-      packedPackages: dependencies.length,
-      immutableProducer: true,
       ...receipt,
+      packedPackages: dependencies.length,
+      registryPackages: 1,
+      exactRegistryProducer: true,
     };
   } finally {
     const cleanup = await realpath(temporary);

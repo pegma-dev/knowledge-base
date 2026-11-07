@@ -1,7 +1,7 @@
 # @pegma/knowledge-base-core
 
 Pure collection, draft, verification, review, publication, and retirement
-transitions. This initial 0.1.0 source is unpublished. It requires no Support
+transitions. It requires no Support
 Desk, GitHub, model, framework, database, or provider SDK.
 
 Core owns domain invariants. The application service checks current named

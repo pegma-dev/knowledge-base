@@ -12,8 +12,10 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > The separate [partial KB-05 source](https://github.com/pegma-dev/knowledge-base/pull/4)
 > supplies local D1 conformance and a public synthetic example; the later
 > [release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
-> supplies exact-artifact tooling. Both are merged. All four packages are unpublished
-> at `0.1.0`. First publication, trusted-publisher setup, registry verification,
+> supplies exact-artifact tooling. Both are merged. All four `0.1.0` packages
+> completed manual bootstrap with exact-byte postflight on 2026-11-07, without
+> OIDC provenance. Source `0.1.1` is a candidate for the first advertised trusted
+> release. Its review, publication, strict registry/provenance verification,
 > and actual two-host existing-login/client acceptance remain separate gates.
 > This repository is not an operational hosted KB or a production dependency.
 
@@ -51,7 +53,9 @@ producer with their existing human login and current Admin consent. AUTH-01's
 [merged source](https://github.com/pegma-dev/agent-access/pull/1) supplies the
 source prerequisite, and its
 [release preparation](https://github.com/pegma-dev/agent-access/pull/2) is merged.
-Agent Access remains unpublished at `0.1.0`. Initial authoring grants are
+Agent Access `0.1.0` completed manual bootstrap without OIDC provenance, and its
+`0.1.1` trusted release is now verified. The [release receipt](docs/BOOTSTRAP.md#verified-agent-access-prerequisite)
+closes that public producer prerequisite only. Initial authoring grants are
 app-instance-wide. Collection-specific delegation is a future host seam.
 The KB does not issue credentials or implement login, roles, or a limiter.
 
@@ -75,12 +79,13 @@ physical work/source budgets, whole-article token accounting, and repair.
 conformance against memory, local Azurite, and real local Miniflare D1 through
 the released D1 adapter. The [synthetic composition](examples/composition/README.md)
 demonstrates author/test/review/publish/retrieve with fictional trust inputs.
-The separate `agent:proof` gate composes reviewed pinned AUTH-01 source and all
-four packed KB artifacts in a temporary consumer with the official MCP SDK
+The active `agent:proof` gate installs exact registry
+`@pegma/agent-access@0.1.1` and all four packed KB candidate artifacts in a fresh
+temporary consumer with lifecycle scripts disabled and the official MCP SDK
 `1.32.2`, exercising OAuth, the five tools, evidence binding, and HTTP/MCP parity.
 The [historical source-gate record](docs/SOURCE_PREPARATION.md#historical-source-gates)
-retains reviewed heads and CI links. Current-head results establish execution;
-these proofs establish neither actual
+retains reviewed heads and CI links. Current-head results establish execution.
+These proofs establish neither actual
 requested-client compatibility nor either real host's login/staging acceptance.
 
 Develop on Node 22.6.0+ or 24 with pnpm 10.34.5:
@@ -98,9 +103,10 @@ pnpm run agent:proof
 The npm and pnpm workspace declarations deliberately name the same four source
 packages: pnpm links them for development, while npm supplies artifact packing.
 The release check installs all four tarballs in a consumer outside either
-workspace to verify dependency resolution without source links. The Agent
-Access source fixture is confined to the temporary protocol-proof consumer;
-production hosts must consume exact published Agent Access and KB versions.
+workspace to verify dependency resolution without source links. The protocol
+proof's Agent Access producer comes from the public registry with no source
+fallback; production hosts must consume exact verified trusted Agent Access
+and KB versions.
 Frozen installation permits the pinned native `workerd` install script only;
 test workers/timeouts and per-factory D1 disposal remain bounded.
 
@@ -120,11 +126,17 @@ Read [AGENTS.md](AGENTS.md) before changing code and
 pack checks are separate from signed-tag release preparation. The release path
 binds all four tarballs to source identity and an independently retained manifest
 digest, preflights the full registry set, and verifies released consumers.
-Merging source does not publish a package. Follow the
-[maintainer bootstrap handoff](docs/BOOTSTRAP.md) for the four new npm names,
-then configure their individual trusted publishers for later releases. Agent
-Access follows its separate release process. SD-02 and host installation wait
-for actual published dependencies; source and synthetic proof cannot satisfy
+Merging source does not publish a package. The
+[maintainer bootstrap ledger](docs/BOOTSTRAP.md) records the completed manual
+`0.1.0` uploads and exact-byte postflight. All five KB/Agent Access trusted
+publishers are configured through the CLI. Agent Access's verified trusted
+`0.1.1` release is complete, while the KB trusted release remains gated. The
+four KB packages' `latest` tags still resolve to `0.1.0`. A verified KB `0.1.1`
+release is intended to advance them. An earlier attempt to delete Agent Access's
+`latest` tag returned HTTP 400 before its `0.1.1` release. Agent Access now has
+`latest: 0.1.1` and `bootstrap: 0.1.0`.
+This does not advertise the KB bootstrap set or approve host use. SD-02 and host installation wait
+for the verified trusted dependencies; source and synthetic proof cannot satisfy
 real host acceptance.
 
 Built in the open by RetireGolden, LLC.

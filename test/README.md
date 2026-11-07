@@ -74,10 +74,12 @@ not assert a passing run.
 
 The domain/storage suites exercise KB-02/KB-03 source and partial KB-05 consumer
 preparation. Agent transport suites add KB-04 HTTP/MCP parity and boundary
-coverage; `pnpm run agent:proof` separately exercises the actual SDK and reviewed
-Agent Access artifacts in an isolated synthetic consumer. These results do not
+coverage; `pnpm run agent:proof` separately exercises the actual SDK with exact
+registry `@pegma/agent-access@0.1.1` and four packed KB candidate artifacts in a
+fresh isolated synthetic consumer. These results do not
 establish actual site logins or target-client application acceptance.
 Local storage tests establish no browser UI, live
 Workers/host acceptance, model-provider settings, production throughput, or
-retention operations. All four KB packages remain unpublished; the full
-KB-05 release/publication and host activation gates remain required.
+retention operations. All four KB `0.1.0` packages completed manual bootstrap
+without OIDC provenance. KB `0.1.1` remains an unpublished candidate; its full
+verified trusted release and the host activation gates remain required.

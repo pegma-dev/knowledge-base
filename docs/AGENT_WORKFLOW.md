@@ -3,7 +3,9 @@
 The [merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 adds optional authoring transports over the existing Knowledge Base
 application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
-is also merged. All four KB packages are unpublished at `0.1.0`; this document
+is also merged. All four KB `0.1.0` packages completed manual bootstrap and
+exact-byte postflight without OIDC provenance. Source `0.1.1` is a candidate
+for the first advertised trusted release, which remains gated; this document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -100,22 +102,30 @@ claim that the historical state is still current.
 ## Source proof and retained host acceptance
 
 [AUTH-01 PR #1](https://github.com/pegma-dev/agent-access/pull/1) merged the public
-credential producer source. The KB `pnpm run agent:proof` gate pins reviewed
-commit `a444e2113db98455b638b2ef8aa7c2faccb16b62`, builds it only in an isolated
-temporary test consumer, and installs all four KB tarballs with the official
-MCP SDK `1.32.2`. It exercises OAuth and real SDK protocol calls through the
+credential producer source. The active KB `pnpm run agent:proof` gate now
+installs exact public-registry `@pegma/agent-access@0.1.1` and all four packed
+KB candidate artifacts in a fresh temporary consumer with lifecycle scripts
+disabled and official MCP SDK `1.32.2`. It exercises OAuth and real SDK protocol calls through the
 five-operation loop, host-attested evidence, HTTP/MCP parity, and rejection
 cases. The fictional human session, staging run, and attester remain test
 inputs. The historical reviewed-head gate results and exact CI links are
 recorded in [source preparation](SOURCE_PREPARATION.md#historical-source-gates);
 changed source requires fresh
 current-head gates.
+Historical source-proof evidence retains the original reviewed AUTH-01
+`a444e2113db98455b638b2ef8aa7c2faccb16b62` fixture. The registry composition
+accepts no source fallback and requires its own current-head gate results.
 
 The merged KB-04 source exit closes only its source slice. KB-05 release-preparation
 source is merged; full KB-05 publication remains open. Agent Access's
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
-is also merged and follows its separate first-publication and
-trusted-publisher process. Both public releases precede production host
+is also merged; its manual `0.1.0` bootstrap is complete and its verified
+trusted `0.1.1` release closed the public producer prerequisite at
+**2026-11-07T22:32:42Z**. The
+[release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
+identities, the successful attempt-2 workflow, and strict verification stdout.
+The KB `0.1.1` candidate remains unpublished with its own gates, PR, and trusted
+release pending. Both verified trusted releases precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.
 

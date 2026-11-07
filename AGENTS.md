@@ -19,8 +19,10 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   and [release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
   slices are merged. The partial slice adds local D1 conformance and a public
   synthetic composition; the release slice adds exact-artifact tooling. All four
-  packages remain unpublished at synchronized version `0.1.0`; source readiness
-  does not complete first publication, registry verification, or host acceptance.
+  `0.1.0` packages completed manual maintainer bootstrap with exact-byte
+  postflight on 2026-11-07, without OIDC provenance. Source `0.1.1` is a candidate
+  for the first advertised trusted release; its review, publication, strict
+  registry/provenance verification, and host acceptance remain gates.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -97,18 +99,25 @@ tarballs. Independently retain its SHA-256 digest; never trust a digest taken
 only from the downloaded artifact. Preflight all four registry versions before
 any publish, and recover only by accepting byte-identical existing artifacts.
 See [release operations](docs/RELEASING.md) and the
-[first-publication handoff](docs/BOOTSTRAP.md). Maintainer 2FA bootstrap and
-external package ownership, signer, tag, environment, and trusted-publisher
-settings remain separate gates. OIDC publishing receives only verified prepared
+[first-publication handoff](docs/BOOTSTRAP.md) for the completed manual bootstrap
+receipt and pending trusted release. All five KB/Agent Access trusted publishers
+have been configured through the CLI; that configuration does not prove a
+trusted publish. Recheck ownership, signer, tag, approval environment, direct
+publishing, and 2FA/token restrictions for the release. OIDC publishing receives only verified prepared
 artifacts; it installs nothing, rebuilds no packages, and has no token fallback.
 A separate unprivileged job installs registry packages in an isolated temporary
 consumer with lifecycle scripts disabled and verifies signatures/provenance.
 `pnpm test` includes `test:release`'s release identity, manifest, argument, and
 registry regressions; these must execute on both Node lanes.
-The protocol proof may build the reviewed, pinned public AUTH-01 source in an
-isolated temporary consumer with all four KB tarballs and the official SDK.
-That test-only exception never authorizes an unpublished production dependency.
-Agent Access publication and KB-05 publication both precede real host assembly.
+Agent Access `0.1.1` has completed its verified trusted release; retain its
+[receipt](docs/BOOTSTRAP.md#verified-agent-access-prerequisite). The active
+protocol proof installs exact registry `@pegma/agent-access@0.1.1` with all four
+packed KB candidate artifacts and the official SDK in a fresh temporary consumer,
+with lifecycle scripts disabled. It accepts no source-producer fallback.
+Historical source-fixture evidence is not evidence for changed proof code;
+current-head Node 22/24 gates must execute the registry composition. The KB
+`0.1.1` candidate's own review, publication, strict registry verification, and
+host acceptance remain open before real host assembly.
 Keep actual existing-login/Admin-consent and every requested client/mode proof
 open in P-00 and PG-01/RG-01 until both hosts record them before activation.
 

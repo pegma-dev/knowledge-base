@@ -1,16 +1,23 @@
 # Packed local agent protocol proof
 
 Run `pnpm run agent:proof` from the repository after
-`pnpm install --frozen-lockfile`, on Node 22.6+ or Node 24. Git and npm must be
-available. The proof needs public GitHub and npm registry access and binds an
+`pnpm install --frozen-lockfile`, on Node 22.6+ or Node 24. npm must be
+available. The proof needs public npm registry access and binds an
 ephemeral listener to `127.0.0.1` only. Both component configurations explicitly
 enable `allowInsecureLoopback` for this test.
 
-This is an independently reproducible, **test-only source composition**. It
+The orchestrator isolates npm configuration: incoming `npm_config_*` variables
+and user npmrc overrides are not applied, and the official npm registry is
+mandatory. Transport settings such as `HTTPS_PROXY` and `NODE_EXTRA_CA_CERTS`
+remain available; provide them when your network requires a proxy or custom CA.
+Package mirrors and source fallbacks are not supported.
+
+This is an independently reproducible, **test-only artifact composition**. It
 exercises the actual MCP TypeScript SDK `1.32.2`, Sessions `0.2.0`, Authorization
-Core `0.4.0`, Storage Core `0.4.0`, Agent Access and all four KB tarballs. It does
+Core `0.4.0`, Storage Core `0.4.0`, exact registry `@pegma/agent-access@0.1.1`,
+and all four packed KB candidate artifacts. It does
 not establish any of the four target client applications, a deployed host,
-real browser login, real staging execution, first publication, or host activation.
+real browser login, real staging execution, verified KB publication, or host activation.
 Those acceptance tasks remain open.
 
 ## Artifact boundary
@@ -19,32 +26,46 @@ The [orchestrator](../../scripts/agent-protocol-proof.mjs):
 
 1. Bootstraps exactly `pnpm@10.34.5` inside its bounded temporary directory.
 2. Runs KB `release:check`, then packs contracts, core, application and MCP.
-3. Clones the public
-   [Agent Access repository](https://github.com/pegma-dev/agent-access), checks out
-   the reviewed, publicly merged commit
-   [`a444e2113db98455b638b2ef8aa7c2faccb16b62`](https://github.com/pegma-dev/agent-access/commit/a444e2113db98455b638b2ef8aa7c2faccb16b62),
-   verifies its exact HEAD and declared package manager, installs its frozen
-   lockfile, builds, and packs its package.
-4. Installs those five tarballs and the exact released SDK/Pegma dependencies
-   into a fresh npm consumer, with installation scripts disabled.
+3. Creates a fresh npm consumer declaring the literal registry dependency
+   `@pegma/agent-access@0.1.1` and the four packed KB artifacts.
+4. Installs the four KB tarballs, the one registry Agent Access package, and
+   exact released SDK/Pegma dependencies with installation scripts disabled.
+   It checks the producer's installed name/version, official registry resolution,
+   and reviewed SHA-512 integrity pin.
 5. Copies only the [protocol fixture](../../scripts/agent-protocol-fixture.mjs)
    into that consumer and executes it. Component code is loaded exclusively
    through installed public package entrypoints.
 6. Closes native client and server resources and removes the verified owned
-   temporary directory, including producer, toolchain, consumer and tarballs.
+   temporary directory, including toolchain, consumer and tarballs.
 
-Agent Access is currently unpublished. Its immutable producer is a dev fixture,
-not a root dependency, runtime dependency, workspace package, copied auth source,
-lockfile substitution, or production release substitute. The proof performs no
-deployment, tagging, release creation or publication. It does not claim that
-the producer's own review/validation gates were rerun; its immutable public merge
-is the producer provenance boundary.
+Agent Access `0.1.1` has completed verified trusted publication; the
+[exact receipt](../../docs/BOOTSTRAP.md#verified-agent-access-prerequisite)
+retains its signed source, artifact binding, and strict registry/provenance
+verification. It is a protocol-proof dependency, not a KB runtime or workspace
+dependency. The proof performs no deployment, tagging, release creation or
+publication and does not rerun the producer's own release gates.
 
-For a preexisting local checkout, the optional `AGENT_ACCESS_SOURCE` environment
-variable avoids a network clone. Its HEAD must equal that same exact reviewed
-commit. The script clones its committed Git objects into the temporary directory;
-it never installs, builds, checks out, or edits the supplied checkout, and never
-consumes its uncommitted files. Omitting this variable uses the public repository.
+No producer checkout, source override, clone, or source-build fallback is
+accepted. The earlier source-producer path remains historical evidence in
+[source preparation](../../docs/SOURCE_PREPARATION.md#separate-authenticated-transport-proof).
+
+## Maintaining the producer pin
+
+Update the producer version and integrity together in a reviewed PR:
+
+1. Obtain both values from the independently digest-bound prepared manifest of
+   a fully verified trusted producer release. Use the producer's strict `verify`
+   command to confirm exact registry bytes and source-bound provenance.
+2. Record the release identity, independent manifest digest, prepared tarball
+   hashes, and verification receipt, as in the
+   [current producer receipt](../../docs/BOOTSTRAP.md#verified-agent-access-prerequisite).
+3. Change both proof pins in the reviewed PR and run `pnpm run agent:proof` on
+   Node 22 and 24 before accepting the update.
+
+Do not automatically accept `npm view` output or newly served registry metadata
+as a replacement trust anchor, or advance the producer version merely because
+metadata was re-signed. Published versions are immutable; altered tarball bytes
+must fail closed and require a reviewed release decision.
 
 ## Actual protocol and application path
 
@@ -99,26 +120,27 @@ are never printed.
 ## Safe result and failure diagnostics
 
 Success prints one JSON receipt containing only booleans and numeric counts,
-including `packedPackages: 5`, `tools: 5`, `draftRevision: 2`,
+including `packedPackages: 4`, `registryPackages: 1`,
+`exactRegistryProducer: true`, `tools: 5`, `draftRevision: 2`,
 `liveHostsProven: false` and `targetClientAppsProven: 0`. Native command output is
 captured and suppressed. Failure prints only `passed: false` and a numeric
 `stage`, plus a numeric `fixtureStage` when available:
 
-| Stage         | Work                                             |
-| ------------- | ------------------------------------------------ |
-| 1             | Isolated pinned pnpm bootstrap                   |
-| 2             | KB release check and tarballs                    |
-| 3             | Immutable Agent Access preparation               |
-| 4             | Clean consumer installation                      |
-| 5             | Protocol fixture                                 |
-| Fixture 10–18 | Host/application bootstrap                       |
-| Fixture 20    | SDK discovery, browser approval and exchange     |
-| Fixture 30    | Tools, drafts, retries and DTO parity            |
-| Fixture 40    | Validation requirements and receipt verification |
-| Fixture 50    | Wrong resource and wrong PKCE                    |
-| Fixture 60    | Expiry, refresh and revocation                   |
-| Fixture 70    | Device authorization                             |
-| Fixture 80    | Current Admin demotion                           |
+| Stage         | Work                                                |
+| ------------- | --------------------------------------------------- |
+| 1             | Isolated pinned pnpm bootstrap                      |
+| 2             | KB release check and tarballs                       |
+| 3             | Fresh consumer with exact registry producer         |
+| 4             | Installation and producer identity/integrity checks |
+| 5             | Protocol fixture                                    |
+| Fixture 10–18 | Host/application bootstrap                          |
+| Fixture 20    | SDK discovery, browser approval and exchange        |
+| Fixture 30    | Tools, drafts, retries and DTO parity               |
+| Fixture 40    | Validation requirements and receipt verification    |
+| Fixture 50    | Wrong resource and wrong PKCE                       |
+| Fixture 60    | Expiry, refresh and revocation                      |
+| Fixture 70    | Device authorization                                |
+| Fixture 80    | Current Admin demotion                              |
 
 Bootstrap substages are application factory 11, collection 12, validation
 policy 13, governance 14, session 15, listener 16, issuer 17 and adapters 18.
