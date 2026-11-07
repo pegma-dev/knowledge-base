@@ -191,7 +191,7 @@ export interface PublishedArticle {
 
 /**
  * Bounded transition input/output: one current revision and one publication.
- * Durable immutable revision history is owned by later application services.
+ * Durable immutable revision history is owned by application services.
  */
 export interface Article {
   readonly id: ArticleId;

@@ -14,8 +14,11 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   optional `@pegma/knowledge-base-mcp` package for the shared five-operation
   dispatcher, versioned HTTP contract, and MCP transport. Live host interfaces
   remain host work; do not create later packages early.
-- KB-04 source is merged. KB-05 source preparation adds local D1 conformance,
-  a public synthetic composition, and exact-artifact release tooling. All four
+- [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) and
+  the separate KB-05 [partial source](https://github.com/pegma-dev/knowledge-base/pull/4)
+  and [release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
+  slices are merged. The partial slice adds local D1 conformance and a public
+  synthetic composition; the release slice adds exact-artifact tooling. All four
   packages remain unpublished at synchronized version `0.1.0`; source readiness
   does not complete first publication, registry verification, or host acceptance.
 - Never implement a database, authorization role model, identity/session/token

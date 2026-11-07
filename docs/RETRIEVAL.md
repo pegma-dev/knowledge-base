@@ -8,8 +8,10 @@ repository gates remain required.
 KB-03 extends the existing application package; it creates no new package,
 database, model integration, or authentication system. All packages remain
 unpublished at source version `0.1.0`. Source tests and repository gates, not
-this document, determine completion. API/MCP, real-host acceptance, and
-production activation remain later tasks.
+this document, determine completion. KB-04's optional HTTP/MCP adapter source
+is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Package
+publication, real-host acceptance, and production activation remain separate
+tasks.
 
 Read [declared collections](COLLECTIONS.md) for the authoritative record
 layout and [host composition](HOST_COMPOSITION.md) for trusted access,
@@ -232,9 +234,11 @@ draft exclusion, stale index/cache and policy/proof/source revocation,
 applicability mismatches, safe titles/snippets/counts/errors, whole-source
 budgets, and instrumented physical read/page ceilings. Maintenance tests cover
 duplicate/out-of-order jobs, partial failure, bounded resumable scans,
-capacity admission, retirement/move cleanup, and repair convergence. Memory
-and real-Azurite evidence are source gates; D1 consumer conformance and real
-host workflows retain their later release/activation gates.
+capacity admission, retirement/move cleanup, and repair convergence. These
+public-entry suites run against memory, real Azurite, and real local Miniflare
+D1 in the earlier merged [partial KB-05 source slice](SOURCE_PREPARATION.md).
+Released-consumer
+verification and real host workflows retain their release/activation gates.
 
 The executable source cases live in [retrieval tests](../tests/retrieval.test.ts)
 and [physical-bound tests](../tests/retrieval-bounds.test.ts), using
