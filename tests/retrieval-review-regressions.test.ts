@@ -32,7 +32,7 @@ for (const [name, createStore] of storeFactories) {
     it.each([1, 2])(
       "preserves adapter relevance order with %i authoritative confirmations and tied local scores",
       async (confirmations) => {
-        const backing = createStore();
+        const backing = await createStore();
         const seed = retrievalFixture(backing);
         await seed.setupCollection();
         for (const id of ["article/a-export", "article/z-export"])
@@ -57,11 +57,10 @@ for (const [name, createStore] of storeFactories) {
           result.sources.map((source) => source.reference.articleId),
         ).toEqual(rankedIds.slice(0, confirmations));
       },
-      30_000,
     );
 
     it("uses an adapter's approved body match without requiring title, summary or tag overlap", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const seed = retrievalFixture(backing);
       await seed.setupCollection();
       const guide = {
@@ -99,10 +98,10 @@ for (const [name, createStore] of storeFactories) {
       );
       expect(result.sources).toHaveLength(1);
       expect(result.sources[0]?.content).toEqual(guide.draft.content);
-    }, 30_000);
+    });
 
     it("does not let a healthy same-plan losing CAS worker block the winner's progress", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const loser = retrievalFixture(backing, {
         limits: { maxMaintenanceBatches: 1 },
       });
@@ -146,7 +145,7 @@ for (const [name, createStore] of storeFactories) {
       expect(
         await retrievalFixture(backing).repair("article/export"),
       ).toMatchObject({ status: "ready", indexed: true });
-    }, 30_000);
+    });
 
     it.each([
       ["retained targets", { maxIndexPartitionRows: 2 }],
@@ -154,7 +153,7 @@ for (const [name, createStore] of storeFactories) {
     ] as const)(
       "reassesses a blocked %s after policy withdrawal without changing the article head",
       async (_label, limits) => {
-        const backing = createStore();
+        const backing = await createStore();
         const f = retrievalFixture(backing, { limits });
         await f.setupCollection();
         const published = await f.publishedArticle(
@@ -199,11 +198,10 @@ for (const [name, createStore] of storeFactories) {
           indexed: false,
         });
       },
-      30_000,
     );
 
     it("supports explicitly approved anonymous portal and bot policy then rejects revoked stale hints", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       const preview = await f.authoringApp.previewCollectionPolicy(admin, {
         collectionId: "collection/workshop",
@@ -265,6 +263,6 @@ for (const [name, createStore] of storeFactories) {
           })
         ).sources,
       ).toEqual([]);
-    }, 30_000);
+    });
   });
 }

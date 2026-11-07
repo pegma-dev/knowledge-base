@@ -16,6 +16,7 @@ jobs:
   validate:
     name: Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -40,5 +41,7 @@ jobs:
         run: pnpm run check
       - name: Run tests
         run: pnpm test
+      - name: Run synthetic composition
+        run: pnpm example
       - name: Check package artifacts
         run: pnpm run release:check

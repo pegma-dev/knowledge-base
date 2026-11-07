@@ -8,9 +8,11 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > Development status: KB-01 provides contracts and pure domain transitions;
 > KB-02 adds authorized application/persistence source, and KB-03 extends that
 > application with bounded retrieval and repair. Implementation and repository
-> gates determine completion. All three packages are unpublished. API/MCP and
-> live customer/staff interfaces remain later tasks. This repository is not yet
-> an operational hosted KB or a production dependency.
+> gates determine source evidence. Independent partial KB-05 preparation adds
+> local D1 conformance and a public synthetic example. KB-04 credentials and the
+> full KB-05 release task remain unfinished. All three packages are unpublished
+> at `0.1.0`. API/MCP and live customer/staff interfaces remain later tasks. This
+> repository is not yet an operational hosted KB or a production dependency.
 
 | Package                                                               | Scope                                                                                   |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -49,6 +51,13 @@ bot-answer uses have separate safe citations; bot-only knowledge does not
 grant an article browse capability. Read [retrieval](docs/RETRIEVAL.md) for
 physical work/source budgets, whole-article token accounting, and repair.
 
+Partial [source preparation](docs/SOURCE_PREPARATION.md) runs shared public KB
+conformance against memory, local Azurite, and real local Miniflare D1 through
+the released D1 adapter. The [synthetic composition](examples/composition/README.md)
+demonstrates the public author/test/review/publish/retrieve flow with fictional
+trust inputs. Local emulators and that example establish neither live Workers
+deployment nor scoped API/MCP credentials, publication, or host acceptance.
+
 Develop on Node 22 or 24 with pnpm 10.34.5:
 
 ```sh
@@ -56,6 +65,7 @@ pnpm install --frozen-lockfile
 pnpm run format:check
 pnpm run check
 pnpm test
+pnpm example
 pnpm run release:check
 ```
 
@@ -63,6 +73,8 @@ The npm and pnpm workspace declarations deliberately name the same source
 packages: pnpm links them for development, while npm supplies artifact packing.
 The release check installs all three tarballs in a consumer outside either workspace
 to verify dependency resolution without source links.
+Frozen installation permits the pinned native `workerd` install script only;
+test workers/timeouts and per-factory D1 disposal remain bounded.
 
 The [approved enhancement plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
 defines KB-01 through KB-05 and the later Support Desk/host integrations.

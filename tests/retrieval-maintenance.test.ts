@@ -18,7 +18,7 @@ import { barrier } from "../test/trace-store.js";
 for (const [name, createStore] of storeFactories) {
   describe(`bounded retrieval maintenance (${name})`, () => {
     it("requires staff index authority for repair, status and physical scan operations", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       for (const operation of [
         () =>
           f.app.repairArticleIndex(customer, { articleId: "article/export" }),
@@ -37,7 +37,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("repairs missed work through bounded physical scan pages and opaque continuation", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const f = retrievalFixture(backing);
       await f.setupCollection();
       await f.publishedArticle(
@@ -106,10 +106,10 @@ for (const [name, createStore] of storeFactories) {
         (await f.app.searchPublishedArticles(customer, f.portalInput()))
           .articles[0]?.articleId,
       ).toBe("article/export");
-    }, 30_000);
+    });
 
     it("makes repeated repair idempotent without adding projection history", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const f = retrievalFixture(backing);
       await f.setupCollection();
       await f.publishGuide();
@@ -120,10 +120,10 @@ for (const [name, createStore] of storeFactories) {
       for (let delivery = 0; delivery < 3; delivery += 1)
         expect(await f.repair("article/export")).toEqual(first);
       expect(await allRetrievalRows(backing)).toEqual(before);
-    }, 30_000);
+    });
 
     it("withdraws retirement immediately and converges stale projection cleanup", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       const published = await f.publishGuide();
       await f.authoringApp.retireArticle(indexAdministrator, {
@@ -146,10 +146,10 @@ for (const [name, createStore] of storeFactories) {
         (await f.app.searchPublishedArticles(customer, f.portalInput()))
           .articles,
       ).toEqual([]);
-    }, 30_000);
+    });
 
     it("moves a newly approved revision while cleaning its old collection scope", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       await f.setupCollection("collection/new-workshop");
       const old = await f.publishGuide();
@@ -178,10 +178,10 @@ for (const [name, createStore] of storeFactories) {
         collectionId: "collection/new-workshop",
         revision: 2,
       });
-    }, 30_000);
+    });
 
     it("keeps capacity failure visible while authoritative content remains intact", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const f = retrievalFixture(backing, {
         limits: { maxIndexPartitionRows: 2 },
       });
@@ -216,10 +216,10 @@ for (const [name, createStore] of storeFactories) {
           })
         ).title,
       ).toBe(retrievalGuides[0]!.draft.title);
-    }, 30_000);
+    });
 
     it("replaces a withdrawn policy epoch only after approving a revision under the new audience", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       const old = await f.publishGuide();
       const before = await f.app.getCollection(admin, {
@@ -289,10 +289,10 @@ for (const [name, createStore] of storeFactories) {
           })
         ).collection.policy.version,
       ).toBeGreaterThan(before.collection.policy.version);
-    }, 30_000);
+    });
 
     it("removes one article's shared-term postings without removing another approved guide", async () => {
-      const f = retrievalFixture(createStore());
+      const f = retrievalFixture(await createStore());
       await f.setupCollection();
       const first = await f.publishGuide({
         ...retrievalGuides[0]!,
@@ -312,10 +312,10 @@ for (const [name, createStore] of storeFactories) {
           await f.app.searchPublishedArticles(customer, f.portalInput())
         ).articles.map((entry) => entry.articleId),
       ).toEqual(["article/export-b"]);
-    }, 30_000);
+    });
 
     it("persists resumable pending work when one maintenance batch is allowed", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const f = retrievalFixture(backing, {
         limits: { maxMaintenanceBatches: 1 },
       });
@@ -374,12 +374,12 @@ for (const [name, createStore] of storeFactories) {
           )
         ).articles[0]?.articleId,
       ).toBe("article/export");
-    }, 30_000);
+    });
 
     it.each(["article", "collection"] as const)(
       "reports blocked capacity when an existing authoritative %s partition exceeds a recomposed instance limit",
       async (resource) => {
-        const backing = createStore();
+        const backing = await createStore();
         const f = retrievalFixture(backing);
         await f.setupCollection();
         if (resource === "collection") {
@@ -457,11 +457,10 @@ for (const [name, createStore] of storeFactories) {
         });
         expect(await allKnowledgeRows(backing)).toEqual(before);
       },
-      30_000,
     );
 
     it("cannot let a delayed old repair restore retired knowledge", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const f = retrievalFixture(backing);
       await f.setupCollection();
       const published = await f.publishedArticle(
@@ -519,10 +518,10 @@ for (const [name, createStore] of storeFactories) {
         (await f.app.searchPublishedArticles(customer, f.portalInput()))
           .articles,
       ).toEqual([]);
-    }, 30_000);
+    });
 
     it("rejects physical repair page limits beyond the configured or hard scan bound", async () => {
-      const f = retrievalFixture(createStore(), {
+      const f = retrievalFixture(await createStore(), {
         limits: { maxRepairScanRows: 3 },
       });
       for (const limit of [0, 4, 1_001, 1.5])

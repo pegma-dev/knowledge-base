@@ -12,6 +12,9 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   application services. KB-03 extends the application with bounded retrieval,
   authoritative confirmation, and repair; it adds no package. API/MCP and live
   host interfaces remain later tasks; do not create their packages early.
+- Independent partial KB-05 source preparation adds local D1 conformance and
+  a public synthetic composition. It does not complete KB-04 credentials or
+  the full KB-05 release/publication task. All three packages remain unpublished.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -46,13 +49,18 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   and raw HTML. Staff evidence/provenance never enters customer or bot DTOs.
 - Use fictional fixtures only. Commercial host internals, credentials, customer
   content, and operational configuration stay in their owning private systems.
+- D1 consumer fixtures use the released adapter with a real local Miniflare
+  binding, not a fake port or cast. Each factory call gets an isolated database;
+  register asynchronous disposal before initialization and clean up failures.
+  Keep native workers/timeouts bounded. Fixture contexts/receipts are synthetic
+  trust inputs, not live authentication or staging proof.
 - Never write literal control bytes into source. Use escaped forms and verify
   bytes after tool-assisted edits.
 
 ## Workflow
 
 Work on a `claude/*` branch and open a PR. Required checks are
-`pnpm run format:check`, `pnpm run check`, `pnpm test`, and
+`pnpm run format:check`, `pnpm run check`, `pnpm test`, `pnpm example`, and
 `pnpm run release:check`, on Node 22 and 24. Run the applicable review/security
 checks for the current head. Do not bypass pending, skipped, or failing gates.
 
@@ -71,3 +79,5 @@ durable operations and [host composition](docs/HOST_COMPOSITION.md) before
 changing authorization, verifier, replay, or DTO boundaries.
 For KB-03, read [retrieval](docs/RETRIEVAL.md) and the declared projection
 layout before changing query work, citations, or repair.
+For partial KB-05, read [source preparation](docs/SOURCE_PREPARATION.md) before
+changing local D1 fixtures, synthetic composition, or release-readiness claims.

@@ -23,7 +23,7 @@ import { barrier, traceStore } from "../test/trace-store.js";
 for (const [name, createStore] of storeFactories) {
   describe(`KB application review regressions (${name})`, () => {
     it("denies collection, validation, governance and review metadata reads without their staff permissions", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const current = (await f.submitEvidence(await f.createDraft())).current;
       await f.review(current);
@@ -69,7 +69,7 @@ for (const [name, createStore] of storeFactories) {
     it.each(["article", "governance"] as const)(
       "maps a stored %s partition exceeding the reader capacity to generic article unavailability",
       async (path) => {
-        const store = createStore();
+        const store = await createStore();
         const f = applicationFixture(store);
         await f.setupCollection();
         if (path === "governance") {
@@ -125,7 +125,7 @@ for (const [name, createStore] of storeFactories) {
     ] as const)(
       "deliberately rejects a malformed policy preview: %s",
       async (defect) => {
-        const f = applicationFixture(createStore());
+        const f = applicationFixture(await createStore());
         await f.setupCollection();
         const proposed = await f.app.previewCollectionPolicy(admin, {
           collectionId: "collection/workshop",
@@ -173,7 +173,7 @@ for (const [name, createStore] of storeFactories) {
     );
 
     it("rejects validation policy generation changed while governance was loading", async () => {
-      const backing = createStore();
+      const backing = await createStore();
       const administrator = applicationFixture(backing);
       await administrator.setupCollection();
       const traced = traceStore(backing);
@@ -227,6 +227,6 @@ for (const [name, createStore] of storeFactories) {
       });
       expect(await allKnowledgeRows(backing)).toEqual(committedRows);
       expect(traced.transactions).toHaveLength(0);
-    }, 30_000);
+    });
   });
 }

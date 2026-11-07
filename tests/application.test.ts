@@ -36,7 +36,7 @@ const conflict = { name: "RepositoryConflictError" };
 for (const [name, createStore] of storeFactories) {
   describe(`authorized KB application public entries (${name})`, () => {
     it("refuses collection management for a published-content reader", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await expect(
         f.app.createCollection(customer, {
           ...f.command("denied", 0),
@@ -49,7 +49,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("lets authors inspect safe active validation requirements before creating a draft", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const requirements = await f.app.getValidationRequirements(author, {
         collectionId: "collection/workshop",
@@ -80,7 +80,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("keeps author, reviewer, and private-read authority separate", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       let current = await f.createDraft();
       current = (await f.submitEvidence(current)).current;
@@ -119,7 +119,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("returns an explicit approved-content DTO without evidence, actors, or provenance", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       let current = await f.createDraft();
       current = await f.setSources(current, [source]);
@@ -162,7 +162,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("does not expose unpublished drafts, bot-only collections, or unauthorized portal audiences", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const unpublished = await f.createDraft("article/draft-only");
       await expect(
@@ -183,7 +183,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("preserves old publication identity while a moved draft awaits review", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       let sourced = await f.createDraft();
       sourced = await f.setSources(sourced, [source]);
@@ -227,8 +227,8 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("isolates independently composed stores with matching resource IDs", async () => {
-      const a = applicationFixture(createStore());
-      const b = applicationFixture(createStore());
+      const a = applicationFixture(await createStore());
+      const b = applicationFixture(await createStore());
       await a.setupCollection();
       await a.publishedArticle();
       await expect(
@@ -259,7 +259,7 @@ for (const [name, createStore] of storeFactories) {
     it.each(["false", "throw", "missing"] as const)(
       "hides published content when live source publication eligibility is %s after a draft move",
       async (mode) => {
-        const f = applicationFixture(createStore());
+        const f = applicationFixture(await createStore());
         await f.setupCollection();
         let current = await f.createDraft();
         current = await f.setSources(current, [source]);
@@ -313,7 +313,7 @@ for (const [name, createStore] of storeFactories) {
     );
 
     it("replays bounded acknowledgements without duplicate rows and rechecks current authority", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const input = {
         ...f.command("create-once", 0),
@@ -344,7 +344,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("fences evidence changes with application generation rather than content revision", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const old = await f.createDraft();
       const changed = (await f.submitEvidence(old)).current;
@@ -364,7 +364,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("rejects forged or rebound verifier receipts without accepted state", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const current = await f.createDraft();
       f.setTime(3_000);
@@ -410,7 +410,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("fails closed when evidence verification is absent or unavailable", async () => {
-      const store = createStore();
+      const store = await createStore();
       const f = applicationFixture(store, { missingEvidenceVerifier: true });
       await f.setupCollection();
       const current = await f.createDraft();
@@ -439,7 +439,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("invalidates pending review after provenance or active governance changes", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       let current = await f.createDraft();
       current = (await f.submitEvidence(current)).current;
@@ -480,7 +480,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("rechecks current collection policy and governance before published reads", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       await f.publishedArticle();
       const collectionId = "collection/workshop";
@@ -502,7 +502,7 @@ for (const [name, createStore] of storeFactories) {
       await expect(
         f.app.getPublishedArticle(customer, { articleId: "article/export" }),
       ).rejects.toMatchObject(missing);
-      const other = applicationFixture(createStore());
+      const other = applicationFixture(await createStore());
       await other.setupCollection();
       await other.publishedArticle();
       const head = await other.app.getCollection(admin, { collectionId });
@@ -523,7 +523,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("requires source-resource permission and current source proof separately", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       let current = await f.createDraft();
       current = await f.setSources(current, [source]);
@@ -578,7 +578,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("revokes a historical evidence binding, holds publication, and replays safely", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const published = await f.publishedArticle();
       const proof = (
@@ -614,7 +614,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("retains evidence by content revision without replacing an older publication", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const published = await f.publishedArticle();
       const old = await f.app.getPublishedArticle(customer, {
@@ -643,7 +643,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("requires explicit privileged approval for public collection changes", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const collectionId = "collection/workshop";
       const preview = await f.app.previewCollectionPolicy(admin, {
@@ -680,7 +680,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("rejects a stale policy preview after a governance-only generation change", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const collectionId = "collection/workshop";
       const preview = await f.app.previewCollectionPolicy(admin, {
@@ -706,7 +706,7 @@ for (const [name, createStore] of storeFactories) {
     });
 
     it("roundtrips maximum quote-heavy content and verification metadata", async () => {
-      const f = applicationFixture(createStore());
+      const f = applicationFixture(await createStore());
       await f.setupCollection();
       const before = await allKnowledgeRows(f.store);
       await expect(
@@ -746,6 +746,6 @@ for (const [name, createStore] of storeFactories) {
           })
         ).content.text,
       ).toBe(body);
-    }, 30_000);
+    });
   });
 }

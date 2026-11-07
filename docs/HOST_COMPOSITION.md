@@ -10,6 +10,16 @@ not an HTTP server, an identity system, or an operational MCP endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
 
+Independent partial KB-05 [source preparation](SOURCE_PREPARATION.md) adds
+shared memory/Azurite/local-D1 conformance and a
+[public synthetic composition](../examples/composition/README.md). The D1
+fixture passes a real Miniflare binding directly to the released
+`@pegma/storage-cloudflare-d1@0.4.1` adapter with isolated per-factory cleanup.
+It is local consumer evidence, not a deployed Workers binding or production
+acceptance. The example's resolved contexts and receipt registry stand in for
+trusted host facts; they authenticate no real browser, agent, or staging run.
+KB-04's credential/client flow and full KB-05 publication remain unfinished.
+
 The host owns identity verification, scoped local-agent credentials, current
 authorization resolution, browser/transport protections, store construction,
 clock/logger, trusted attestation verification, source-resource authorization,
