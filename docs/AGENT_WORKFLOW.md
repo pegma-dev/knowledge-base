@@ -106,14 +106,12 @@ temporary test consumer, and installs all four KB tarballs with the official
 MCP SDK `1.32.2`. It exercises OAuth and real SDK protocol calls through the
 five-operation loop, host-attested evidence, HTTP/MCP parity, and rejection
 cases. The fictional human session, staging run, and attester remain test
-inputs. The merged-source gate results are recorded in
-[source preparation](SOURCE_PREPARATION.md); changed source requires fresh
+inputs. The historical reviewed-head gate results and exact CI links are
+recorded in [source preparation](SOURCE_PREPARATION.md#historical-source-gates);
+changed source requires fresh
 current-head gates.
 
-The merged KB-04 source exit passed format, type, tests, synthetic example,
-artifact checks, and `agent:proof` on Node 22 and 24, plus clean OpenRouter
-review with zero actionable findings and the applicable security checks.
-Changed source requires the same current-head gates. KB-05 release-preparation
+The merged KB-04 source exit closes only its source slice. KB-05 release-preparation
 source is merged; full KB-05 publication remains open. Agent Access's
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
 is also merged and follows its separate first-publication and

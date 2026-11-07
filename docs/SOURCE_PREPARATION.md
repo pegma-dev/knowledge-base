@@ -2,19 +2,41 @@
 
 ## Scope and readiness
 
-KB-05 source preparation supplies a real local D1 consumer fixture, a public
-synthetic composition, and exact-artifact release tooling. The earlier fixture
-slice is [merged](https://github.com/pegma-dev/knowledge-base/pull/4), and
-[KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) merged at
-[`b61fc77aedd22e888ac7292c3597f93e54fcda8e`](https://github.com/pegma-dev/knowledge-base/commit/b61fc77aedd22e888ac7292c3597f93e54fcda8e).
-That source passed 372 runtime tests on each Node 22/24 lane and the separate
-authenticated official-SDK protocol proof.
+KB-05 source preparation has two separately reviewed source slices. The earlier
+[partial source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
+supplied the real local D1 consumer fixture and public synthetic composition.
+The later [release-preparation slice](https://github.com/pegma-dev/knowledge-base/pull/6)
+added exact-artifact release tooling. Neither source slice completes full
+KB-05 publication or host acceptance.
 
-[KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
-merged at
+### Historical source gates
+
+As of **2026-11-07**, [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
+was merged at
+[`b61fc77aedd22e888ac7292c3597f93e54fcda8e`](https://github.com/pegma-dev/knowledge-base/commit/b61fc77aedd22e888ac7292c3597f93e54fcda8e).
+The historical gate ran on reviewed head
+[`c897626de6c7b2ea574f4154b0bc7a7731ee106e`](https://github.com/pegma-dev/knowledge-base/commit/c897626de6c7b2ea574f4154b0bc7a7731ee106e),
+not the subsequent merge commit. Its [CI run](https://github.com/pegma-dev/knowledge-base/actions/runs/42390433045)
+passed `format:check`, `check`, `test`, `example`, `release:check`, and
+`agent:proof` on both Node 22 and 24: each lane ran 372 runtime tests, the
+synthetic example, all four packed-artifact imports, and the separate
+authenticated five-operation official-SDK protocol proof. The
+[final OpenRouter review](https://github.com/pegma-dev/knowledge-base/pull/5#pullrequestreview-5813559169)
+recorded a clean verdict with zero `OPEN` findings, and the
+[security receipt](https://github.com/pegma-dev/knowledge-base/pull/5#issuecomment-6709727682)
+recorded no issues for that same reviewed head.
+[CodeQL](https://github.com/pegma-dev/knowledge-base/actions/runs/42390433140)
+also passed for that head.
+
+As of **2026-11-07**, [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
+was merged at
 [`7f5eee68be692b5489de3965f3f5ede7ef7a812d`](https://github.com/pegma-dev/knowledge-base/commit/7f5eee68be692b5489de3965f3f5ede7ef7a812d).
-Its final reviewed head passed the complete gate on each Node 22/24 lane:
-372 runtime tests plus 128 release regressions (500 total, zero skips), the
+Its final reviewed head
+[`c8ef14af0ec32e3903b9399543b7a9f2e48df2f9`](https://github.com/pegma-dev/knowledge-base/commit/c8ef14af0ec32e3903b9399543b7a9f2e48df2f9)
+passed the complete gate in this
+[CI run](https://github.com/pegma-dev/knowledge-base/actions/runs/42398508042)
+on each Node 22/24 lane:
+372 runtime tests plus 128 release regressions (500 per lane, zero skips), the
 synthetic example, all four packed-artifact imports, and the authenticated
 five-operation official-SDK proof. The merge record retains three OpenRouter
 review rounds; final round 3 is clean with zero open actionable findings.
@@ -22,8 +44,7 @@ See the [final review](https://github.com/pegma-dev/knowledge-base/pull/6#pullre
 and the [security receipt](https://github.com/pegma-dev/knowledge-base/pull/6#issuecomment-6710997171).
 These are historical merged-source results; changed source requires fresh
 current-head gates. All four KB packages remain unpublished at synchronized
-source version `0.1.0`; the 2026-11-07 registry check returned HTTP 404 for all
-four and for `@pegma/agent-access@0.1.0`.
+source version `0.1.0` in the public registry snapshot below.
 
 | Evidence area    | This source slice                                                        | Separate remaining proof                                                                          |
 | ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
@@ -35,6 +56,52 @@ four and for `@pegma/agent-access@0.1.0`.
 The merged-source results above do not certify this working tree. Record verified
 current-head gate results before treating changed source as validated.
 Local emulator and fixture results are not production or live Workers proof.
+
+## Public registry snapshot
+
+At **2026-11-07T18:48:30Z**, unauthenticated exact-version GET requests to the
+public npm registry returned these results:
+
+| Package                             | Exact version | HTTP status |
+| ----------------------------------- | ------------- | ----------- |
+| `@pegma/agent-access`               | `0.1.0`       | 404         |
+| `@pegma/knowledge-base-contracts`   | `0.1.0`       | 404         |
+| `@pegma/knowledge-base-core`        | `0.1.0`       | 404         |
+| `@pegma/knowledge-base-application` | `0.1.0`       | 404         |
+| `@pegma/knowledge-base-mcp`         | `0.1.0`       | 404         |
+
+Reproduce the read-only probe with Node 22/24, for example by piping this
+JavaScript to `node --input-type=module`. It requires no install or registry
+authentication, requests cache revalidation, rejects redirects, applies a
+15-second timeout per request, and cancels each response body:
+
+```js
+const names = [
+  "@pegma/agent-access",
+  "@pegma/knowledge-base-contracts",
+  "@pegma/knowledge-base-core",
+  "@pegma/knowledge-base-application",
+  "@pegma/knowledge-base-mcp",
+];
+for (const name of names) {
+  const response = await fetch(
+    `https://registry.npmjs.org/${encodeURIComponent(name)}/0.1.0`,
+    {
+      redirect: "error",
+      headers: { "cache-control": "no-cache" },
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  console.log(`${name}@0.1.0 HTTP ${response.status}`);
+  await response.body?.cancel();
+}
+```
+
+Only HTTP 404 establishes absence of the public exact version. This snapshot
+proves no package-name availability, ownership, private registry state, or
+publication authority. Other statuses and transport errors are not absence.
+Repeat the probe before relying on availability or planning host activation;
+strict full-set release preflight remains authoritative for publication.
 
 ## Pinned local D1 consumer
 
@@ -178,7 +245,7 @@ See [agent workflow](AGENT_WORKFLOW.md) for the retained source and host gates.
 
 ## Remaining gates
 
-KB-04's source exit is merged; it does not establish actual clients or two-host
+KB-04's source exit was merged; it does not establish actual clients or two-host
 authentication/staging acceptance. Those gates remain open in P-00 and
 PG-01/RG-01. Every requested client/mode must
 record discovery, existing-login/current-Admin consent, the five operations,
@@ -203,9 +270,13 @@ and released-consumer proof. Manual bootstrap is not OIDC provenance.
 Agent Access has its own publication
 prerequisites, also required before host assembly.
 [Agent Access release preparation](https://github.com/pegma-dev/agent-access/pull/2)
-merged at
+was merged at
 [`eddddd5e333ce16b6a4a8233b84656b3ac784947`](https://github.com/pegma-dev/agent-access/commit/eddddd5e333ce16b6a4a8233b84656b3ac784947).
-Its final Node 22/24 lanes each passed 123 runtime tests and 136 release
+As of **2026-11-07**, its final reviewed head
+[`165e56ab19e9860d6c0bd17f419052b751394b9c`](https://github.com/pegma-dev/agent-access/commit/165e56ab19e9860d6c0bd17f419052b751394b9c),
+rather than the merge commit,
+passed this [CI run](https://github.com/pegma-dev/agent-access/actions/runs/42399414623).
+Its Node 22/24 lanes each passed 123 runtime tests and 136 release
 regressions with zero skips; its merge record retains three OpenRouter review
 rounds, with final round 3 clean and zero open actionable findings.
 See the [final review](https://github.com/pegma-dev/agent-access/pull/2#pullrequestreview-5814178148)

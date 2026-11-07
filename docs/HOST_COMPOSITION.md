@@ -14,7 +14,8 @@ No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
 
-Merged KB-05 [source preparation](SOURCE_PREPARATION.md) adds
+The earlier merged [partial KB-05 source](https://github.com/pegma-dev/knowledge-base/pull/4),
+documented in [source preparation](SOURCE_PREPARATION.md), adds
 shared memory/Azurite/local-D1 conformance and a
 [public synthetic composition](../examples/composition/README.md). The D1
 fixture passes a real Miniflare binding directly to the released

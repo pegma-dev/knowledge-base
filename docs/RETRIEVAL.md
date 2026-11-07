@@ -236,7 +236,8 @@ budgets, and instrumented physical read/page ceilings. Maintenance tests cover
 duplicate/out-of-order jobs, partial failure, bounded resumable scans,
 capacity admission, retirement/move cleanup, and repair convergence. These
 public-entry suites run against memory, real Azurite, and real local Miniflare
-D1 in merged [KB-05 source preparation](SOURCE_PREPARATION.md). Released-consumer
+D1 in the earlier merged [partial KB-05 source slice](SOURCE_PREPARATION.md).
+Released-consumer
 verification and real host workflows retain their release/activation gates.
 
 The executable source cases live in [retrieval tests](../tests/retrieval.test.ts)

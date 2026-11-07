@@ -5,13 +5,14 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status: KB-01 through KB-03 provide contracts, pure domain
+> Development status as of 2026-11-07: KB-01 through KB-03 provide contracts, pure domain
 > transitions, authorized application/persistence, and bounded retrieval/repair.
 > [Merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) adds
 > the optional five-operation HTTP/MCP adapter and authenticated protocol proof.
-> [Merged KB-05 source preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
-> supplies local D1 conformance, a public synthetic example, and exact-artifact
-> release tooling. All four packages are unpublished
+> The separate [partial KB-05 source](https://github.com/pegma-dev/knowledge-base/pull/4)
+> supplies local D1 conformance and a public synthetic example; the later
+> [release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
+> supplies exact-artifact tooling. Both are merged. All four packages are unpublished
 > at `0.1.0`. First publication, trusted-publisher setup, registry verification,
 > and actual two-host existing-login/client acceptance remain separate gates.
 > This repository is not an operational hosted KB or a production dependency.
@@ -77,7 +78,9 @@ demonstrates author/test/review/publish/retrieve with fictional trust inputs.
 The separate `agent:proof` gate composes reviewed pinned AUTH-01 source and all
 four packed KB artifacts in a temporary consumer with the official MCP SDK
 `1.32.2`, exercising OAuth, the five tools, evidence binding, and HTTP/MCP parity.
-Current-head results establish execution; these proofs establish neither actual
+The [historical source-gate record](docs/SOURCE_PREPARATION.md#historical-source-gates)
+retains reviewed heads and CI links. Current-head results establish execution;
+these proofs establish neither actual
 requested-client compatibility nor either real host's login/staging acceptance.
 
 Develop on Node 22.6.0+ or 24 with pnpm 10.34.5:

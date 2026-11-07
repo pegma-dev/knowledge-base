@@ -9,18 +9,14 @@ The release set is exactly these packages, in dependency order:
 3. `@pegma/knowledge-base-application`
 4. `@pegma/knowledge-base-mcp`
 
-All four have synchronized source version `0.1.0` and remain unpublished.
-[KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) is merged at
-`b61fc77aedd22e888ac7292c3597f93e54fcda8e`; its Node 22/24 lanes passed 372 tests
-each and the official-SDK authenticated synthetic protocol proof.
-[KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
-is merged at
-[`7f5eee68be692b5489de3965f3f5ede7ef7a812d`](https://github.com/pegma-dev/knowledge-base/commit/7f5eee68be692b5489de3965f3f5ede7ef7a812d),
-supplying local D1 conformance, public synthetic composition, and release
-tooling. Each final Node 22/24 lane passed 372 runtime tests and 128 release
-regressions (500 total, zero skips), plus the example, four-artifact imports,
-and five-operation SDK proof. [Source preparation](SOURCE_PREPARATION.md)
-records the clean review and security receipts. Full KB-05 publication remains
+As of **2026-11-07**, all four have synchronized source version `0.1.0` and
+remain unpublished. [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
+and [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
+are merged. The separate earlier [partial KB-05 source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
+supplied local D1 conformance and public synthetic composition; PR #6 added
+release tooling. The canonical [historical source-gate record](SOURCE_PREPARATION.md#historical-source-gates)
+identifies reviewed heads separately from merge commits and retains exact
+CI links, counts, review, and security receipts. Full KB-05 publication remains
 open.
 Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
@@ -31,10 +27,8 @@ release. Its reviewed commit `a444e2113db98455b638b2ef8aa7c2faccb16b62` is built
 only in `agent:proof`'s isolated test consumer with the four KB tarballs and
 official MCP SDK `1.32.2`. Its separate
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
-is merged at
-[`eddddd5e333ce16b6a4a8233b84656b3ac784947`](https://github.com/pegma-dev/agent-access/commit/eddddd5e333ce16b6a4a8233b84656b3ac784947),
-with 123 runtime tests and 136 release regressions passing without skips on
-each Node 22/24 lane. It remains unpublished at `0.1.0`; that release-only merge
+is also merged; [source preparation](SOURCE_PREPARATION.md) records its
+reviewed-head CI and merge identity. It remains unpublished at `0.1.0`; that release-only merge
 does not replace the protocol fixture's original implementation pin.
 Production hosts require exact published versions of both components.
 
