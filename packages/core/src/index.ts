@@ -18,4 +18,8 @@ export {
   type EvidenceSubmission,
   type ReviewContext,
 } from "./articles.js";
-export { KnowledgeBaseError, knowledgeLimits } from "./validation.js";
+export {
+  KnowledgeBaseError,
+  knowledgeLimits,
+  validatePolicy as validateValidationPolicy,
+} from "./validation.js";

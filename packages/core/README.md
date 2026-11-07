@@ -4,13 +4,18 @@ Pure collection, draft, verification, review, publication, and retirement
 transitions. This initial 0.1.0 source is unpublished. It requires no Support
 Desk, GitHub, model, framework, database, or provider SDK.
 
-Core owns domain invariants. The later application service authenticates
-callers, resolves Authorization Core permissions, loads current authoritative
-records, verifies external evidence receipts, and commits state with Audit
-through Storage Core. Calling a pure function does not grant a permission.
+Core owns domain invariants. The application service checks current named
+permissions, loads authoritative records, uses host-verified evidence facts,
+and commits state with Audit through Storage Core. The host authenticates
+callers and resolves scoped Authorization Core contexts. Calling a pure
+function does not grant a permission.
 
 ## Entry points
 
+- **validateValidationPolicy** exposes the bounded core validation used by
+  application governance before persistence. It checks policy requirements,
+  including content checks and walkthrough workflow checks; it grants no
+  policy-administration permission.
 - **createCollection** always starts with portal and bot use disabled.
 - **previewCollectionPolicy** binds proposed independent portal/bot audiences to
   the current collection revision. **applyCollectionPolicy** rejects stale or
@@ -56,7 +61,7 @@ The aggregate retains one current revision, at most one published revision,
 and a bounded set of current evidence. It does not store a revision archive.
 Editing clears current evidence and pending review while preserving the old
 published snapshot. A published snapshot contains exact evidence references;
-later application storage must retain or revoke the corresponding evidence
+application storage must retain or revoke the corresponding evidence
 versions and private provenance according to policy.
 
 **isPublicationBoundToCurrentPolicies** checks the published snapshot against

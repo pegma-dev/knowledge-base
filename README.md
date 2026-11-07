@@ -5,15 +5,18 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status: KB-01 implements contracts and pure domain transitions.
-> The packages are unpublished. Authorized persistence, retrieval, API/MCP,
-> and customer/staff interfaces are later tasks. This repository is not yet an
-> operational knowledge-base service or a production dependency.
+> Development status: KB-01 provides contracts and pure domain transitions;
+> KB-02 adds authorized application/persistence source. Its implementation and
+> repository gates determine completion. All three packages are unpublished.
+> Retrieval/search, API/MCP, and live customer/staff interfaces remain later
+> tasks. This repository is not yet an operational hosted KB or a production
+> dependency.
 
-| Package                                                           | Scope                                                  |
-| ----------------------------------------------------------------- | ------------------------------------------------------ |
-| [`@pegma/knowledge-base-contracts`](packages/contracts/README.md) | Collection, article, evidence, and approval vocabulary |
-| [`@pegma/knowledge-base-core`](packages/core/README.md)           | Pure validation and lifecycle transitions              |
+| Package                                                               | Scope                                                                                  |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [`@pegma/knowledge-base-contracts`](packages/contracts/README.md)     | Collection, article, evidence, and approval vocabulary                                 |
+| [`@pegma/knowledge-base-core`](packages/core/README.md)               | Pure validation and lifecycle transitions                                              |
+| [`@pegma/knowledge-base-application`](packages/application/README.md) | Authorized services, bounded declared persistence, private DTOs, and exact publication |
 
 Collections default to private and independently specify portal and bot-answer
 audiences. Articles inherit collection policy. Staff approval binds the exact
@@ -23,10 +26,21 @@ authorizes edited content.
 
 Core transitions accept explicit inputs and return new values. They do not
 authenticate a runner or staff member, enforce host roles, fetch evidence URLs,
-or execute guide steps. Later application services must enforce current
-Authorization Core permissions and authenticated attestation boundaries.
+or execute guide steps. The application enforces current named permissions
+and resource checks; hosts authenticate scoped access contexts and trusted
+evidence/source facts. Private draft, evidence, provenance, and review reads
+have separate DTOs. The keyed published read returns portal-safe content only.
 Local agents will test guides against authorized staging and submit evidence
 through the later API/MCP adapter.
+
+KB-02 stores normalized heads and bounded immutable history with same-partition
+CAS, Audit, replay receipts, and causal jobs. Application generation is separate
+from content revision. Replay returns a historical bounded acknowledgement
+after current authorization, never a raw aggregate. Current publication reads
+reject stale authority; no cross-partition policy transaction is promised.
+Read [declared collections](docs/COLLECTIONS.md) and
+[host composition](docs/HOST_COMPOSITION.md) for the layout, limits, verifier
+contract, and safe read boundaries.
 
 Develop on Node 22 or 24 with pnpm 10.34.5:
 
@@ -38,9 +52,9 @@ pnpm test
 pnpm run release:check
 ```
 
-The npm and pnpm workspace declarations deliberately name the same two source
+The npm and pnpm workspace declarations deliberately name the same source
 packages: pnpm links them for development, while npm supplies artifact packing.
-The release check installs both tarballs in a consumer outside either workspace
+The release check installs all three tarballs in a consumer outside either workspace
 to verify dependency resolution without source links.
 
 The [approved enhancement plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
@@ -54,3 +68,5 @@ Read [AGENTS.md](AGENTS.md) before changing code and
 [release operations](docs/RELEASING.md) before preparing artifacts. Merging
 source does not publish a package. Each new npm name needs the maintainer's
 first publication and trusted-publisher setup before hosts can consume it.
+
+Built in the open by RetireGolden, LLC.
