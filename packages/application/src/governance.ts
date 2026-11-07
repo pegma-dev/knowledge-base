@@ -11,6 +11,7 @@ import {
   knowledgeLimits,
   previewCollectionPolicy,
   validateValidationPolicy,
+  type CollectionPolicyPreview,
   type ReviewContext,
 } from "@pegma/knowledge-base-core";
 
@@ -106,6 +107,37 @@ function anonymousUse(policy: CollectionPolicy): boolean {
   );
 }
 
+function validatePreviewShape(value: CollectionPolicyPreview): void {
+  const preview = dataInput(value, [
+    "collectionId",
+    "expectedRevision",
+    "policy",
+    "policyHash",
+  ]);
+  if (
+    ["collectionId", "expectedRevision", "policy", "policyHash"].some(
+      (field) => !Object.hasOwn(preview, field),
+    )
+  ) {
+    throw new TypeError("Policy preview is missing required fields");
+  }
+  const policy = dataInput(preview.policy, ["version", "portal", "bot"]);
+  if (
+    ["version", "portal", "bot"].some((field) => !Object.hasOwn(policy, field))
+  ) {
+    throw new TypeError("Collection policy is missing required fields");
+  }
+  for (const proposed of [policy.portal, policy.bot]) {
+    const use = dataInput(proposed, ["enabled", "audience"]);
+    if (typeof use.enabled !== "boolean") {
+      throw new TypeError(
+        "Collection use requires an explicit enabled boolean",
+      );
+    }
+    if (use.enabled) dataInput(use.audience, ["kind", "permission"]);
+  }
+}
+
 function validateConfiguration(value: GovernanceConfiguration): void {
   const fields = [
     "validationPolicy",
@@ -176,10 +208,15 @@ export async function loadGovernanceContext(
     throw new KnowledgeBasePrerequisiteError("current_validation_policy");
   }
   validateValidationPolicy(validation.value.policy);
-  const current = await repository.readCollectionVersioned(collectionId);
+  const [current, currentValidation] = await Promise.all([
+    repository.readCollectionVersioned(collectionId),
+    repository.readValidationPolicyVersioned(configuration.validationPolicy.id),
+  ]);
   if (
     current === null ||
-    current.value.generation !== collection.value.generation
+    current.value.generation !== collection.value.generation ||
+    currentValidation === null ||
+    currentValidation.value.generation !== validation.value.generation
   ) {
     throw new RepositoryConflictError();
   }
@@ -294,6 +331,7 @@ export function createGovernanceServices(
       ) {
         throw new TypeError("approvePublic must be an explicit boolean");
       }
+      validatePreviewShape(input.preview);
       const requiresPublicApproval = anonymousUse(input.preview.policy);
       const recheck = async () => {
         requirePermission(access, knowledgePermissions.collectionManage);

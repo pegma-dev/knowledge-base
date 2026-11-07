@@ -23,6 +23,7 @@ import type { StoredArticle } from "./records.js";
 import type { KnowledgeRepository } from "./repository.js";
 import {
   canonicalJson,
+  RepositoryCapacityError,
   RepositoryConflictError,
   RepositoryIntegrityError,
   requireIdentifier,
@@ -337,17 +338,17 @@ export function createReadServices(
       const unavailable = () => new KnowledgeBaseNotFoundError("article");
       if (!hasPermission(access, knowledgePermissions.articleRead))
         throw unavailable();
-      const current = await requiredArticle(repository, input.articleId);
-      const publication = current.article.published;
-      const review = current.publicationReview;
-      if (
-        current.article.state === "retired" ||
-        current.publicationHeld ||
-        publication === undefined ||
-        review === undefined
-      )
-        throw unavailable();
       try {
+        const current = await requiredArticle(repository, input.articleId);
+        const publication = current.article.published;
+        const review = current.publicationReview;
+        if (
+          current.article.state === "retired" ||
+          current.publicationHeld ||
+          publication === undefined ||
+          review === undefined
+        )
+          throw unavailable();
         const at = clockTime(options);
         const governance = await loadGovernanceContext(
           repository,
@@ -487,6 +488,7 @@ export function createReadServices(
           error instanceof KnowledgeBaseError ||
           error instanceof KnowledgeBaseNotFoundError ||
           error instanceof KnowledgeBasePrerequisiteError ||
+          error instanceof RepositoryCapacityError ||
           error instanceof RepositoryConflictError ||
           error instanceof RepositoryIntegrityError
         )

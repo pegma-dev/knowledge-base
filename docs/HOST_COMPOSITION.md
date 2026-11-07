@@ -27,6 +27,12 @@ application. An access-context-shaped HTTP object from a customer is not an
 authenticated context. The host must not cache permission authority beyond
 its supported revocation/freshness boundary.
 
+Each call snapshots its access context. Repeated permission checks use that
+immutable authority while reloading current KB resources; they do not poll
+the host's identity or policy system during an in-flight call. Resolve access
+anew for each call/replay and bound operation duration and authority freshness
+to the host's required revocation behavior.
+
 API/MCP author credentials initially permit draft authoring and evidence
 submission. They do not acquire review/publication or collection-management
 authority by declaring a runner, reviewer, attester, or permission string.
@@ -181,6 +187,12 @@ It does not promise that the acknowledged state is current or servable; use
 the appropriate current read. An old expected generation may identify an exact
 replay, while a new command must match current generation. A retained receipt
 cannot restore access after revocation.
+
+A storage or transport failure can leave the caller uncertain whether the
+transaction committed. Retry the same command ID and exact semantic input,
+including its original expected generation, under freshly resolved access.
+The committed receipt resolves an accepted command without duplicating its
+effects; an unknown outcome is not a reason to issue a new command ID.
 
 Resource generation, content revision, and opaque store version are distinct:
 the first is the application command fence, the second identifies immutable

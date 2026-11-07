@@ -11,6 +11,10 @@ authentication, current-resource authorization, verified-evidence, and privacy
 boundaries. KB-03 retrieval, API/MCP, real-host acceptance, and production
 activation remain later tasks.
 
+GitHub links in this unpublished README track development `main`; they are
+not frozen version documentation. KB-05 release preparation must pin those
+references to verified release source before first publication.
+
 The application API owns authorized commands, application-generation CAS,
 bounded immutable revision/evidence history, exact review/publication,
 transactional Audit/receipts/causal jobs, and safe published-content DTOs.

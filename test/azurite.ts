@@ -38,6 +38,59 @@ async function removeWorkspace(): Promise<void> {
   workspace = undefined;
 }
 
+function signalAndAwaitExit(
+  running: ChildProcess,
+  signal: NodeJS.Signals,
+  milliseconds: number,
+): Promise<boolean> {
+  if (
+    running.pid === undefined ||
+    running.exitCode !== null ||
+    running.signalCode !== null
+  )
+    return Promise.resolve(true);
+  return new Promise((resolveExit, rejectExit) => {
+    const cleanup = () => {
+      clearTimeout(timeout);
+      running.off("exit", exited);
+      running.off("error", failed);
+    };
+    const exited = () => {
+      cleanup();
+      resolveExit(true);
+    };
+    const failed = (error: Error) => {
+      cleanup();
+      rejectExit(error);
+    };
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolveExit(false);
+    }, milliseconds);
+    running.once("exit", exited);
+    running.once("error", failed);
+    try {
+      running.kill(signal);
+    } catch (error) {
+      cleanup();
+      rejectExit(error);
+    }
+  });
+}
+
+async function stopChild(): Promise<void> {
+  const running = child;
+  if (running === undefined) return;
+  if (
+    !(await signalAndAwaitExit(running, "SIGTERM", 2_000)) &&
+    !(await signalAndAwaitExit(running, "SIGKILL", 2_000))
+  )
+    throw new Error(
+      "Azurite did not exit after bounded termination; its workspace was retained.",
+    );
+  child = undefined;
+}
+
 export async function setup(): Promise<void> {
   const entry = join(
     process.cwd(),
@@ -85,15 +138,20 @@ export async function setup(): Promise<void> {
     }
     throw new Error(`Azurite did not start on test port ${TABLE_PORT}.`);
   } catch (error) {
-    child.kill();
-    child = undefined;
-    await removeWorkspace();
+    try {
+      await stopChild();
+      await removeWorkspace();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        "Azurite startup failed and cleanup did not complete.",
+      );
+    }
     throw error;
   }
 }
 
 export async function teardown(): Promise<void> {
-  child?.kill();
-  child = undefined;
+  await stopChild();
   await removeWorkspace();
 }
