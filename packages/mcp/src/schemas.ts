@@ -319,16 +319,10 @@ const reportRequirementsResult =
     .strip();
 export const knowledgeAgentReportResultSchemas = Object.freeze({
   ...knowledgeAgentResultSchemas,
-  getValidationRequirements: z.union([
-    reportRequirementsResult,
-    knowledgeAgentResultSchemas.getValidationRequirements,
-  ]),
-  submitEvidence: z.union([
-    reportAcknowledgement
-      .extend({ kind: z.literal("pending-human-review") })
-      .strip(),
-    acknowledgement,
-  ]),
+  getValidationRequirements: reportRequirementsResult,
+  submitEvidence: reportAcknowledgement
+    .extend({ kind: z.literal("pending-human-review") })
+    .strip(),
 });
 
 export function resolveKnowledgeAgentLimits(

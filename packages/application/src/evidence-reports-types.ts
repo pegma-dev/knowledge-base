@@ -57,6 +57,9 @@ export interface KnowledgeReportLedgerState {
 export interface KnowledgeEvidenceContext {
   readonly draft: DraftArticleDto;
   readonly requirements: ValidationRequirementsDto;
+  /** Complete current getEvidence DTO at the draft's exact generation is
+   * required for human qualification and verification. Pending agent report
+   * admission may omit private evidence; omission is never empty history. */
   readonly evidence?: EvidenceDto;
 }
 
@@ -85,6 +88,10 @@ export interface KnowledgeReportKey extends KnowledgeReportArticleInput {
 export interface SubmitKnowledgeReportInput extends KnowledgeReportArticleInput {
   readonly commandId: string;
   readonly ledgerEpoch: number;
+  /** Admission fence for a new command, bound into its exact replay identity
+   * only when present. Retry the original value; omission preserves legacy
+   * fingerprints and does not introduce a default generation. */
+  readonly expectedArticleGeneration?: number;
   readonly evidence: EvidenceSubmission;
   readonly report: KnowledgeTestReport;
 }

@@ -250,10 +250,10 @@ export async function evidenceReportsFixture(
     const input = await reportInput(proof);
     return { input, ack: await reports.report(caller, input) };
   }
-  async function decide(
+  async function decisionInput(
     ack: KnowledgeReportAcknowledgement,
-    status: KnowledgeReportStatus = "confirmed",
     caller = reportReviewer,
+    status: KnowledgeReportStatus = "confirmed",
   ) {
     const view = await reports.read(caller, key(ack));
     const input: DecideKnowledgeReportInput = {
@@ -262,6 +262,14 @@ export async function evidenceReportsFixture(
       expectedReportGeneration: view.expectedReportGeneration,
       reviewBindingHash: view.reviewBindingHash,
     };
+    return { view, input };
+  }
+  async function decide(
+    ack: KnowledgeReportAcknowledgement,
+    status: KnowledgeReportStatus = "confirmed",
+    caller = reportReviewer,
+  ) {
+    const { view, input } = await decisionInput(ack, caller, status);
     return { view, input, ack: await reports.decide(caller, input, status) };
   }
   async function submit(
@@ -432,6 +440,7 @@ export async function evidenceReportsFixture(
     submission,
     reportInput,
     report,
+    decisionInput,
     decide,
     submit,
     verificationRequest,

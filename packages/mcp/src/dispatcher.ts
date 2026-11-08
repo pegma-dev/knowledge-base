@@ -207,10 +207,20 @@ export function createKnowledgeAgentDispatcher(
     reports === undefined
       ? knowledgeAgentEnvelopeSchema
       : knowledgeAgentReportEnvelopeSchema;
-  const resultSchemas =
-    reports === undefined
-      ? knowledgeAgentResultSchemas
-      : knowledgeAgentReportResultSchemas;
+  function reportOutput<T>(
+    schema: { parse(value: unknown): T },
+    value: unknown,
+  ): T {
+    try {
+      return schema.parse(
+        snapshotKnowledgeAgentJson(value, limits, limits.maxResponseBytes),
+      );
+    } catch {
+      throw new KnowledgeAgentBoundaryError("unavailable");
+    }
+  }
+  const reportResult =
+    knowledgeAgentReportResultSchemas.getValidationRequirements.shape;
   return Object.freeze({
     limits,
     ...(reports === undefined ? {} : { reportWorkflow: true as const }),
@@ -271,9 +281,10 @@ export function createKnowledgeAgentDispatcher(
                 access,
                 query,
               );
-              const ledger = await reports.ledger(access, {
-                articleId: input.articleId,
-              });
+              const ledger = reportOutput(
+                reportResult.reportLedger,
+                await reports.ledger(access, { articleId: input.articleId }),
+              );
               const lookup = input.reportLookup;
               if (
                 lookup !== undefined &&
@@ -283,15 +294,19 @@ export function createKnowledgeAgentDispatcher(
               const status =
                 lookup === undefined
                   ? undefined
-                  : await reports.status(access, {
-                      articleId: input.articleId,
-                      ...lookup,
-                    });
+                  : reportOutput(
+                      reportResult.reportStatus.unwrap(),
+                      await reports.status(access, {
+                        articleId: input.articleId,
+                        ...lookup,
+                      }),
+                    );
               const latestRequirements =
                 await application.getValidationRequirements(access, query);
-              const latestLedger = await reports.ledger(access, {
-                articleId: input.articleId,
-              });
+              const latestLedger = reportOutput(
+                reportResult.reportLedger,
+                await reports.ledger(access, { articleId: input.articleId }),
+              );
               const latest = await application.getDraft(access, {
                 articleId: input.articleId,
               });
@@ -311,21 +326,41 @@ export function createKnowledgeAgentDispatcher(
                   status.reportId !== lookup?.reportId)
               )
                 throw new KnowledgeAgentBoundaryError("unavailable");
+              // Observe the bounded report DTO again after all other awaited
+              // fences. This does not lock a decision atomically with a response.
+              const latestStatus =
+                lookup === undefined
+                  ? undefined
+                  : reportOutput(
+                      reportResult.reportStatus.unwrap(),
+                      await reports.status(access, {
+                        articleId: input.articleId,
+                        ...lookup,
+                      }),
+                    );
+              if (
+                latestStatus !== undefined &&
+                (latestStatus.ledgerEpoch !== lookup?.ledgerEpoch ||
+                  latestStatus.reportId !== lookup?.reportId)
+              )
+                throw new KnowledgeAgentBoundaryError("unavailable");
+              if (JSON.stringify(latestStatus) !== JSON.stringify(status))
+                throw new KnowledgeAgentBoundaryError("conflict");
               result = {
                 ...latestRequirements,
                 reportLedger: {
                   ledgerEpoch: latestLedger.ledgerEpoch,
                   status: latestLedger.status,
                 },
-                ...(status === undefined
+                ...(latestStatus === undefined
                   ? {}
                   : {
                       reportStatus: {
-                        ledgerEpoch: status.ledgerEpoch,
-                        reportId: status.reportId,
-                        receipt: status.receipt,
-                        reportGeneration: status.reportGeneration,
-                        status: status.status,
+                        ledgerEpoch: latestStatus.ledgerEpoch,
+                        reportId: latestStatus.reportId,
+                        receipt: latestStatus.receipt,
+                        reportGeneration: latestStatus.reportGeneration,
+                        status: latestStatus.status,
                       },
                     }),
               };
@@ -344,12 +379,11 @@ export function createKnowledgeAgentDispatcher(
               const target = await application.getDraft(access, {
                 articleId: input.articleId,
               });
-              if (target.generation !== input.expectedGeneration)
-                throw new KnowledgeAgentBoundaryError("conflict");
               const ack = await reports.report(access, {
                 commandId: input.commandId,
                 articleId: input.articleId,
                 ledgerEpoch: input.ledgerEpoch,
+                expectedArticleGeneration: input.expectedGeneration,
                 evidence: input.evidence,
                 report: input.report,
               });
@@ -386,7 +420,15 @@ export function createKnowledgeAgentDispatcher(
           }
           throw new KnowledgeAgentBoundaryError("unavailable");
         }
-        const safe = resultSchemas[operation].safeParse(detached);
+        const resultSchema =
+          envelope.operation === "getValidationRequirements" &&
+          "articleId" in envelope.input
+            ? knowledgeAgentReportResultSchemas.getValidationRequirements
+            : envelope.operation === "submitEvidence" &&
+                !("receipt" in envelope.input)
+              ? knowledgeAgentReportResultSchemas.submitEvidence
+              : knowledgeAgentResultSchemas[operation];
+        const safe = resultSchema.safeParse(detached);
         if (!safe.success) throw new KnowledgeAgentBoundaryError("unavailable");
         return snapshotKnowledgeAgentJson(
           { apiVersion: "1", operation, result: safe.data },

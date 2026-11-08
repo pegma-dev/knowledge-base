@@ -12,9 +12,11 @@ The approved scope is the
 [implementation plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
 and its P-00 capacity/privacy requirements. KB-04's optional HTTP/MCP adapter
 source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The
-[verified `0.1.1` release](BOOTSTRAP.md#verified-knowledge-base-release) is
-complete; the `0.1.2` source candidate, real-host acceptance, and production
-readiness retain their own gates.
+[current verified `0.1.2` release](BOOTSTRAP.md#current-verified-012-release) is
+complete; the unpublished `0.1.3` human-report source candidate, real-host
+acceptance, and production readiness retain their own gates. The earlier
+`0.1.1` release has a separate
+[historical receipt](BOOTSTRAP.md#historical-verified-011-release).
 
 ## Partition and authority rules
 

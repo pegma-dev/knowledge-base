@@ -6,7 +6,7 @@ existing `KnowledgeBaseApplication`; neither introduces
 an authorization engine or another article lifecycle. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
 have since completed verified trusted publication. The current verified KB
-release is [`0.1.2`](BOOTSTRAP.md#verified-knowledge-base-release).
+release is [`0.1.2`](BOOTSTRAP.md#current-verified-012-release).
 Optional report mode is new unpublished `0.1.3` candidate source, with its own
 review, gates and verified trusted release pending.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
@@ -125,16 +125,27 @@ body-free `reportStatus: { ledgerEpoch, reportId, receipt, reportGeneration,
 status: "pending" | "confirmed" | "rejected" }`. No report body, reviewer,
 private accepted evidence or trusted-attester registry is exposed. An epoch
 mismatch conflicts; another submitter's report is not found.
+The input variant selects the output schema: a report-aware result must contain
+valid bounded report metadata. Malformed extended port results are unavailable,
+not silently reduced to legacy requirements. Configured legacy inputs still
+receive the legacy result. Polling rechecks the report DTO after its other
+awaited reads; observed receipt, generation or status drift conflicts, and a
+fresh poll obtains a new point-in-time view. It is not a global atomic snapshot.
 
 For report submission, the existing `submitEvidence` tool accepts strictly
 `{ commandId, correlationId, expectedGeneration, articleId, evidence,
 ledgerEpoch, report: { summary, details } }`, with **no `receipt` field**.
 `evidence` remains the whole original `EvidenceSubmission`; `summary` is at
 most 1,000 characters and `details` at most 16,000, within the existing complete
-request bounds. Admission checks the exact current article generation and
+request bounds. New admission checks the exact current article generation and
 ledger epoch. The result is
 `{ kind: "pending-human-review", ledgerEpoch, reportId, receipt,
-reportGeneration }`, with a receipt bounded to 512 UTF-8 bytes. This records a
+reportGeneration }`, with the receipt's **JSON-encoded string** bounded to 512
+UTF-8 bytes, including its surrounding quotes and any escapes. This also applies
+to custom host report ports: a receipt of 512 ASCII letters encodes to 514
+bytes and is rejected; quotes and backslashes require further escaping. The
+complete acknowledgement still fits the existing
+2,048-byte minimum response budget; that budget is unchanged. This records a
 private report only: it is not `{ value, replayed }`, does not accept KB evidence,
 and does not change the article generation. Keep that distinction in clients.
 
@@ -161,8 +172,19 @@ do not independently authenticate a host grant.
 Report writes and article reads/commits are separate. A later fence failure
 can withhold a response after a report was queued; conflict or unavailability
 does not prove rollback. Retry an uncertain report command with the same ID
-and exact input under fresh authority. Report epoch/generation conflicts and
-resetting ledgers map to `conflict`; report bounds/capacity to `capacity`;
+and exact input under fresh authority, including the original
+`expectedGeneration`. The dispatcher forwards it as the shared service's
+optional `expectedArticleGeneration`, bound into the command fingerprint when
+present. Exact replay lookup precedes the new-admission generation check: a
+retry can recover its historical acknowledgement at a stable newer article
+generation, while changing the expected generation on the same command
+conflicts. New commands with a wrong generation are not admitted. Custom report
+ports must preserve this generation-binding/replay contract as well as the DTO
+shape. The observed before/after draft fence still applies, so a change during
+recovery can withhold that response again. A recovered acknowledgement does not
+establish current review status or receipt validity; poll owner-only status
+before using it. Report epoch/generation conflicts and resetting ledgers map to
+`conflict`; report bounds/capacity to `capacity`;
 missing grants to `forbidden`; unconfirmed or altered receipts fail actual
 evidence qualification with `prerequisite`. No agent report-listing, human
 decision, reset/drain, private-evidence read or publication tool is added.

@@ -11,9 +11,11 @@ Authorization Core. The
 optional `@pegma/knowledge-base-mcp` package supplies bounded HTTP/MCP adapters
 over that application. All four `0.1.0` packages completed manual bootstrap
 and exact-byte postflight without OIDC provenance. The four-package `0.1.1`
-trusted release is now [verified](BOOTSTRAP.md#verified-knowledge-base-release).
-Source `0.1.2` is the atomic draft/source candidate; its own review, current-head
-gates, trusted release, and strict registry/provenance verification remain open.
+trusted release has a [historical receipt](BOOTSTRAP.md#historical-verified-011-release).
+The current four-package `0.1.2` atomic draft/source release is
+[verified](BOOTSTRAP.md#current-verified-012-release). Source `0.1.3` is the
+unpublished human-reviewed report candidate; its own review, current-head gates,
+trusted release, and strict registry/provenance verification remain open.
 Host acceptance remains separate.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required

@@ -4,7 +4,10 @@ import {
   type AccessContext,
 } from "@pegma/authorization-core";
 import { auditEvent } from "@pegma/audit";
-import type { EvidenceSubmission } from "@pegma/knowledge-base-core";
+import {
+  knowledgeDigest as coreKnowledgeDigest,
+  type EvidenceSubmission,
+} from "@pegma/knowledge-base-core";
 import {
   knowledgePermissions,
   type Applicability,
@@ -707,6 +710,13 @@ export function createKnowledgeEvidenceReports(
     ])
       if (!hasPermission(access, permission))
         throw new KnowledgeEvidenceReportsError("forbidden");
+    // The prescribed public readContext uses getValidationRequirements, whose
+    // existing author-facing permission is evidenceSubmit OR draftWrite.
+    if (
+      !hasPermission(access, knowledgePermissions.evidenceSubmit) &&
+      !hasPermission(access, knowledgePermissions.draftWrite)
+    )
+      throw new KnowledgeEvidenceReportsError("forbidden");
     return access;
   }
   async function headVersion(articleId: string) {
@@ -783,9 +793,37 @@ export function createKnowledgeEvidenceReports(
         value.draft.articleId !== articleId ||
         value.draft.revision.articleId !== articleId ||
         value.requirements.collectionId !== value.draft.revision.collectionId ||
-        (value.evidence !== undefined && value.evidence.articleId !== articleId)
+        (value.evidence !== undefined &&
+          (!isPlainObject(value.evidence) ||
+            value.evidence.articleId !== articleId ||
+            value.evidence.generation !== value.draft.generation ||
+            !Array.isArray(value.evidence.evidence) ||
+            !Array.isArray(value.evidence.revokedEvidence)))
       )
         throw new KnowledgeEvidenceReportsUnavailableError("context_read");
+      if (value.evidence !== undefined) {
+        const evidence = value.evidence;
+        stored("context_read", () => {
+          for (const item of evidence.revokedEvidence) {
+            const revoked = exactObject(item, [
+              "articleRevision",
+              "id",
+              "version",
+              "hash",
+              "reason",
+              "revokedBy",
+              "revokedAt",
+            ]);
+            positive(revoked.articleRevision);
+            scalar(revoked.id);
+            positive(revoked.version);
+            hash(revoked.hash);
+            scalar(revoked.reason, 1000);
+            scalar(revoked.revokedBy);
+            timestamp(revoked.revokedAt);
+          }
+        });
+      }
       return value;
     } catch (error) {
       if (error instanceof KnowledgeEvidenceReportsError) throw error;
@@ -813,13 +851,34 @@ export function createKnowledgeEvidenceReports(
       report.articleHash !== (await knowledgeDigest(article)) ||
       report.governanceHash !== (await knowledgeDigest(value.requirements)) ||
       report.submissionHash !== (await knowledgeDigest(report.evidence)) ||
-      value.evidence?.revokedEvidence.some(
-        (item) =>
-          item.id === report.evidence.id &&
-          item.articleRevision === report.evidence.articleRevision,
-      )
+      value.evidence === undefined
     )
       return false;
+    if (report.confirmation !== null) {
+      // Core revokes one exact accepted fact, including its version and human
+      // attestation. Reconstruct it even when current evidence was replaced;
+      // a separately reviewed replacement is not an identifier-wide ban.
+      const attestation = {
+        id: acknowledgement(report).receipt,
+        verifiedBy: report.confirmation.reviewerId,
+        verifiedAt: report.confirmation.confirmedAt,
+      };
+      for (const revoked of value.evidence.revokedEvidence) {
+        if (
+          revoked.id === report.evidence.id &&
+          revoked.articleRevision === report.evidence.articleRevision &&
+          revoked.hash ===
+            (await ledgerIo("hashing", () =>
+              coreKnowledgeDigest({
+                ...report.evidence,
+                version: revoked.version,
+                attestation,
+              }),
+            ))
+        )
+          return false;
+      }
+    }
     const submission = report.evidence;
     const requirement = value.requirements.checks.find(
       (item) =>
@@ -968,10 +1027,21 @@ export function createKnowledgeEvidenceReports(
         commandId,
         fingerprint,
       );
-      if (accepted !== null) return accepted;
+      if (accepted !== null) {
+        await active(report.articleId, report.ledgerEpoch);
+        if (previousVersion === undefined)
+          await current(access, knowledgePermissions.evidenceSubmit);
+        else await staff(access);
+        return accepted;
+      }
       throw new KnowledgeEvidenceReportsError("report_changed");
     }
     await active(report.articleId, report.ledgerEpoch);
+    // Withhold an ACK if authority changed during storage; a committed report
+    // or decision remains committed and is not rolled back by this refusal.
+    if (previousVersion === undefined)
+      await current(access, knowledgePermissions.evidenceSubmit);
+    else await staff(access);
     return result;
   }
   const verifier: EvidenceVerifier = {
@@ -1077,16 +1147,20 @@ export function createKnowledgeEvidenceReports(
     async report(access, value) {
       value = requestData(value);
       access = await current(access, knowledgePermissions.evidenceSubmit);
-      const input = exactObject(value, [
-        "commandId",
-        "articleId",
-        "ledgerEpoch",
-        "evidence",
-        "report",
-      ]);
+      const input = optionalKeysObject(
+        value,
+        ["commandId", "articleId", "ledgerEpoch", "evidence", "report"],
+        ["expectedArticleGeneration"],
+      );
       const commandId = await knowledgeDigest(scalar(input.commandId));
       const articleId = scalar(input.articleId);
       const ledgerEpoch = positive(input.ledgerEpoch);
+      const expectedArticleGeneration = Object.hasOwn(
+        input,
+        "expectedArticleGeneration",
+      )
+        ? positive(input.expectedArticleGeneration, 0)
+        : undefined;
       const evidence = parseKnowledgeEvidence(input.evidence);
       const report = parseReport(input.report);
       if (evidence.articleId !== articleId)
@@ -1098,6 +1172,9 @@ export function createKnowledgeEvidenceReports(
         commandId,
         articleId,
         ledgerEpoch,
+        ...(expectedArticleGeneration === undefined
+          ? {}
+          : { expectedArticleGeneration }),
         evidence,
         report,
       });
@@ -1108,11 +1185,17 @@ export function createKnowledgeEvidenceReports(
         fingerprint,
       );
       if (accepted !== null) {
-        await current(access, knowledgePermissions.evidenceSubmit);
         await active(articleId, ledgerEpoch);
+        await current(access, knowledgePermissions.evidenceSubmit);
         return accepted;
       }
-      const hashes = await contextHashes(await context(access, articleId));
+      const valueContext = await context(access, articleId);
+      if (
+        expectedArticleGeneration !== undefined &&
+        valueContext.draft.generation !== expectedArticleGeneration
+      )
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      const hashes = await contextHashes(valueContext);
       const initial: ReportRecord = {
         ledgerEpoch,
         receiptGeneration: 1,
@@ -1150,7 +1233,17 @@ export function createKnowledgeEvidenceReports(
         throw new KnowledgeEvidenceReportsError("report_not_found");
       await current(access, knowledgePermissions.evidenceSubmit);
       await active(articleId, epoch);
-      return { ...acknowledgement(report), status: report.status };
+      // Finite final observation after authority/head awaits. A concurrent
+      // human decision rotates this generation/cycle; do not return old status.
+      const latest = await load(articleId, epoch, report.reportId);
+      if (
+        latest.reportGeneration !== report.reportGeneration ||
+        latest.receiptGeneration !== report.receiptGeneration ||
+        latest.status !== report.status ||
+        latest.reportHash !== report.reportHash
+      )
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      return { ...acknowledgement(latest), status: latest.status };
     },
     async list(access, value) {
       value = requestData(value);
@@ -1263,8 +1356,8 @@ export function createKnowledgeEvidenceReports(
       });
       const accepted = await replay(articleId, epoch, commandId, fingerprint);
       if (accepted !== null) {
-        await staff(access);
         await active(articleId, epoch);
+        await staff(access);
         return accepted;
       }
       const saved = await ledgerIo("report_read", () =>
@@ -1399,6 +1492,8 @@ export function createKnowledgeEvidenceReports(
       );
       if (!outcome.committed)
         throw new KnowledgeEvidenceReportsError("ledger_changed");
+      // The reset may already be durable. Refusal here withholds only its ACK.
+      await staff(access);
       return state(articleId, next);
     },
     async drain(access, value) {
@@ -1451,6 +1546,8 @@ export function createKnowledgeEvidenceReports(
       );
       if (!outcome.committed)
         throw new KnowledgeEvidenceReportsError("ledger_changed");
+      // Deleted rows are not restored if staff authority changed during IO.
+      await staff(access);
       return state(articleId, next);
     },
   } satisfies KnowledgeEvidenceReports);

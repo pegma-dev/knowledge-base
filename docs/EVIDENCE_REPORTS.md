@@ -62,6 +62,15 @@ submission: article revision/content hash, validation policy, check/test kind,
 applicability/build, steps, result, original execution time, runner, and artifact
 IDs/hashes. The authenticated context supplies the submitting principal.
 
+The optional `expectedArticleGeneration` is a nonnegative safe integer. When
+supplied, it is part of the exact command fingerprint and must match the current
+draft generation for **new** admission. An exact accepted replay is looked up
+before that admission check, so retry the original value even after another
+article mutation. Changing, adding or removing the bound field on the same
+command conflicts. Omitting it preserves the existing legacy fingerprints;
+the service does not invent a default generation. The agent dispatcher passes
+its wire `expectedGeneration` through this field.
+
 | Method           | Purpose and authority                                                                                         |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | `ledger`         | Body-free current epoch/capacity state; requires current `evidenceSubmit`.                                    |
@@ -72,8 +81,13 @@ IDs/hashes. The authenticated context supplies the submitting principal.
 | `reset`, `drain` | Authorized bounded ledger retention/recovery.                                                                 |
 
 Every staff method requires the configured `confirmationPermission` plus
-`draftRead` and `evidenceRead`, under current same-principal authority. The full
-view includes the report/submission, hashes, exact current draft/requirements,
+`draftRead`, `evidenceRead`, and either `evidenceSubmit` or `draftWrite`, under
+current same-principal authority. The recommended minimum human reviewer has
+exactly the confirmation permission, `draftRead`, `evidenceRead` and
+`evidenceSubmit`: neither an Admin role nor `draftWrite` is required. The
+either/or requirement supplies the public `getValidationRequirements` read
+prerequisite. Choose `evidenceSubmit` to review without draft-editing authority.
+The full view includes the report/submission, hashes, exact current draft/requirements,
 `reviewBindingHash`, `expectedReportGeneration`, and any confirmation. Keep
 these private; the agent's body-free `status` is not a staff listing or report
 download. Render untrusted report text safely and do not fetch submitted links.
@@ -169,9 +183,14 @@ call's full-partition integrity read. Resume after interruption until it is
 admission capacity while active and rows left to delete while resetting.
 
 Exact accepted report/decision retries under current authority return historical
-acknowledgements within the active epoch, without repeating transitions. An old
-acknowledgement does not prove that its receipt cycle is still current after
-reassessment. Reset ends that epoch's replay horizon. The head retains a bounded
+acknowledgements within the active epoch, without repeating transitions. An
+exact report retry can recover its lost acknowledgement at a stable newer
+article generation; the original bound generation is not updated on retry.
+Current principal authority and epoch fences still apply. Transport target
+reads and observed draft fences can withhold the response again if the article
+changes during recovery. Poll owner-only `status` after recovery: an old
+acknowledgement does not prove that its receipt cycle or review status is still
+current after reassessment. Reset ends that epoch's replay horizon. The head retains a bounded
 history seal and only the latest reset intent: its exact retry returns current
 metadata without another reset; after a subsequent reset, the older intent
 conflicts. It is not an indefinite archive of drained reports or Audit receipts.

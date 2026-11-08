@@ -1436,6 +1436,18 @@ async function runReportProof() {
     assert.equal(replay.result.replayed, true);
     assert.deepEqual(replay.result.value, committed.result.value);
     assert.equal((await host.acceptedEvidence()).evidence.length, 1);
+    const reportReplay = await mcpCall(
+      session.client,
+      "submitEvidence",
+      reportInput,
+    );
+    assert.deepEqual(reportReplay.result, queued.result);
+    const reboundReport = await mcpCall(session.client, "submitEvidence", {
+      ...reportInput,
+      expectedGeneration: committed.result.value.generation,
+    });
+    assert.equal(reboundReport.error.code, "conflict");
+    assert.equal((await host.acceptedEvidence()).evidence.length, 1);
     const safeDraft = await mcpCall(session.client, "getDraft", {
       articleId: ARTICLE,
     });
@@ -1458,6 +1470,8 @@ async function runReportProof() {
       unconfirmedReceiptRejected: true,
       tamperedEvidenceRejected: true,
       exactReplay: true,
+      historicalReportAckRecovered: true,
+      reportGenerationRebindingRejected: true,
     };
   } finally {
     let cleanupFailed = false;

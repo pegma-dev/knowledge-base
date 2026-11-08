@@ -1,6 +1,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type { KnowledgeEvidenceReports } from "@pegma/knowledge-base-application";
+import type {
+  KnowledgeEvidenceReports,
+  KnowledgeReportAcknowledgement,
+} from "@pegma/knowledge-base-application";
 import {
   createKnowledgeAgentDispatcher,
   createKnowledgeAgentHttp,
@@ -361,6 +364,222 @@ describe.each(["HTTP", "MCP"] as const)(
       expect(JSON.stringify(listed.tools)).not.toContain("ledgerEpoch");
     });
 
+    it("keeps legacy requirements exact even when the report port is configured", async () => {
+      let calls = 0;
+      const f = await fixture({
+        wrapReports: (reports) => ({
+          ...reports,
+          async ledger(...args) {
+            calls++;
+            return reports.ledger(...args);
+          },
+          async status(...args) {
+            calls++;
+            return reports.status(...args);
+          },
+        }),
+      });
+      const input = {
+        collectionId: f.collectionId,
+        kind: "walkthrough" as const,
+      };
+      const actual = success(
+        await f.call(channel, "getValidationRequirements", input),
+      );
+      expect(actual).toEqual(
+        await f.app.getValidationRequirements(f.agent, input),
+      );
+      expect(actual).not.toHaveProperty("reportLedger");
+      expect(actual).not.toHaveProperty("reportStatus");
+      expect(calls).toBe(0);
+    });
+
+    it.each([
+      ["ledger status", "ledger", "status", "malformed"],
+      ["ledger epoch", "ledger", "ledgerEpoch", 0],
+      ["report status", "status", "status", "malformed"],
+      ["report generation", "status", "reportGeneration", 0],
+      ["report receipt", "status", "receipt", 17],
+    ] as const)(
+      "refuses malformed trusted %s instead of stripping into legacy success",
+      async (_name, port, field, invalid) => {
+        const f = await fixture({
+          wrapReports: (reports) => ({
+            ...reports,
+            async ledger(...args) {
+              const value = { ...(await reports.ledger(...args)) };
+              if (port === "ledger") Reflect.set(value, field, invalid);
+              return value;
+            },
+            async status(...args) {
+              const value = { ...(await reports.status(...args)) };
+              if (port === "status") Reflect.set(value, field, invalid);
+              return value;
+            },
+          }),
+        });
+        const actual = await f.report();
+        const response = await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput({ ...actual.ack, kind: "pending-human-review" }),
+        );
+        privateError(response, "unavailable");
+        expect(response).not.toHaveProperty("result");
+      },
+    );
+
+    it.each([
+      ["ASCII exact", "r".repeat(510), 512, true],
+      ["ASCII one over", "r".repeat(511), 513, false],
+      ["512 raw ASCII", "r".repeat(512), 514, false],
+      ["escaped quotes exact", '"'.repeat(255), 512, true],
+      ["escaped quotes one over", '"'.repeat(255) + "r", 513, false],
+      ["escaped backslashes exact", "\\".repeat(255), 512, true],
+      ["escaped backslashes one over", "\\".repeat(255) + "r", 513, false],
+    ] as const)(
+      "enforces the existing JSON-encoded receipt bound for %s at the minimum budget",
+      async (_name, receipt, bytes, accepted) => {
+        expect(
+          new TextEncoder().encode(JSON.stringify(receipt)).byteLength,
+        ).toBe(bytes);
+        const f = await fixture({
+          limits: { maxResponseBytes: 2048 },
+          wrapReports: (reports) => ({
+            ...reports,
+            async report(...args) {
+              return { ...(await reports.report(...args)), receipt };
+            },
+            async status(...args) {
+              return { ...(await reports.status(...args)), receipt };
+            },
+          }),
+        });
+        const existing = await f.report();
+        const current = await f.current();
+        const input = {
+          ...f.command("receipt-bound", current.generation),
+          ...(await f.reportInput()),
+        };
+        const queued = await f.call(channel, "submitEvidence", input);
+        const polled = await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput({
+            ...existing.ack,
+            kind: "pending-human-review",
+          }),
+        );
+        if (accepted) {
+          expect(success<KnowledgeAgentPendingReport>(queued).receipt).toBe(
+            receipt,
+          );
+          expect(
+            success<KnowledgeAgentReportRequirementsResult>(polled).reportStatus
+              ?.receipt,
+          ).toBe(receipt);
+          expect(
+            new TextEncoder().encode(JSON.stringify(polled)).byteLength,
+          ).toBeLessThanOrEqual(2048);
+        } else {
+          privateError(queued, "unavailable");
+          privateError(polled, "unavailable");
+        }
+      },
+    );
+
+    it("recovers an exact report ACK after evidence-only generation changes and rejects generation rebinding", async () => {
+      const f = await fixture();
+      const queued = await f.packet(channel);
+      await f.decide(queued.ack);
+      await f.submit(queued.ack, queued.input.evidence);
+      const current = await f.current();
+      expect(current.generation).toBe(queued.input.expectedGeneration + 1);
+      expect(current.revision.number).toBe(
+        queued.input.evidence.articleRevision,
+      );
+      const before = await f.physicalRows();
+      expect(
+        success<KnowledgeAgentPendingReport>(
+          await f.call(other, "submitEvidence", queued.input),
+        ),
+      ).toEqual(queued.ack);
+      privateError(
+        await f.call(channel, "submitEvidence", {
+          ...queued.input,
+          expectedGeneration: current.generation,
+        }),
+        "conflict",
+      );
+      privateError(
+        await f.call(channel, "submitEvidence", {
+          ...queued.input,
+          ...f.command("new-stale-generation", queued.input.expectedGeneration),
+        }),
+        "conflict",
+      );
+      expect(await f.physicalRows()).toEqual(before);
+      expect(await f.current()).toEqual(current);
+    });
+
+    it.each(["confirmed", "pending"] as const)(
+      "withholds a status invalidated by a real %s decision between awaited fences",
+      async (decision) => {
+        let apply: (() => Promise<void>) | undefined;
+        let observedStatus = false;
+        const f = await fixture({
+          wrapReports: (reports) => ({
+            ...reports,
+            async status(...args) {
+              const value = await reports.status(...args);
+              if (apply !== undefined) observedStatus = true;
+              return value;
+            },
+            async ledger(...args) {
+              const value = await reports.ledger(...args);
+              if (observedStatus && apply !== undefined) {
+                const decide = apply;
+                apply = undefined;
+                observedStatus = false;
+                await decide();
+              }
+              return value;
+            },
+          }),
+        });
+        const queued = await f.packet(channel);
+        if (decision === "pending") await f.decide(queued.ack);
+        const initial = await f.reports.status(f.agent, f.key(queued.ack));
+        const target = await f.current();
+        apply = async () => {
+          await f.decide(queued.ack, decision);
+        };
+        privateError(
+          await f.call(
+            channel,
+            "getValidationRequirements",
+            f.requirementsInput(queued.ack),
+          ),
+          "conflict",
+        );
+        const latest = await f.reports.status(f.agent, f.key(queued.ack));
+        expect(latest.reportGeneration).toBe(initial.reportGeneration + 1);
+        expect(latest.status).toBe(decision);
+        if (decision === "pending")
+          expect(latest.receipt).not.toBe(initial.receipt);
+        expect(await f.current()).toEqual(target);
+        const fresh = success<KnowledgeAgentReportRequirementsResult>(
+          await f.call(
+            other,
+            "getValidationRequirements",
+            f.requirementsInput(queued.ack),
+          ),
+        );
+        expect(fresh.reportStatus).toEqual(latest);
+        bodyFree(fresh);
+      },
+    );
+
     it("requires both existing effective permissions for the optional extension and never grants staff capabilities", async () => {
       const f = await fixture();
       const current = await f.current();
@@ -576,46 +795,68 @@ describe("optional native report bounds and observational fences", () => {
     expect((await f.current()).generation).toBe(1);
   });
 
-  it("withholds a queued-report ACK after an actual draft edit without claiming report rollback", async () => {
-    const f = await fixture({
-      wrapReports: (reports, app) => ({
-        ...reports,
-        async report(access, input) {
-          expect(access.roles).toEqual([]);
-          expect(access.entitlements).toEqual([]);
-          expect(access.permissions).toEqual(
-            Object.values(knowledgeAgentScopes),
-          );
-          const ack = await reports.report(access, input);
-          await app.updateDraft();
-          return ack;
+  it.each(["HTTP", "MCP"] as const)(
+    "recovers a withheld queued-report ACK after an actual draft edit over %s without claiming rollback",
+    async (channel) => {
+      let edit = true;
+      let historical: KnowledgeReportAcknowledgement | undefined;
+      const f = await fixture({
+        wrapReports: (reports, app) => ({
+          ...reports,
+          async report(access, input) {
+            expect(access.roles).toEqual([]);
+            expect(access.entitlements).toEqual([]);
+            expect(access.permissions).toEqual(
+              Object.values(knowledgeAgentScopes),
+            );
+            const ack = await reports.report(access, input);
+            if (edit) {
+              edit = false;
+              historical = ack;
+              await app.updateDraft();
+            }
+            return ack;
+          },
+        }),
+      });
+      f.authority.current = {
+        ...f.authority.current,
+        access: {
+          ...f.owner,
+          roles: ["synthetic-admin"],
+          entitlements: ["synthetic-entitlement"],
         },
-      }),
-    });
-    f.authority.current = {
-      ...f.authority.current,
-      access: {
-        ...f.owner,
-        roles: ["synthetic-admin"],
-        entitlements: ["synthetic-entitlement"],
-      },
-    };
-    const current = await f.current();
-    const raw = await f.reportInput();
-    privateError(
-      await f.call("HTTP", "submitEvidence", {
+      };
+      const current = await f.current();
+      const raw = await f.reportInput();
+      const input = {
         ...f.command("changed-after-report", current.generation),
         ...raw,
-      }),
-      "conflict",
-    );
-    expect((await f.rows()).length).toBeGreaterThan(0);
-    expect((await f.current()).revision.number).toBe(2);
-    expect(
-      (await f.app.getEvidence(f.reviewer, { articleId: f.articleId }))
-        .evidence,
-    ).toHaveLength(0);
-  });
+      };
+      privateError(await f.call(channel, "submitEvidence", input), "conflict");
+      if (historical === undefined)
+        throw new Error("Expected the real report write before the ACK fence");
+      expect((await f.rows()).length).toBeGreaterThan(0);
+      const latest = await f.current();
+      expect(latest.revision.number).toBe(2);
+      const before = await f.physicalRows();
+      expect(
+        success<KnowledgeAgentPendingReport>(
+          await f.call(
+            channel === "HTTP" ? "MCP" : "HTTP",
+            "submitEvidence",
+            input,
+          ),
+        ),
+      ).toEqual({ kind: "pending-human-review", ...historical });
+      expect(await f.physicalRows()).toEqual(before);
+      expect(await f.current()).toEqual(latest);
+      expect(
+        (await f.app.getEvidence(f.reviewer, { articleId: f.articleId }))
+          .evidence,
+      ).toHaveLength(0);
+    },
+  );
 
   it("withholds old report status after an actual draft edit during the status await", async () => {
     let edit = false;

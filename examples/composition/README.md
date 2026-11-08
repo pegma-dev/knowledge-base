@@ -21,9 +21,12 @@ and `runCompleteExampleFlow(composition)`. The optional Store defaults to
 `createMemoryStore()`; the example imports no test helpers. [`run.ts`](run.ts)
 prints a safe completion summary. These are workspace source examples. The KB
 `0.1.0` packages completed manual bootstrap without OIDC provenance, and the
-four-package `0.1.1` trusted release is now
-[verified](../../docs/BOOTSTRAP.md#verified-knowledge-base-release). Source `0.1.2`
-remains a candidate requiring its own reviewed, verified trusted release.
+four-package `0.1.1` trusted release has a
+[historical receipt](../../docs/BOOTSTRAP.md#historical-verified-011-release).
+The current four-package `0.1.2` release is
+[verified](../../docs/BOOTSTRAP.md#current-verified-012-release). Source `0.1.3`
+is the unpublished human-report candidate requiring its own reviewed, verified
+trusted release.
 Production hosts retain their separate acceptance gates.
 
 The flow creates a fictional workshop collection with portal use disabled and a

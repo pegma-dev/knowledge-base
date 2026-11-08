@@ -6,7 +6,7 @@ application. [KB-05 release-preparation source](https://github.com/pegma-dev/kno
 is also merged. All four KB `0.1.0` packages completed manual bootstrap and
 exact-byte postflight without OIDC provenance. All four `0.1.1` packages have
 since completed verified trusted publication, followed by the current verified
-[`0.1.2` release](BOOTSTRAP.md#verified-knowledge-base-release).
+[`0.1.2` release](BOOTSTRAP.md#current-verified-012-release).
 Optional human-report mode is unpublished `0.1.3` candidate source with its own
 review/release gates. This document
 describes the composition and retained acceptance contract, not a live service
@@ -129,6 +129,8 @@ reportGeneration }` and exact command input. This acknowledges a private
    owner's opaque receipt/generation/status. Pending means wait; rejected or
    changed/expired context requires a fresh authorized workflow. Polling never
    exposes private report bodies, reviewers, accepted evidence or registries.
+   Observed report receipt/generation/status drift conflicts; retry the poll
+   for a fresh point-in-time view, not an atomic cross-system snapshot.
 5. After confirmation, read the current draft generation and use the original
    receipt-bearing `submitEvidence` input with the same exact evidence and
    report receipt. First confirmation preserves that receipt. Explicit staff
@@ -145,6 +147,18 @@ substitutes for the restricted delegated context. Report/KB transactions remain
 separate; a final conflict or lost response can follow a queued report without
 rolling it back. See [report retention and replay](EVIDENCE_REPORTS.md#capacity-retention-and-replay)
 for epoch reset, receipt cycles and bounded recovery.
+
+If a report acknowledgement is lost, retry that exact report command under
+fresh authority with its **original** `expectedGeneration`, even if the article
+has since advanced. The dispatcher forwards this generation as the shared
+report service's optional `expectedArticleGeneration`; exact replay precedes
+new-admission checks. At a stable newer generation the accepted command returns
+its historical acknowledgement without another report write. Changing the
+expected generation on that same command conflicts, and a new command with a
+stale generation is refused. The observed draft fence can still withhold a
+response if the article changes during recovery. After recovering the report
+key, poll its status: the acknowledgement does not establish the current human
+decision, receipt cycle or eligibility for actual KB evidence acceptance.
 
 For an uncertain mutation result, authenticate again and retry the same
 `commandId` and exact semantic input, including the original

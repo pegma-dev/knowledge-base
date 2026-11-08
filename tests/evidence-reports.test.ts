@@ -1,4 +1,5 @@
 import {
+  createKnowledgeBaseApplication,
   createKnowledgeEvidenceReports,
   KnowledgeEvidenceReportsError,
   type EvidenceVerificationRequest,
@@ -42,6 +43,52 @@ async function maximumAsciiReport(
     report: { summary: "R".repeat(1_000), details: "D".repeat(16_000) },
   };
   return { input, ack: await f.reports.report(f.agent, input) };
+}
+
+type ReportsFixture = Awaited<ReturnType<typeof evidenceReportsFixture>>;
+type ReportMutation = "report" | "decide" | "reset" | "drain";
+
+/** Build real public commands once so uncertain mutations can retry exactly. */
+async function reportMutation(f: ReportsFixture, operation: ReportMutation) {
+  if (operation === "report") {
+    const input = await f.reportInput();
+    return {
+      caller: f.agent,
+      rowsAfterCommit: 4,
+      run: (): Promise<unknown> => f.reports.report(f.agent, input),
+    };
+  }
+  const packet = await f.report();
+  if (operation === "decide") {
+    const { input } = await f.decisionInput(packet.ack);
+    return {
+      caller: f.reviewer,
+      rowsAfterCommit: 6,
+      run: (): Promise<unknown> =>
+        f.reports.decide(f.reviewer, input, "confirmed"),
+    };
+  }
+  const input = {
+    articleId: f.articleId,
+    commandId: "postcommit-reset",
+    expectedLedgerEpoch: 1,
+  };
+  if (operation === "reset")
+    return {
+      caller: f.reviewer,
+      rowsAfterCommit: 4,
+      run: (): Promise<unknown> => f.reports.reset(f.reviewer, input),
+    };
+  await f.reports.reset(f.reviewer, input);
+  return {
+    caller: f.reviewer,
+    rowsAfterCommit: 1,
+    run: (): Promise<unknown> =>
+      f.reports.drain(f.reviewer, {
+        articleId: f.articleId,
+        ledgerEpoch: 2,
+      }),
+  };
 }
 
 for (const [backend, createStore] of storeFactories) {
@@ -138,6 +185,70 @@ for (const [backend, createStore] of storeFactories) {
       ).toBe(f.owner.principalId);
     });
 
+    it("qualifies every required check with exactly the four minimum reviewer permissions and a separate publisher", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const reviewer = access(f.reviewer.principalId, [
+        confirmationPermission,
+        knowledgePermissions.draftRead,
+        knowledgePermissions.evidenceRead,
+        knowledgePermissions.evidenceSubmit,
+      ]);
+      f.principals.set(reviewer.principalId, reviewer);
+      expect(reviewer.permissions).toHaveLength(4);
+      expect(reviewer.permissions).not.toContain(
+        knowledgePermissions.draftWrite,
+      );
+      expect(reviewer.permissions).not.toContain(knowledgePermissions.publish);
+      const requirements = await f.app.getValidationRequirements(f.agent, {
+        collectionId: f.collectionId,
+        kind: (await f.current()).revision.kind,
+      });
+      for (const check of requirements.checks) {
+        const packet = await f.report(await f.submission(check.id));
+        await expect(
+          f.reports.read(
+            access(reviewer.principalId, reviewer.permissions.slice(0, 3)),
+            f.key(packet.ack),
+          ),
+        ).rejects.toMatchObject({ code: "forbidden" });
+        const confirmed = await f.decide(packet.ack, "confirmed", reviewer);
+        await f.submit(confirmed.ack, packet.input.evidence);
+      }
+      const accepted = await f.app.getEvidence(reviewer, {
+        articleId: f.articleId,
+      });
+      expect(accepted.evidence).toHaveLength(requirements.checks.length);
+      expect(
+        accepted.evidence.every(
+          (item) => item.attestation.verifiedBy === reviewer.principalId,
+        ),
+      ).toBe(true);
+      const current = await f.current();
+      await f.app.submitForReview(f.owner, {
+        ...f.command("minimum-reviewer-qualified", current.generation),
+        articleId: f.articleId,
+      });
+      const reviewed = await f.app.getReview(f.owner, {
+        articleId: f.articleId,
+      });
+      const publication = {
+        ...f.command("separate-human-publisher", reviewed.generation),
+        articleId: f.articleId,
+        review: reviewed.review,
+      };
+      await expect(
+        f.app.publishArticle(reviewer, publication),
+      ).rejects.toMatchObject({ name: "KnowledgeBaseAuthorizationError" });
+      await f.app.publishArticle(f.owner, publication);
+      expect(
+        (
+          await f.app.getPublishedArticle(f.customer, {
+            articleId: f.articleId,
+          })
+        ).revision,
+      ).toBe(1);
+    });
+
     it("exposes only an opaque body-free status to the submitting owner and denies other owners", async () => {
       const f = await evidenceReportsFixture(await createStore());
       const packet = await f.report();
@@ -167,6 +278,61 @@ for (const [backend, createStore] of storeFactories) {
         (await f.reports.read(f.reviewer, f.key(packet.ack))).report.details,
       ).toBe(packet.input.report.details);
     });
+
+    it.each(["confirm", "reassess"] as const)(
+      "refuses a stale owner status when a concurrent %s changes the report after its first load",
+      async (transition) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const packet = await f.report();
+        const original =
+          transition === "reassess"
+            ? (await f.decide(packet.ack)).ack
+            : packet.ack;
+        const physical = await f.physicalRows();
+        const report = physical.find((row) =>
+          row.value.id.startsWith("report:"),
+        )!;
+        const head = physical.find((row) => row.value.id === "head")!;
+        const gate = reportBarrier();
+        let loaded = false;
+        let paused = false;
+        f.observed.beforeRead(async (trace) => {
+          if (trace.collection !== f.namespace) return;
+          if (trace.method === "get" && trace.key.id === report.key.id)
+            loaded = true;
+          if (!paused && loaded && trace.key.id === head.key.id) {
+            paused = true;
+            await gate.wait();
+          }
+        });
+        const pending = capture(f.reports.status(f.agent, f.key(original)));
+        let latest = original;
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          latest = (
+            await f.decide(
+              original,
+              transition === "reassess" ? "pending" : "confirmed",
+            )
+          ).ack;
+          changedRows = await f.rawRows();
+        } finally {
+          gate.release();
+          f.observed.beforeRead(undefined);
+        }
+        expect(await pending).toMatchObject({
+          error: { code: "report_changed" },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+        expect(await f.reports.status(f.agent, f.key(original))).toEqual({
+          ...latest,
+          status: transition === "reassess" ? "pending" : "confirmed",
+        });
+        if (transition === "reassess")
+          expect(latest.receipt).not.toBe(original.receipt);
+      },
+    );
 
     it("replays exact commands without appending rows and rejects changed report or decision bindings", async () => {
       const f = await evidenceReportsFixture(await createStore());
@@ -224,6 +390,135 @@ for (const [backend, createStore] of storeFactories) {
       });
       expect(await f.rows()).toEqual(committed);
     });
+
+    it("recovers a generation-bound lost acknowledgement after a real article edit while fencing changed and new stale commands", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const input = {
+        ...(await f.reportInput()),
+        expectedArticleGeneration: (await f.current()).generation,
+      };
+      let lost = false;
+      f.observed.intercept(async (trace, commit) => {
+        const result = await commit();
+        if (!lost && trace.collection === f.namespace && result.committed) {
+          lost = true;
+          throw new Error("PRIVATE_GENERATION_BOUND_ACK_LOSS");
+        }
+        return result;
+      });
+      await expect(f.reports.report(f.agent, input)).rejects.toMatchObject({
+        ...unavailable,
+        stage: "report_write",
+      });
+      f.observed.intercept(undefined);
+      const committed = await f.rawRows();
+      const changed = await f.updateDraft();
+      expect(changed.generation).toBeGreaterThan(
+        input.expectedArticleGeneration,
+      );
+      const recovered = await f.reports.report(f.agent, input);
+      expect(await f.reports.status(f.agent, f.key(recovered))).toEqual({
+        ...recovered,
+        status: "pending",
+      });
+      await expect(
+        f.reports.report(f.agent, {
+          ...input,
+          expectedArticleGeneration: changed.generation,
+        }),
+      ).rejects.toMatchObject({ code: "command_conflict" });
+      await expect(
+        f.reports.report(f.agent, {
+          ...input,
+          commandId: "new-command-with-stale-article-generation",
+        }),
+      ).rejects.toMatchObject({ code: "report_changed" });
+      await expect(f.decide(recovered)).rejects.toMatchObject({
+        code: "report_not_verifiable",
+      });
+      expect(await f.rawRows()).toEqual(committed);
+    });
+
+    it.each(["report", "decide", "reset", "drain"] as const)(
+      "withholds the %s acknowledgement after committed storage loses current principal authority, while retaining its effect",
+      async (operation) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const mutation = await reportMutation(f, operation);
+        const authority = f.principals.get(mutation.caller.principalId)!;
+        const gate = reportBarrier();
+        let paused = false;
+        let committedRows = await f.rawRows();
+        f.observed.intercept(async (trace, commit) => {
+          const result = await commit();
+          if (!paused && trace.collection === f.namespace && result.committed) {
+            paused = true;
+            await gate.wait();
+          }
+          return result;
+        });
+        const pending = capture(mutation.run());
+        try {
+          await gate.reached(pending);
+          committedRows = await f.rawRows();
+          expect(committedRows).toHaveLength(mutation.rowsAfterCommit);
+          f.principals.delete(mutation.caller.principalId);
+        } finally {
+          gate.release();
+          f.observed.intercept(undefined);
+        }
+        expect(await pending).toMatchObject({ error: { code: "forbidden" } });
+        expect(await f.rawRows()).toEqual(committedRows);
+        f.principals.set(mutation.caller.principalId, authority);
+        await mutation.run();
+        expect(await f.rawRows()).toEqual(committedRows);
+      },
+    );
+
+    it.each(["report", "decide"] as const)(
+      "withholds the competing %s command's retained receipt when authority is revoked after its failed CAS",
+      async (operation) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const mutation = await reportMutation(f, operation);
+        const authority = f.principals.get(mutation.caller.principalId)!;
+        const beforeCommit = reportBarrier();
+        const afterRefusal = reportBarrier();
+        let first = true;
+        let refused = false;
+        f.observed.intercept(async (trace, commit) => {
+          if (first && trace.collection === f.namespace) {
+            first = false;
+            await beforeCommit.wait();
+            const result = await commit();
+            refused = !result.committed;
+            await afterRefusal.wait();
+            return result;
+          }
+          return commit();
+        });
+        const pending = capture(mutation.run());
+        let accepted: unknown;
+        let committedRows = await f.rawRows();
+        try {
+          await beforeCommit.reached(pending);
+          accepted = await mutation.run();
+          beforeCommit.release();
+          await afterRefusal.reached(pending);
+          expect(refused).toBe(true);
+          committedRows = await f.rawRows();
+          expect(committedRows).toHaveLength(mutation.rowsAfterCommit);
+          f.principals.delete(mutation.caller.principalId);
+        } finally {
+          beforeCommit.release();
+          afterRefusal.release();
+          f.observed.intercept(undefined);
+        }
+        expect(await pending).toMatchObject({ error: { code: "forbidden" } });
+        expect(await f.rawRows()).toEqual(committedRows);
+        f.principals.set(mutation.caller.principalId, authority);
+        expect(await mutation.run()).toEqual(accepted);
+        expect(await f.rawRows()).toEqual(committedRows);
+      },
+    );
 
     it("fences an actual competing report transaction without half-written report, Audit or receipt rows", async () => {
       const f = await evidenceReportsFixture(await createStore());
@@ -359,6 +654,149 @@ for (const [backend, createStore] of storeFactories) {
           })
         ).revision,
       ).toBe(1);
+    });
+
+    it("keeps revoked proof and its old receipt refused while a freshly reviewed execution replaces the same evidence identity", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const original = await f.report();
+      const confirmed = await f.decide(original.ack);
+      await f.submit(confirmed.ack, original.input.evidence);
+      const old = (
+        await f.app.getEvidence(f.reviewer, { articleId: f.articleId })
+      ).evidence[0]!;
+      await f.app.revokeEvidence(f.owner, {
+        ...f.command(
+          "revoke-reviewed-old-version",
+          (await f.current()).generation,
+        ),
+        articleId: f.articleId,
+        articleRevision: old.articleRevision,
+        evidenceId: old.id,
+        evidenceVersion: old.version,
+        evidenceHash: old.hash,
+        reason: "Synthetic independent execution requires replacement",
+      });
+      const oldRequest = await f.verificationRequest(
+        confirmed.ack,
+        original.input.evidence,
+      );
+      expect(await f.reports.verifier.verify(oldRequest)).toBeNull();
+      await expect(
+        f.submit(confirmed.ack, original.input.evidence),
+      ).rejects.toMatchObject(kbEvidenceRefusal);
+      f.advance(1_000);
+      const freshProof: EvidenceSubmission = {
+        ...original.input.evidence,
+        executedAt: at(3_500),
+        steps: ["Run a fresh independent workspace export check"],
+        artifacts: [
+          { id: "private/artifact/fresh-export", hash: "b".repeat(64) },
+        ],
+      };
+      const fresh = await f.report(freshProof);
+      const reviewed = await f.decide(fresh.ack);
+      expect(reviewed.ack.receipt).not.toBe(confirmed.ack.receipt);
+      await f.submit(reviewed.ack, freshProof);
+      const current = await f.app.getEvidence(f.reviewer, {
+        articleId: f.articleId,
+      });
+      expect(current.evidence).toMatchObject([
+        {
+          id: old.id,
+          articleRevision: old.articleRevision,
+          version: old.version + 1,
+          executedAt: freshProof.executedAt,
+          artifacts: freshProof.artifacts,
+          attestation: { id: reviewed.ack.receipt },
+        },
+      ]);
+      expect(current.evidence[0]?.hash).not.toBe(old.hash);
+      expect(current.revokedEvidence).toMatchObject([
+        { id: old.id, version: old.version, hash: old.hash },
+      ]);
+      expect(
+        await f.reports.verifier.verify(
+          await f.verificationRequest(confirmed.ack, original.input.evidence),
+        ),
+      ).toBeNull();
+      await expect(
+        f.submit(confirmed.ack, original.input.evidence),
+      ).rejects.toMatchObject(kbEvidenceRefusal);
+      expect(
+        await f.app.getEvidence(f.reviewer, { articleId: f.articleId }),
+      ).toEqual(current);
+      const workflow = await f.report(
+        await f.submission("walkthrough-workflow"),
+      );
+      await f.submit(
+        (await f.decide(workflow.ack)).ack,
+        workflow.input.evidence,
+      );
+      await f.publish();
+      expect(
+        (
+          await f.app.getPublishedArticle(f.customer, {
+            articleId: f.articleId,
+          })
+        ).revision,
+      ).toBe(old.articleRevision);
+    });
+
+    it("allows pending agent reports without evidence-read scope but refuses qualification when the host omits authoritative evidence state", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const missing = f.freshReports({
+        readContext: async (caller, articleId) => {
+          const value = await f.readContext(caller, articleId);
+          return { draft: value.draft, requirements: value.requirements };
+        },
+      });
+      const input = await f.reportInput();
+      const pending = await missing.report(f.agent, input);
+      expect(
+        (await f.readContext(f.agent, f.articleId)).evidence,
+      ).toBeUndefined();
+      const view = await missing.read(f.reviewer, f.key(pending));
+      const before = await f.rawRows();
+      await expect(
+        missing.decide(
+          f.reviewer,
+          {
+            ...f.key(pending),
+            commandId: "missing-authoritative-evidence-confirmation",
+            expectedReportGeneration: view.expectedReportGeneration,
+            reviewBindingHash: view.reviewBindingHash,
+          },
+          "confirmed",
+        ),
+      ).rejects.toMatchObject({ code: "report_not_verifiable" });
+      expect(await f.rawRows()).toEqual(before);
+      const confirmed = await f.decide(pending);
+      const request = await f.verificationRequest(
+        confirmed.ack,
+        input.evidence,
+      );
+      expect(await f.reports.verifier.verify(request)).not.toBeNull();
+      expect(await missing.verifier.verify(request)).toBeNull();
+      const app = createKnowledgeBaseApplication({
+        store: f.baseOptions.store,
+        clock: f.clock,
+        evidenceVerifier: missing.verifier,
+      });
+      await expect(
+        app.submitEvidence(f.agent, {
+          ...f.command(
+            "missing-authoritative-evidence-acceptance",
+            (await f.current()).generation,
+          ),
+          articleId: f.articleId,
+          evidence: input.evidence,
+          receipt: confirmed.ack.receipt,
+        }),
+      ).rejects.toMatchObject(kbEvidenceRefusal);
+      expect(
+        (await f.app.getEvidence(f.reviewer, { articleId: f.articleId }))
+          .evidence,
+      ).toEqual([]);
     });
 
     it.each(["build", "check", "revision", "future", "expired"] as const)(
