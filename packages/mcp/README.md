@@ -53,6 +53,46 @@ describes authenticated contexts, trusted evidence, replay, and safe DTOs. The
 [retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RETRIEVAL.md)
 describes authoritative current-publication confirmation and audience boundaries.
 
+## Optional native-client report mode (unpublished `0.1.3` source)
+
+`createKnowledgeAgentDispatcher` optionally accepts
+`reports: Pick<KnowledgeEvidenceReports, "report" | "ledger" | "status">`.
+This composes the shared human-report service without adding tools or scopes.
+The existing five operations remain `getDraft`, `createDraft`, `updateDraft`,
+`getValidationRequirements` and `submitEvidence`. Configured MCP tool schemas
+advertise report discovery/polling and submission variants on the latter two;
+HTTP uses the same envelopes. Omitting `reports` preserves the exact legacy
+schemas and results, rejecting extension fields.
+
+Both report variants need effective `draftRead` and `evidenceSubmit`.
+Requirements input adds `articleId` and optional
+`reportLookup: { ledgerEpoch, reportId }`, returning `reportLedger` and optional
+owner-only, body-free `reportStatus`. Receipt-free `submitEvidence` adds the
+current `ledgerEpoch` and `report: { summary, details }` to the original command
+and exact evidence fields. Its `kind: "pending-human-review"` result acknowledges
+only a report; it is not an article mutation or verified evidence.
+
+The native client polls through that same requirements tool. A separately
+authorized human reviews the private report and records a decision; staff may
+review their own agent and no two-person rule is enforced. After confirmation,
+the original receipt-bearing `submitEvidence` form performs actual KB
+qualification with the exact evidence and current article generation. First
+confirmation preserves the report receipt; reassessment rotates its cycle.
+Current runner/result/build/governance and freshness checks still apply.
+Report bodies, reviewer details and private accepted evidence remain staff-only.
+
+Hosts must bind optional report methods to the same authenticated request/grant
+and revalidate it before and after every awaited `report`, `ledger` or `status`
+call. Preserve the dispatcher-supplied restricted context rather than replacing
+it with current owner/Admin authority. Principal resolution inside a report
+ledger does not replace host credential/grant freshness checks.
+
+Read the DEVELOPMENT [wire contract](https://github.com/pegma-dev/knowledge-base/blob/main/docs/AGENT_API.md#optional-native-client-report-mode),
+[native-client workflow](https://github.com/pegma-dev/knowledge-base/blob/main/docs/AGENT_WORKFLOW.md#submit-a-report-and-poll-through-the-same-mcp-connection)
+and [report lifecycle](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md)
+before composing this unpublished mode. The verified `0.1.2` release does not
+contain it; its own reviewed publication and host/client acceptance remain open.
+
 ## Local verification and release
 
 Repository development uses Node 22.6.0+ or 24 with pnpm 10.34.5:
@@ -82,9 +122,9 @@ compiled-test exclusion. All four package versions remain synchronized with
 exact internal dependency pins. Publishing, release tags, trusted-publisher configuration, and
 host activation are separate maintainer operations in the
 [release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RELEASING.md).
-Documentation links target this package's release tag rather than development
-`main`. During release preparation that tag may still be pending; it is created
-after the reviewed merge and before publishing. Source readers can use the
+The base-contract links above target verified `v0.1.2`; new report-mode links
+explicitly target DEVELOPMENT `main` until their own reviewed release tag exists.
+Source readers can use the
 explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
 while preparing a release. The versioned contract references remain tag-pinned;

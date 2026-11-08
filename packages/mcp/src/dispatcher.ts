@@ -1,4 +1,5 @@
 import type { AccessContext } from "@pegma/authorization-core";
+import { KnowledgeEvidenceReportsError } from "@pegma/knowledge-base-application";
 
 import {
   createKnowledgeAgentErrorResponse,
@@ -7,6 +8,8 @@ import {
 } from "./errors.js";
 import {
   knowledgeAgentEnvelopeSchema,
+  knowledgeAgentReportEnvelopeSchema,
+  knowledgeAgentReportResultSchemas,
   knowledgeAgentResultSchemas,
   resolveKnowledgeAgentLimits,
   snapshotKnowledgeAgentJson,
@@ -140,6 +143,38 @@ function requireOperation(
   if (!allowed) throw new KnowledgeAgentBoundaryError("forbidden");
 }
 
+function requireReportAccess(access: AccessContext): void {
+  if (
+    !access.permissions.includes(knowledgeAgentScopes.draftRead) ||
+    !access.permissions.includes(knowledgeAgentScopes.evidenceSubmit)
+  ) {
+    throw new KnowledgeAgentBoundaryError("forbidden");
+  }
+}
+
+function reportError(
+  error: KnowledgeEvidenceReportsError,
+): KnowledgeAgentBoundaryError {
+  switch (error.code) {
+    case "invalid_request":
+      return new KnowledgeAgentBoundaryError("invalid_request");
+    case "report_too_large":
+    case "report_capacity":
+      return new KnowledgeAgentBoundaryError("capacity");
+    case "forbidden":
+      return new KnowledgeAgentBoundaryError("forbidden");
+    case "report_not_found":
+      return new KnowledgeAgentBoundaryError("not_found");
+    case "invalid_configuration":
+      return new KnowledgeAgentBoundaryError("unavailable");
+    case "report_target_unavailable":
+    case "report_not_verifiable":
+      return new KnowledgeAgentBoundaryError("prerequisite");
+    default:
+      return new KnowledgeAgentBoundaryError("conflict");
+  }
+}
+
 /**
  * One versioned least-authority boundary shared by HTTP and MCP. Authentication,
  * credential issuance, current access resolution, and rate limits are host work.
@@ -150,8 +185,35 @@ export function createKnowledgeAgentDispatcher(
   const limits = resolveKnowledgeAgentLimits(options.limits);
   const resource = trustedText(options.resource, 2_048);
   const application = options.application;
+  const suppliedReports = options.reports;
+  if (
+    suppliedReports !== undefined &&
+    (!suppliedReports ||
+      typeof suppliedReports.report !== "function" ||
+      typeof suppliedReports.ledger !== "function" ||
+      typeof suppliedReports.status !== "function")
+  ) {
+    throw new TypeError("Invalid knowledge agent report service");
+  }
+  const reports =
+    suppliedReports === undefined
+      ? undefined
+      : Object.freeze({
+          report: suppliedReports.report.bind(suppliedReports),
+          ledger: suppliedReports.ledger.bind(suppliedReports),
+          status: suppliedReports.status.bind(suppliedReports),
+        });
+  const envelopeSchema =
+    reports === undefined
+      ? knowledgeAgentEnvelopeSchema
+      : knowledgeAgentReportEnvelopeSchema;
+  const resultSchemas =
+    reports === undefined
+      ? knowledgeAgentResultSchemas
+      : knowledgeAgentReportResultSchemas;
   return Object.freeze({
     limits,
+    ...(reports === undefined ? {} : { reportWorkflow: true as const }),
     async dispatch(identity: KnowledgeAgentIdentity, request: unknown) {
       let operation: KnowledgeAgentOperation | null = null;
       try {
@@ -159,7 +221,7 @@ export function createKnowledgeAgentDispatcher(
         // await. The application still performs current resource/replay checks.
         const access = effectiveAccess(identity, resource);
         const snapshot = snapshotKnowledgeAgentJson(request, limits);
-        const parsed = knowledgeAgentEnvelopeSchema.safeParse(snapshot);
+        const parsed = envelopeSchema.safeParse(snapshot);
         if (!parsed.success)
           throw new KnowledgeAgentBoundaryError("invalid_request");
         const envelope = snapshotKnowledgeAgentJson(
@@ -180,13 +242,132 @@ export function createKnowledgeAgentDispatcher(
             result = await application.updateDraft(access, envelope.input);
             break;
           case "getValidationRequirements":
-            result = await application.getValidationRequirements(
-              access,
-              envelope.input,
-            );
+            if (!("articleId" in envelope.input)) {
+              result = await application.getValidationRequirements(
+                access,
+                envelope.input,
+              );
+              break;
+            }
+            requireReportAccess(access);
+            if (reports === undefined)
+              throw new KnowledgeAgentBoundaryError("invalid_request");
+            {
+              const input = envelope.input;
+              const target = await application.getDraft(access, {
+                articleId: input.articleId,
+              });
+              if (
+                target.revision.collectionId !== input.collectionId ||
+                target.revision.kind !== input.kind
+              )
+                throw new KnowledgeAgentBoundaryError("conflict");
+              // Closed application DTOs receive only their actual public fields.
+              const query = {
+                collectionId: input.collectionId,
+                kind: input.kind,
+              };
+              const requirements = await application.getValidationRequirements(
+                access,
+                query,
+              );
+              const ledger = await reports.ledger(access, {
+                articleId: input.articleId,
+              });
+              const lookup = input.reportLookup;
+              if (
+                lookup !== undefined &&
+                ledger.ledgerEpoch !== lookup.ledgerEpoch
+              )
+                throw new KnowledgeAgentBoundaryError("conflict");
+              const status =
+                lookup === undefined
+                  ? undefined
+                  : await reports.status(access, {
+                      articleId: input.articleId,
+                      ...lookup,
+                    });
+              const latestRequirements =
+                await application.getValidationRequirements(access, query);
+              const latestLedger = await reports.ledger(access, {
+                articleId: input.articleId,
+              });
+              const latest = await application.getDraft(access, {
+                articleId: input.articleId,
+              });
+              if (
+                latest.generation !== target.generation ||
+                latest.revision.collectionId !== input.collectionId ||
+                latest.revision.kind !== input.kind ||
+                JSON.stringify(latestRequirements) !==
+                  JSON.stringify(requirements) ||
+                latestLedger.ledgerEpoch !== ledger.ledgerEpoch ||
+                latestLedger.status !== ledger.status
+              )
+                throw new KnowledgeAgentBoundaryError("conflict");
+              if (
+                status !== undefined &&
+                (status.ledgerEpoch !== lookup?.ledgerEpoch ||
+                  status.reportId !== lookup?.reportId)
+              )
+                throw new KnowledgeAgentBoundaryError("unavailable");
+              result = {
+                ...latestRequirements,
+                reportLedger: {
+                  ledgerEpoch: latestLedger.ledgerEpoch,
+                  status: latestLedger.status,
+                },
+                ...(status === undefined
+                  ? {}
+                  : {
+                      reportStatus: {
+                        ledgerEpoch: status.ledgerEpoch,
+                        reportId: status.reportId,
+                        receipt: status.receipt,
+                        reportGeneration: status.reportGeneration,
+                        status: status.status,
+                      },
+                    }),
+              };
+            }
             break;
           case "submitEvidence":
-            result = await application.submitEvidence(access, envelope.input);
+            if ("receipt" in envelope.input) {
+              result = await application.submitEvidence(access, envelope.input);
+              break;
+            }
+            requireReportAccess(access);
+            if (reports === undefined)
+              throw new KnowledgeAgentBoundaryError("invalid_request");
+            {
+              const input = envelope.input;
+              const target = await application.getDraft(access, {
+                articleId: input.articleId,
+              });
+              if (target.generation !== input.expectedGeneration)
+                throw new KnowledgeAgentBoundaryError("conflict");
+              const ack = await reports.report(access, {
+                commandId: input.commandId,
+                articleId: input.articleId,
+                ledgerEpoch: input.ledgerEpoch,
+                evidence: input.evidence,
+                report: input.report,
+              });
+              // The report and article live in separate partitions. A changed
+              // article withholds this ACK; it does not roll back a queued report.
+              const latest = await application.getDraft(access, {
+                articleId: input.articleId,
+              });
+              if (latest.generation !== target.generation)
+                throw new KnowledgeAgentBoundaryError("conflict");
+              result = {
+                kind: "pending-human-review",
+                ledgerEpoch: ack.ledgerEpoch,
+                reportId: ack.reportId,
+                receipt: ack.receipt,
+                reportGeneration: ack.reportGeneration,
+              };
+            }
             break;
         }
         let detached: unknown;
@@ -205,7 +386,7 @@ export function createKnowledgeAgentDispatcher(
           }
           throw new KnowledgeAgentBoundaryError("unavailable");
         }
-        const safe = knowledgeAgentResultSchemas[operation].safeParse(detached);
+        const safe = resultSchemas[operation].safeParse(detached);
         if (!safe.success) throw new KnowledgeAgentBoundaryError("unavailable");
         return snapshotKnowledgeAgentJson(
           { apiVersion: "1", operation, result: safe.data },
@@ -214,7 +395,11 @@ export function createKnowledgeAgentDispatcher(
         ) as KnowledgeAgentSuccess;
       } catch (error) {
         return createKnowledgeAgentErrorResponse(
-          mapKnowledgeAgentError(error).code,
+          mapKnowledgeAgentError(
+            error instanceof KnowledgeEvidenceReportsError
+              ? reportError(error)
+              : error,
+          ).code,
           operation,
         );
       }

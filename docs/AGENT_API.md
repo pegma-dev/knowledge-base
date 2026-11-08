@@ -5,9 +5,10 @@ an MCP adapter, and a Web Request/Response adapter. Both transports invoke the
 existing `KnowledgeBaseApplication`; neither introduces
 an authorization engine or another article lifecycle. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
-have since completed [verified trusted publication](BOOTSTRAP.md#verified-knowledge-base-release).
-Source `0.1.2` remains a candidate with its own review, gates, and verified
-trusted release pending.
+have since completed verified trusted publication. The current verified KB
+release is [`0.1.2`](BOOTSTRAP.md#verified-knowledge-base-release).
+Optional report mode is new unpublished `0.1.3` candidate source, with its own
+review, gates and verified trusted release pending.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
 [release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
 synthetic transport tests does not establish live host login, protected staging
@@ -15,7 +16,7 @@ execution, KB trusted publication, or host readiness.
 
 ## Trusted host composition
 
-Create `createKnowledgeAgentDispatcher({ application, resource, limits? })` once.
+Create `createKnowledgeAgentDispatcher({ application, resource, reports?, limits? })`.
 For every call and retry the host must authenticate the credential, validate its
 exact audience/resource and client, and resolve current authorization. Supply
 `{ access, scopes, clientId, resource }` as a trusted `KnowledgeAgentIdentity`,
@@ -68,7 +69,8 @@ validation requirements. There are no collection, private-evidence read,
 provenance, review, publication, retirement, retrieval, or administration tools
 in this initial transport surface.
 
-Inputs use the following bounded subset of the public application contracts:
+Legacy inputs use the following bounded subset of the public application
+contracts; configured report-mode variants are described below:
 
 - `getDraft`: `{ articleId }`.
 - `getValidationRequirements`: `{ collectionId, kind }`.
@@ -95,6 +97,78 @@ submission data required by the public contract. They do not authenticate
 anything. The existing trusted evidence verifier must authenticate and bind the
 opaque receipt; missing verification fails closed. The transport fetches no
 artifact URL and executes no guide step.
+
+## Optional native-client report mode
+
+The unpublished `0.1.3` source adds an optional `reports` port:
+`Pick<KnowledgeEvidenceReports, "report" | "ledger" | "status">`. A host can
+compose the shared [human-report factory](EVIDENCE_REPORTS.md) behind this port.
+It adds no tool or scope. The same MCP connection advertises extended strict
+input schemas/descriptions for the existing requirements and evidence tools;
+HTTP accepts the same versioned envelopes. Clients cannot enable the mode
+through a request flag. When `reports` is omitted, legacy tool schemas,
+accepted inputs and result shapes remain unchanged; extension fields reject.
+
+The public types are `KnowledgeAgentReportRequirementsInput`,
+`KnowledgeAgentReportRequirementsResult`, `KnowledgeAgentReportSubmissionInput`,
+`KnowledgeAgentPendingReport`, `KnowledgeAgentReportEnvelope`, and
+`KnowledgeAgentReportSuccess`. Both report variants require the effective
+`draftRead` **and** `evidenceSubmit` permissions. This does not change the
+legacy requirements variant's `draftWrite`-or-`evidenceSubmit` rule.
+
+For report-aware `getValidationRequirements`, input is strictly
+`{ collectionId, kind, articleId, reportLookup?: { ledgerEpoch, reportId } }`.
+The current draft must match the supplied collection/kind. The result adds
+`reportLedger: { ledgerEpoch, status: "active" | "resetting" }` to the normal
+requirements. Supplying `reportLookup` also returns the submitting owner's
+body-free `reportStatus: { ledgerEpoch, reportId, receipt, reportGeneration,
+status: "pending" | "confirmed" | "rejected" }`. No report body, reviewer,
+private accepted evidence or trusted-attester registry is exposed. An epoch
+mismatch conflicts; another submitter's report is not found.
+
+For report submission, the existing `submitEvidence` tool accepts strictly
+`{ commandId, correlationId, expectedGeneration, articleId, evidence,
+ledgerEpoch, report: { summary, details } }`, with **no `receipt` field**.
+`evidence` remains the whole original `EvidenceSubmission`; `summary` is at
+most 1,000 characters and `details` at most 16,000, within the existing complete
+request bounds. Admission checks the exact current article generation and
+ledger epoch. The result is
+`{ kind: "pending-human-review", ledgerEpoch, reportId, receipt,
+reportGeneration }`, with a receipt bounded to 512 UTF-8 bytes. This records a
+private report only: it is not `{ value, replayed }`, does not accept KB evidence,
+and does not change the article generation. Keep that distinction in clients.
+
+A human uses separately authorized staff services to inspect the private
+report and record a decision. A current authorized Admin may review their own
+agent's report; no two-person rule is enforced. The agent polls through the
+report-aware requirements input. After first confirmation, it uses the same
+original opaque report receipt and exact evidence in the legacy `submitEvidence`
+input, with the current article generation. Only that call performs actual KB
+qualification. Current runner/result/build/governance, reviewer trust, exact
+revision and freshness checks still apply; `confirmed` is not accepted evidence.
+Explicit reassessment rotates the receipt cycle; poll for its current receipt
+and obtain a new human confirmation before submitting it.
+
+The optional port is trusted host composition, not a credential verifier. Bind
+each `report`, `ledger` and `status` call to the same authenticated request/grant
+and recheck that grant's identity, scope/resource restrictions and revocation
+before and after awaited work. Preserve the dispatcher-supplied restricted
+context; a freshly resolved owner/Admin context must not replace it. The host
+must fence current grant changes during these awaits as well as authenticate
+the initial transport request. The shared ledger's current-principal checks
+do not independently authenticate a host grant.
+
+Report writes and article reads/commits are separate. A later fence failure
+can withhold a response after a report was queued; conflict or unavailability
+does not prove rollback. Retry an uncertain report command with the same ID
+and exact input under fresh authority. Report epoch/generation conflicts and
+resetting ledgers map to `conflict`; report bounds/capacity to `capacity`;
+missing grants to `forbidden`; unconfirmed or altered receipts fail actual
+evidence qualification with `prerequisite`. No agent report-listing, human
+decision, reset/drain, private-evidence read or publication tool is added.
+The [public types](../packages/mcp/src/types.ts) and
+[source protocol cases](../tests/agent-reports.test.ts) cover this optional mode;
+actual native-client/host acceptance remains separate.
 
 ## HTTP composition
 
@@ -165,9 +239,10 @@ and `createdAt`, plus bounded state flags. They exclude evidence, provenance,
 review records, and attestation artifacts. Validation requirements expose only
 collection/governance generation, policy reference, expected staging build,
 and current checks; trusted runner/attester registries remain private.
-Mutations return the existing `{ value, replayed }` acknowledgement with
+Article mutations return the existing `{ value, replayed }` acknowledgement with
 ID/generation, content revision, state, and content hash. Output schemas
-explicitly whitelist these DTO fields.
+explicitly whitelist these DTO fields. Configured report queuing instead
+returns the distinct `pending-human-review` result described above.
 
 Failures are `{ apiVersion: "1", operation, error: { code, status, message } }`.
 Invalid envelopes use `operation: null` rather than reflecting an arbitrary

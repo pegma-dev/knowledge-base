@@ -71,3 +71,11 @@ export type * from "./retrieval-types.js";
 export { defaultKnowledgeRetrievalLimits } from "./retrieval-types.js";
 export { retrievalRecords, type RetrievalRecord } from "./retrieval-records.js";
 export { knowledgePermissions } from "@pegma/knowledge-base-contracts";
+export { createKnowledgeEvidenceReports } from "./evidence-reports.js";
+export {
+  KnowledgeEvidenceReportsError,
+  KnowledgeEvidenceReportsUnavailableError,
+  type KnowledgeEvidenceReportsErrorCode,
+  type KnowledgeEvidenceReportsStage,
+} from "./evidence-reports-errors.js";
+export type * from "./evidence-reports-types.js";

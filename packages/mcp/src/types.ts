@@ -6,6 +6,11 @@ import type {
   CreateDraftInput,
   DraftArticleDto,
   KnowledgeBaseApplication,
+  KnowledgeEvidenceReports,
+  KnowledgeReportAcknowledgement,
+  KnowledgeReportLedgerState,
+  KnowledgeReportStatus,
+  KnowledgeTestReport,
   SubmitEvidenceInput,
   UpdateDraftInput,
   ValidationRequirementsDto,
@@ -64,21 +69,81 @@ export interface KnowledgeAgentResultMap {
   readonly submitEvidence: CommandResult<ArticleAcknowledgement>;
 }
 
-export type KnowledgeAgentEnvelope = {
-  [Operation in KnowledgeAgentOperation]: {
-    readonly apiVersion: "1";
-    readonly operation: Operation;
-    readonly input: KnowledgeAgentInputMap[Operation];
+/** Optional author-only human-review workflow; it adds no operation or scope. */
+export interface KnowledgeAgentReportRequirementsInput extends ValidationRequirementsReadInput {
+  readonly articleId: string;
+  readonly reportLookup?: {
+    readonly ledgerEpoch: number;
+    readonly reportId: string;
   };
-}[KnowledgeAgentOperation];
+}
 
-export type KnowledgeAgentSuccess = {
-  [Operation in KnowledgeAgentOperation]: {
-    readonly apiVersion: "1";
-    readonly operation: Operation;
-    readonly result: KnowledgeAgentResultMap[Operation];
+export interface KnowledgeAgentReportSubmissionInput extends Omit<
+  SubmitEvidenceInput,
+  "receipt"
+> {
+  readonly ledgerEpoch: number;
+  readonly report: KnowledgeTestReport;
+}
+
+export interface KnowledgeAgentReportRequirementsResult extends ValidationRequirementsDto {
+  readonly reportLedger: Pick<
+    KnowledgeReportLedgerState,
+    "ledgerEpoch" | "status"
+  >;
+  readonly reportStatus?: KnowledgeReportAcknowledgement & {
+    readonly status: KnowledgeReportStatus;
   };
-}[KnowledgeAgentOperation];
+}
+
+/** This acknowledges only a private report, never an article/evidence update. */
+export interface KnowledgeAgentPendingReport extends KnowledgeReportAcknowledgement {
+  readonly kind: "pending-human-review";
+}
+
+export type KnowledgeAgentReportEnvelope =
+  | {
+      readonly apiVersion: "1";
+      readonly operation: "getValidationRequirements";
+      readonly input: KnowledgeAgentReportRequirementsInput;
+    }
+  | {
+      readonly apiVersion: "1";
+      readonly operation: "submitEvidence";
+      readonly input: KnowledgeAgentReportSubmissionInput;
+    };
+
+export type KnowledgeAgentReportSuccess =
+  | {
+      readonly apiVersion: "1";
+      readonly operation: "getValidationRequirements";
+      readonly result: KnowledgeAgentReportRequirementsResult;
+    }
+  | {
+      readonly apiVersion: "1";
+      readonly operation: "submitEvidence";
+      readonly result: KnowledgeAgentPendingReport;
+    };
+
+export type KnowledgeAgentEnvelope =
+  | {
+      [Operation in KnowledgeAgentOperation]: {
+        readonly apiVersion: "1";
+        readonly operation: Operation;
+        readonly input: KnowledgeAgentInputMap[Operation];
+      };
+    }[KnowledgeAgentOperation]
+  | KnowledgeAgentReportEnvelope;
+
+export type KnowledgeAgentSuccess =
+  | {
+      [Operation in KnowledgeAgentOperation]: {
+        readonly apiVersion: "1";
+        readonly operation: Operation;
+        readonly result: KnowledgeAgentResultMap[Operation];
+      };
+    }[KnowledgeAgentOperation]
+  | KnowledgeAgentReportSuccess;
 
 export type KnowledgeAgentErrorCode =
   | "invalid_request"
@@ -145,6 +210,14 @@ export interface KnowledgeAgentDispatcherOptions {
   readonly application: KnowledgeBaseApplication;
   /** Exact protected-resource identifier configured by this host. */
   readonly resource: string;
+  /** Trusted optional human-report service. Always receives the restricted
+   * delegated context, never a substituted current human/Admin context. Hosts
+   * revalidate the same authenticated request/grant before and after awaited
+   * report/ledger/status calls, just as for the five application operations. */
+  readonly reports?: Pick<
+    KnowledgeEvidenceReports,
+    "report" | "ledger" | "status"
+  >;
   /**
    * Positive safe integers may only reduce the fixed component ceilings.
    * maxResponseBytes must reserve at least 2,048 bytes for acknowledgements.
@@ -154,6 +227,8 @@ export interface KnowledgeAgentDispatcherOptions {
 
 export interface KnowledgeAgentDispatcher {
   readonly limits: KnowledgeAgentLimits;
+  /** Trusted configuration metadata for optional MCP schema advertisement. */
+  readonly reportWorkflow?: true;
   dispatch(
     identity: KnowledgeAgentIdentity,
     envelope: unknown,
