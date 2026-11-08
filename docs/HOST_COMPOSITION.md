@@ -139,11 +139,22 @@ Privileged hosts calling `createDraft` or `updateDraft` directly may pass option
 `sourceReferences` as the complete current private source set. Supplying the
 field requires both `draftWrite` and `provenanceWrite`, even for `[]`; every
 reference must pass `PrivateSourcesVerifier.canRead`. The application repeats
-these current operation/resource and per-reference checks after a CAS conflict
-and before acknowledging exact replay. Content and current provenance commit
+per-reference checks after a CAS conflict, after a successful commit, and before
+acknowledging exact replay; current operation/resource authority also remains
+required. Content and current provenance commit
 atomically in the existing article transaction, including Audit, receipt, and
 causal jobs. Updating a draft preserves the older publication's separate
-`publishedProvenance`. Omitting the field retains legacy draft-only behavior.
+`publishedProvenance`. Omission means the property is absent and retains legacy
+draft-only behavior, preserving an existing current source snapshot. Explicit
+`undefined` is rejected by the strict JSON-data boundary rather than normalized
+away.
+
+The exact ordered `sourceReferences` array participates in command and
+source-snapshot identity. Persist and retry its original order; a same-command-ID
+permutation conflicts without writes. Each accepted command supplying the field
+creates a fresh current source-snapshot generation even for unchanged references,
+as with `setProvenance`, subject to bounded history admission. Exact replay adds
+no rows.
 
 SD-03 closes its empty/stale source window only if the owning host always
 supplies a complete nonempty reference set for each generated draft create or
@@ -334,10 +345,12 @@ replay, while a new command must match current generation. A retained receipt
 cannot restore access after revocation.
 
 A storage or transport failure can leave the caller uncertain whether the
-transaction committed. Retry the same command ID and exact semantic input,
-including its original expected generation, under freshly resolved access.
-The committed receipt resolves an accepted command without duplicating its
-effects; an unknown outcome is not a reason to issue a new command ID.
+transaction committed. A post-commit source-read denial or dependency error can
+also follow an accepted mutation. Do not assume rollback or issue a new command
+ID. Retry the same command ID and exact payload, including the source-reference
+order and original `expectedGeneration`, under freshly resolved authority.
+The committed receipt resolves the bounded historical acknowledgement without
+duplicating effects once the current authorization checks pass.
 
 Resource generation, content revision, and opaque store version are distinct:
 the first is the application command fence, the second identifies immutable

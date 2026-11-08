@@ -169,11 +169,20 @@ boundary; it does not append an unbounded attempt log.
 Direct host `createDraft`/`updateDraft` inputs may include complete
 `sourceReferences`. Presence, including `[]`, requires both `draftWrite` and
 `provenanceWrite`. Every supplied reference must pass current `canRead` checks,
-repeated on CAS retry and exact replay. Content and the current private
-provenance snapshot commit in the existing article transaction with its head,
+repeated on CAS retry, after a successful commit, and on exact replay. Content
+and current private provenance commit in the existing article transaction with its head,
 immutable rows, Audit, receipt, and causal jobs; there is no second provenance
 write. An update preserves the older publication's separate
-`publishedProvenance`. Omission retains the legacy draft-only behavior.
+`publishedProvenance`. Each accepted command supplying the field creates a fresh
+current source-snapshot generation even when the references are unchanged, as
+with `setProvenance`; bounded history admission still applies. Exact replay adds
+no rows. An absent property retains legacy draft-only behavior and preserves an
+existing current source snapshot; `sourceReferences: undefined` is rejected by
+the strict JSON-data boundary.
+
+The exact ordered array participates in both command and source-snapshot
+identity. Persist and retry its original order; a same-command-ID permutation
+conflicts without writes.
 
 This closes SD-03's empty/stale source window only when the owning host always
 supplies its complete nonempty reference set. A readable source may still be
@@ -194,6 +203,12 @@ revocation. It returns no content, evidence, or provenance, and does not promise
 that the acknowledged content is still published or usable. A separate current
 read establishes current availability. Published-history hydration uses its
 exact retained immutable versions, not the new mutable draft's material.
+
+A post-commit source-read denial or unavailable dependency can return an error
+after the mutation was accepted. Do not assume rollback or issue a new command
+ID. Under refreshed authority, retry the same command ID, exact payload and
+source order, and original `expectedGeneration` to resolve its bounded historical
+acknowledgement without duplicate writes.
 
 Invalid rows or an unavailable dependency produce a visible failure. There is
 no best-effort acceptance through Spine's event bus. Projection/search repair

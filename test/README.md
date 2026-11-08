@@ -17,6 +17,14 @@ boundary, not a production attestation or credential implementation. Evidence
 times follow the draft being tested; malformed-time cases call the public
 service directly instead of using the successful-staging helper.
 
+Upgrade tests use the dev-only exact registry alias
+`@pegma/knowledge-base-application-previous` to
+`npm:@pegma/knowledge-base-application@0.1.1` to write real legacy records before
+the candidate reads them. The lockfile integrity pin matches the previously
+verified `0.1.1` artifact; no copied source or branch supplies this writer.
+The four candidate runtime packages remain `0.1.2`, and the Agent Access
+protocol-proof pin remains `0.1.1`.
+
 `trace-store.ts` delegates every record operation to the supplied real store.
 Its transaction interception adds refusals or a manual race barrier; captured
 traces are observations, not another persistence implementation. The race

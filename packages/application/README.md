@@ -63,10 +63,25 @@ Privileged direct host calls to `createDraft`/`updateDraft` may supply optional
 `sourceReferences` as the complete current private source set. Presence,
 including `[]`, requires both `draftWrite` and `provenanceWrite`; every reference
 must pass current `PrivateSourcesVerifier.canRead` checks on the initial
-attempt, CAS retry, and exact replay. Content and current provenance commit in
-one existing article transaction with Audit, receipt, and causal jobs. An update
-preserves the older publication's `publishedProvenance`. Omission retains
-legacy draft-only behavior.
+attempt, CAS retry, after a successful commit, and on exact replay. Content and
+current provenance commit in one existing article transaction with Audit,
+receipt, and causal jobs. An update preserves the older publication's
+`publishedProvenance`. Omission means the
+property is absent and retains legacy draft-only behavior, preserving an existing
+current source snapshot. Explicit `undefined` is rejected by the strict JSON-data
+boundary.
+
+The exact ordered array participates in command and source-snapshot identity.
+Persist and retry that order: a same-command-ID permutation conflicts without
+writes. Each accepted command supplying the field creates a fresh current
+source-snapshot generation even when references are unchanged, as with
+`setProvenance`, subject to bounded history admission. Exact replay adds no rows.
+
+Historical source snapshots retain the `0.1.1` structural and hash rules;
+stricter URL-prefix hygiene applies only to newly supplied write inputs.
+Existing opaque keys such as `git:issue/1` or `data:row42` remain reviewable and
+publishable subject to the same current source eligibility and exact approval
+gates. Draft edits that omit `sourceReferences` preserve those snapshots.
 
 SD-03 hosts must always supply a complete nonempty set to close the empty/stale
 source window. A readable reference may still be ineligible or stale;
@@ -78,6 +93,12 @@ adds no agent scope or tool.
 historical acknowledgement. It contains no body/evidence/provenance. Replay
 rechecks current operation/resource authority, conflicts on changed semantic
 input, and does not claim the historical result is currently servable.
+
+A source-read denial or dependency error after commit may follow an accepted
+mutation. Do not assume rollback or use a new command ID. Under refreshed
+authority, retry the same command ID and exact payload, including source order
+and the original `expectedGeneration`, to resolve the bounded historical
+acknowledgement without duplicate writes.
 
 ## Reads and trust
 

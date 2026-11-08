@@ -48,6 +48,7 @@ import type {
   PrivateSourceReference,
   ReviewSnapshot,
   SourceSnapshot,
+  UpdateDraftInput,
 } from "./types.js";
 
 type ArticleMethods = Pick<
@@ -169,11 +170,11 @@ function acknowledgement(
 
 function validateReferences(
   references: readonly PrivateSourceReference[],
+  mode: "write" | "historical" = "write",
 ): void {
-  if (
-    !Array.isArray(references) ||
-    references.length > maximumSourceReferences
-  ) {
+  if (!Array.isArray(references))
+    throw new TypeError("Source references must be an array");
+  if (references.length > maximumSourceReferences) {
     throw new RepositoryCapacityError("source_references");
   }
   const ids = new Set<string>();
@@ -185,7 +186,14 @@ function validateReferences(
     );
     for (const [field, value] of Object.entries(reference)) {
       boundedText(value, "source." + field, 200);
-      if (value.includes("://"))
+      if (
+        value.includes("://") ||
+        (mode === "write" &&
+          (value.startsWith("//") ||
+            /^(?:https?|wss?|ftps?|file|data|javascript|vbscript|blob|mailto|tel|sms|ssh|git):/iu.test(
+              value,
+            )))
+      )
         throw new TypeError("Source references must use opaque identifiers");
     }
     for (const field of ["id", "system", "resourceId", "version"] as const) {
@@ -209,7 +217,8 @@ async function sourceSnapshot(
 
 async function verifySourceSnapshot(snapshot: SourceSnapshot): Promise<void> {
   requireGeneration(snapshot.generation, 1);
-  validateReferences(snapshot.references);
+  // Preserve the lexical rules under which an existing snapshot was accepted.
+  validateReferences(snapshot.references, "historical");
   if (
     snapshot.hash !==
     (await fingerprint({
@@ -305,7 +314,10 @@ export function createArticleServices(
   }
 
   async function recheckDraftSources(
-    command: Pick<CreateDraftInput, "articleId" | "sourceReferences">,
+    command: Pick<
+      CreateDraftInput | UpdateDraftInput,
+      "articleId" | "sourceReferences"
+    >,
     caller: AccessContext,
   ): Promise<void> {
     if (command.sourceReferences === undefined) return;

@@ -20,6 +20,7 @@ import {
   firstSource,
   invokeDraftCommand,
   prepareDraftCommand,
+  publishedPreviousApplication,
   secondSource,
   sourceAuthor,
 } from "../test/atomic-draft-sources-fixtures.js";
@@ -454,6 +455,97 @@ for (const [name, createStore] of storeFactories) {
       },
     );
 
+    it.each(operations)(
+      "retains ordered opaque namespace sources for exact %s replay and snapshots supplied new mutations",
+      async (operation) => {
+        const backing = await createStore();
+        const f = applicationFixture(backing);
+        await f.setupCollection();
+        const references: readonly PrivateSourceReference[] = [
+          {
+            ...firstSource,
+            id: "source:first",
+            system: "support:desk",
+            resourceId: "ticket:123",
+            version: "resolved:1",
+          },
+          {
+            ...secondSource,
+            id: "source:second",
+            system: "pegma:support",
+            resourceId: "urn:pegma:ticket:456",
+            version: "version:2",
+          },
+        ];
+        const input = {
+          ...(await prepareDraftCommand(f, operation)),
+          sourceReferences: references,
+        };
+        const accepted = await invokeDraftCommand(f, operation, input);
+        const original = await f.app.getProvenance(admin, {
+          articleId: input.articleId,
+        });
+        expect(original.snapshot.references).toEqual(references);
+        for (const reference of references)
+          expect(f.privateSources.canRead).toHaveBeenCalledWith({
+            access: sourceAuthor,
+            articleId: input.articleId,
+            reference,
+          });
+        const committedRows = await allKnowledgeRows(backing);
+        await expect(
+          invokeDraftCommand(f, operation, {
+            ...input,
+            sourceReferences: [...references].reverse(),
+          }),
+        ).rejects.toMatchObject(conflict);
+        expect(await allKnowledgeRows(backing)).toEqual(committedRows);
+        expect(await invokeDraftCommand(f, operation, input)).toEqual({
+          value: accepted.value,
+          replayed: true,
+        });
+        expect(await allKnowledgeRows(backing)).toEqual(committedRows);
+        expect(
+          (await f.app.getProvenance(admin, { articleId: input.articleId }))
+            .snapshot,
+        ).toEqual(original.snapshot);
+
+        const next = {
+          ...input,
+          ...f.command("same-sources-new-content", accepted.value.generation),
+          draft: {
+            ...input.draft,
+            title: "New draft retaining ordered sources",
+          },
+        };
+        const updated = await f.app.updateDraft(sourceAuthor, next);
+        const supplied = await f.app.getProvenance(admin, {
+          articleId: input.articleId,
+        });
+        expect(supplied.snapshot).toMatchObject({
+          generation: original.snapshot.generation + 1,
+          references,
+        });
+        expect(supplied.snapshot.hash).not.toBe(original.snapshot.hash);
+        const beforeReplay = await allKnowledgeRows(backing);
+        expect(await f.app.updateDraft(sourceAuthor, next)).toEqual({
+          value: updated.value,
+          replayed: true,
+        });
+        expect(await allKnowledgeRows(backing)).toEqual(beforeReplay);
+
+        const { sourceReferences: _references, ...omitted } = next;
+        await f.app.updateDraft(author, {
+          ...omitted,
+          ...f.command("same-sources-omitted", updated.value.generation),
+        });
+        expect(
+          (await f.app.getProvenance(admin, { articleId: input.articleId }))
+            .snapshot,
+        ).toEqual(supplied.snapshot);
+      },
+    );
+
     it.each(["unknown outcome", "postcommit source withdrawal"] as const)(
       "recovers an atomic accepted command after %s without duplicating retained work",
       async (failure) => {
@@ -535,7 +627,10 @@ for (const [name, createStore] of storeFactories) {
       await f.setupCollection();
       const { version: _version, ...missingVersion } = firstSource;
       const invalidReferences: readonly (readonly [unknown, string])[] = [
-        [null, "RepositoryCapacityError"],
+        [null, "TypeError"],
+        ["ticket:123", "TypeError"],
+        [{ reference: firstSource }, "TypeError"],
+        [undefined, "TypeError"],
         [[null], "TypeError"],
         [[missingVersion], "TypeError"],
         [
@@ -568,6 +663,15 @@ for (const [name, createStore] of storeFactories) {
               "TypeError",
             ] as const,
         ),
+        ...[
+          "//fictional.invalid/private",
+          "https:/fictional.invalid/private",
+          "data:text/plain,private",
+          "HtTpS:fictional.invalid/private",
+        ].map(
+          (resourceId) =>
+            [[{ ...firstSource, resourceId }], "TypeError"] as const,
+        ),
       ];
       for (const operation of operations) {
         const input = await prepareDraftCommand(
@@ -578,7 +682,7 @@ for (const [name, createStore] of storeFactories) {
         const before = await allKnowledgeRows(backing);
         traced.transactions.length = 0;
         for (const [references, errorName] of invalidReferences) {
-          // Real host JSON can reach this boundary despite the static type.
+          // Exercise malformed runtime inputs beyond the static declarations.
           const malformed = {
             ...input,
             sourceReferences: references as readonly PrivateSourceReference[],
@@ -590,6 +694,116 @@ for (const [name, createStore] of storeFactories) {
         expect(traced.transactions).toHaveLength(0);
         expect(await allKnowledgeRows(backing)).toEqual(before);
       }
+    });
+
+    it("reviews and publishes actual 0.1.1 source snapshots under current source gates without admitting new URL-like writes", async () => {
+      const backing = await createStore();
+      const f = applicationFixture(backing);
+      await f.setupCollection();
+      const previous = await publishedPreviousApplication(f);
+      const input = await prepareDraftCommand(f, "create");
+      const created = await previous.createDraft(author, input);
+      const historicalReferences = [
+        { ...firstSource, resourceId: "git:issue/1" },
+        { ...secondSource, resourceId: "data:row42" },
+      ];
+      await previous.setProvenance(admin, {
+        ...f.command("previous-release-sources", created.value.generation),
+        articleId: input.articleId,
+        references: historicalReferences,
+      });
+      const historical = await previous.getProvenance(admin, {
+        articleId: input.articleId,
+      });
+      expect(historical.snapshot.references).toEqual(historicalReferences);
+      expect(
+        await f.app.getProvenance(admin, { articleId: input.articleId }),
+      ).toEqual(historical);
+      let current = await f.app.getDraft(author, {
+        articleId: input.articleId,
+      });
+      current = (await f.submitEvidence(current)).current;
+      const beforeReview = await allKnowledgeRows(backing);
+      for (const gate of ["sourceCurrent", "canPublishSource"] as const) {
+        f.trust[gate] = false;
+        await expect(f.review(current)).rejects.toMatchObject(prerequisite);
+        f.trust[gate] = true;
+        expect(await allKnowledgeRows(backing)).toEqual(beforeReview);
+      }
+      const reviewed = await f.review(current);
+      expect(reviewed.review).toMatchObject({
+        sourceGeneration: historical.snapshot.generation,
+        sourceSnapshotHash: historical.snapshot.hash,
+      });
+      const publish = {
+        ...f.command("publish-previous-release-sources", reviewed.generation),
+        articleId: input.articleId,
+        review: reviewed.review,
+      };
+      const beforePublish = await allKnowledgeRows(backing);
+      for (const gate of ["sourceCurrent", "canPublishSource"] as const) {
+        f.trust[gate] = false;
+        await expect(
+          f.app.publishArticle(admin, publish),
+        ).rejects.toMatchObject(prerequisite);
+        f.trust[gate] = true;
+        expect(await allKnowledgeRows(backing)).toEqual(beforePublish);
+      }
+      const published = await f.app.publishArticle(admin, publish);
+      const publishedSources = await f.app.getProvenance(admin, {
+        articleId: input.articleId,
+      });
+      expect(publishedSources.snapshot).toEqual(historical.snapshot);
+      expect(publishedSources.publishedSnapshot).toEqual(historical.snapshot);
+      const approved = await f.app.getPublishedArticle(customer, {
+        articleId: input.articleId,
+      });
+      for (const gate of ["sourceCurrent", "canPublishSource"] as const) {
+        f.trust[gate] = false;
+        await expect(
+          f.app.getPublishedArticle(customer, { articleId: input.articleId }),
+        ).rejects.toMatchObject({ name: "KnowledgeBaseNotFoundError" });
+        f.trust[gate] = true;
+      }
+      expect(
+        await f.app.getPublishedArticle(customer, {
+          articleId: input.articleId,
+        }),
+      ).toEqual(approved);
+
+      const beforeRejectedWrites = await allKnowledgeRows(backing);
+      for (const reference of historicalReferences) {
+        const sourceReferences = [reference];
+        await expect(
+          f.app.createDraft(sourceAuthor, {
+            ...input,
+            ...f.command("reject-new-url-source-create", 0),
+            articleId: "article/rejected-new-url-source",
+            sourceReferences,
+          }),
+        ).rejects.toMatchObject({ name: "TypeError" });
+        await expect(
+          f.app.updateDraft(sourceAuthor, {
+            ...input,
+            ...f.command(
+              "reject-new-url-source-update",
+              published.value.generation,
+            ),
+            sourceReferences,
+          }),
+        ).rejects.toMatchObject({ name: "TypeError" });
+        await expect(
+          f.app.setProvenance(admin, {
+            ...f.command(
+              "reject-new-url-source-provenance",
+              published.value.generation,
+            ),
+            articleId: input.articleId,
+            references: sourceReferences,
+          }),
+        ).rejects.toMatchObject({ name: "TypeError" });
+      }
+      expect(await allKnowledgeRows(backing)).toEqual(beforeRejectedWrites);
     });
 
     it("accepts readable draft sources independently of publication eligibility and preserves the old publication snapshot", async () => {
