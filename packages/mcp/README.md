@@ -40,13 +40,17 @@ against shared internal schemas and fixed component ceilings before dispatch.
 Errors use bounded public responses rather than exposing internal exceptions
 or private evidence and provenance.
 
+The initial `createDraft`/`updateDraft` HTTP/MCP schemas reject
+`sourceReferences`. Atomic draft/source authoring is a privileged direct-host
+application extension; it adds no agent scope or tool.
+
 `createKnowledgeAgentHttp` and `createKnowledgeAgentMcp` expose that dispatcher
 through host-configured protected endpoints. Both require fresh host
 authentication and admission control on every request; neither issues tokens.
 
-The [host composition contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/HOST_COMPOSITION.md)
+The [host composition contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/HOST_COMPOSITION.md)
 describes authenticated contexts, trusted evidence, replay, and safe DTOs. The
-[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RETRIEVAL.md)
+[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RETRIEVAL.md)
 describes authoritative current-publication confirmation and audience boundaries.
 
 ## Local verification and release
@@ -77,7 +81,7 @@ Each package has its own README, MIT LICENSE, build-on-prepack hook, and
 compiled-test exclusion. All four package versions remain synchronized with
 exact internal dependency pins. Publishing, release tags, trusted-publisher configuration, and
 host activation are separate maintainer operations in the
-[release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RELEASING.md).
+[release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RELEASING.md).
 Documentation links target this package's release tag rather than development
 `main`. During release preparation that tag may still be pending; it is created
 after the reviewed merge and before publishing. Source readers can use the

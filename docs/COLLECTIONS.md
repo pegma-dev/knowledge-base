@@ -11,9 +11,10 @@ document alone does not mark a task complete. The authoritative collection is
 The approved scope is the
 [implementation plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
 and its P-00 capacity/privacy requirements. KB-04's optional HTTP/MCP adapter
-source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Package
-publication, real-host acceptance, and production readiness remain separate
-gates.
+source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The
+[verified `0.1.1` release](BOOTSTRAP.md#verified-knowledge-base-release) is
+complete; the `0.1.2` source candidate, real-host acceptance, and production
+readiness retain their own gates.
 
 ## Partition and authority rules
 
@@ -164,6 +165,22 @@ single-partition CAS transaction containing the head change, immutable rows,
 Audit, receipt, and causal work. A conflict reloads/redecides within a bound
 and repeats resource checks under the call's trusted access-context freshness
 boundary; it does not append an unbounded attempt log.
+
+Direct host `createDraft`/`updateDraft` inputs may include complete
+`sourceReferences`. Presence, including `[]`, requires both `draftWrite` and
+`provenanceWrite`. Every supplied reference must pass current `canRead` checks,
+repeated on CAS retry and exact replay. Content and the current private
+provenance snapshot commit in the existing article transaction with its head,
+immutable rows, Audit, receipt, and causal jobs; there is no second provenance
+write. An update preserves the older publication's separate
+`publishedProvenance`. Omission retains the legacy draft-only behavior.
+
+This closes SD-03's empty/stale source window only when the owning host always
+supplies its complete nonempty reference set. A readable source may still be
+ineligible or stale: review/publication and current published reads retain
+their independent source eligibility/currentness gates. This operation adds no
+cross-partition fence over external source policy. The initial HTTP/MCP
+authoring schemas reject `sourceReferences` and add no scope or tool.
 
 A command ID is scoped to its actor, operation, target, and exact input
 semantic fingerprint. Identical replay returns a bounded historical

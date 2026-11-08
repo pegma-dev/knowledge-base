@@ -10,9 +10,11 @@ application composes contracts/core with host-supplied Storage Core and
 Authorization Core. The
 optional `@pegma/knowledge-base-mcp` package supplies bounded HTTP/MCP adapters
 over that application. All four `0.1.0` packages completed manual bootstrap
-and exact-byte postflight without OIDC provenance. Source `0.1.1` is a candidate
-for the first advertised trusted release; review, publication, strict registry/
-provenance verification, and host acceptance remain gates.
+and exact-byte postflight without OIDC provenance. The four-package `0.1.1`
+trusted release is now [verified](BOOTSTRAP.md#verified-knowledge-base-release).
+Source `0.1.2` is the atomic draft/source candidate; its own review, current-head
+gates, trusted release, and strict registry/provenance verification remain open.
+Host acceptance remains separate.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
@@ -36,7 +38,7 @@ draft/evidence transport loop. Agent Access's
 is also merged, and its manual `0.1.0` bootstrap is complete without OIDC
 provenance. Its trusted `0.1.1` release and strict registry verification have
 since closed the public producer prerequisite. Actual existing-login/client
-acceptance on both hosts and full KB-05 publication remain open. See the
+acceptance on both hosts remains open. See the
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) for the exact
 Agent Access receipt. The changed registry proof still needs current-head
 execution; historical source-producer evidence does not validate it.
@@ -133,6 +135,25 @@ and proof checks remain additional requirements. `getPublishedArticle` is a
 portal read, not bot-only retrieval. The separate retrieval methods below
 enforce their own effective-customer use and audience.
 
+Privileged hosts calling `createDraft` or `updateDraft` directly may pass optional
+`sourceReferences` as the complete current private source set. Supplying the
+field requires both `draftWrite` and `provenanceWrite`, even for `[]`; every
+reference must pass `PrivateSourcesVerifier.canRead`. The application repeats
+these current operation/resource and per-reference checks after a CAS conflict
+and before acknowledging exact replay. Content and current provenance commit
+atomically in the existing article transaction, including Audit, receipt, and
+causal jobs. Updating a draft preserves the older publication's separate
+`publishedProvenance`. Omitting the field retains legacy draft-only behavior.
+
+SD-03 closes its empty/stale source window only if the owning host always
+supplies a complete nonempty reference set for each generated draft create or
+update. The [approved source progression](https://github.com/pegma-dev/support-desk/pull/38)
+does not establish release, host/client, privacy, or pilot acceptance. Source
+readability may coexist with publication ineligibility or staleness;
+`canPublish`/`isCurrent` and exact review/publication checks remain required.
+The initial local-agent HTTP/MCP schemas reject `sourceReferences`. This direct
+host extension adds no tool or consent scope.
+
 `getValidationRequirements` returns the current article-kind checks,
 validation-policy reference, governance generation, and expected staging
 build for authorized authors. It omits trusted attester IDs; full governance
@@ -204,8 +225,9 @@ source metadata or resolving the reference; unavailable source authorization
 must not be treated as an allow. Keep raw customer conversations in the owning
 support system rather than copying them into KB history.
 
-`PrivateSourcesVerifier.canRead` checks each private reference returned by
-`getProvenance`. The separate `canPublish` and `isCurrent` callbacks attest
+`PrivateSourcesVerifier.canRead` checks each private reference supplied through
+atomic draft authoring or returned by `getProvenance`. The separate `canPublish`
+and `isCurrent` callbacks attest
 source eligibility/currentness without returning source bodies. Nonempty
 source snapshots fail closed when those required gates are unavailable.
 A portal customer does not need permission to read private source tickets in

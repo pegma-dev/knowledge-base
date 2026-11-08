@@ -81,5 +81,7 @@ establish actual site logins or target-client application acceptance.
 Local storage tests establish no browser UI, live
 Workers/host acceptance, model-provider settings, production throughput, or
 retention operations. All four KB `0.1.0` packages completed manual bootstrap
-without OIDC provenance. KB `0.1.1` remains an unpublished candidate; its full
-verified trusted release and the host activation gates remain required.
+without OIDC provenance. The four-package KB `0.1.1` trusted release is now
+[verified](../docs/BOOTSTRAP.md#verified-knowledge-base-release). Source `0.1.2`
+remains a candidate with its own gates and verified trusted release required;
+host activation gates remain open.

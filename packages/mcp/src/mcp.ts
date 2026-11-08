@@ -332,7 +332,7 @@ export function createKnowledgeAgentMcp(
         maxRequestBodySize: dispatcher.limits.maxRequestBytes,
       });
       const server = new Server(
-        { name: "@pegma/knowledge-base-mcp", version: "0.1.1" },
+        { name: "@pegma/knowledge-base-mcp", version: "0.1.2" },
         {
           capabilities: { tools: {} },
           // Workers prohibit the runtime code generation used by SDK-default AJV.

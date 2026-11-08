@@ -9,30 +9,32 @@ The release set is exactly these packages, in dependency order:
 3. `@pegma/knowledge-base-application`
 4. `@pegma/knowledge-base-mcp`
 
-As of **2026-11-07T21:56:24Z**, all four `0.1.0` packages completed manual
-bootstrap with exact-byte postflight and no OIDC provenance. Source `0.1.1` is
-the candidate for the first advertised trusted release; it remains subject to
-review, current-head gates, publication, and strict registry/provenance
-verification. Package README source links target the expected `v0.1.1` release
-tag; that candidate tag and trusted release remain pending.
+All four `0.1.0` packages completed manual bootstrap with exact-byte postflight
+at **2026-11-07T21:56:24Z**, without OIDC provenance. The first advertised trusted
+KB release, `0.1.1`, completed strict complete-set registry/signature/provenance
+and clean-consumer verification at **2026-11-07T23:35:31Z**. The
+[release receipt](BOOTSTRAP.md#verified-knowledge-base-release) retains its
+reviewed head, merged source, signed tag, immutable artifact/digests, successful
+attempt-5 workflow, and separate unprivileged verification job.
+Source `0.1.2` is the synchronized SD-03 atomic draft/source candidate. It still
+requires its own review, current-head gates, signed tag, trusted publication,
+and strict verification. Package README links target its expected `v0.1.2`
+release tag, which remains pending.
 [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 and [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
 are merged. The separate earlier [partial KB-05 source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
 supplied local D1 conformance and public synthetic composition; PR #6 added
 release tooling. The canonical [historical source-gate record](SOURCE_PREPARATION.md#historical-source-gates)
 identifies reviewed heads separately from merge commits and retains exact
-CI links, counts, review, and security receipts. Full KB-05 publication remains
-open.
+CI links, counts, review, and security receipts. The verified `0.1.1` publication
+is a separate receipt, not a claim about changed candidate source.
 Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
 packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
 manual commands/stdout, exact identities, preparation runs/artifacts, and
-independently retained digests. The four KB packages' `latest` tags still
-resolve to `0.1.0` despite bootstrap tagging. A verified KB `0.1.1` release is
-intended to advance them. An earlier attempt to delete Agent Access's `latest`
-tag returned HTTP 400 before its `0.1.1` release. Agent Access
-now has `latest: 0.1.1` and `bootstrap: 0.1.0`. This is not approval to consume
-the KB bootstrap.
+independently retained digests. All four KB packages and Agent Access now have
+`latest: 0.1.1` and `bootstrap: 0.1.0`. The manual bootstraps remain historical
+integrity receipts without OIDC provenance.
 
 [Agent Access](https://github.com/pegma-dev/agent-access) is a separate release.
 Its `0.1.1` trusted publication and strict registry verification completed at
@@ -43,7 +45,7 @@ retains its exact artifact/digest, successful attempt-2 workflow, and unprivileg
 verification job. That public producer prerequisite is closed.
 The active `agent:proof` installs exact registry `@pegma/agent-access@0.1.1`
 with four packed KB artifacts and official MCP SDK `1.32.2` in a fresh consumer.
-The KB candidate still needs its own current-head gates, review, PR, publication,
+The KB `0.1.2` candidate still needs its own current-head gates, review, PR, publication,
 and strict verification; historical source-proof results do not validate this
 changed composition. Production hosts require verified trusted versions of
 both components and their separately retained acceptance.

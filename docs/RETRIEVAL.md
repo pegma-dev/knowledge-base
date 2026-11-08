@@ -7,12 +7,13 @@ with the agreed public types and projection layout. Implementation tests and
 repository gates remain required.
 KB-03 extends the existing application package; it creates no new package,
 database, model integration, or authentication system. The KB `0.1.0` packages
-completed manual bootstrap without OIDC provenance; source `0.1.1` remains an
-unpublished candidate. Source tests and repository gates, not
+completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
+have since completed [verified trusted publication](BOOTSTRAP.md#verified-knowledge-base-release).
+Source `0.1.2` remains a candidate. Source tests and repository gates, not
 this document, determine completion. KB-04's optional HTTP/MCP adapter source
-is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Verified trusted
-KB publication, real-host acceptance, and production activation remain separate
-tasks.
+is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The candidate's
+verified trusted release, real-host acceptance, and production activation retain
+their own gates.
 
 Read [declared collections](COLLECTIONS.md) for the authoritative record
 layout and [host composition](HOST_COMPOSITION.md) for trusted access,

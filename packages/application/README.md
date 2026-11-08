@@ -5,10 +5,10 @@ host-supplied Storage Core, Authorization Core, Audit, and a clock. Source
 implementation and repository gates determine task completion; neither this
 package nor local tests establish a live host or production readiness.
 
-The [declared layout](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/COLLECTIONS.md) records the agreement made
-before durable operations. [Host composition](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/HOST_COMPOSITION.md) describes the host
+The [declared layout](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/COLLECTIONS.md) records the agreement made
+before durable operations. [Host composition](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/HOST_COMPOSITION.md) describes the host
 authentication, current-resource authorization, verified-evidence, and privacy
-boundaries. [Retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RETRIEVAL.md)
+boundaries. [Retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RETRIEVAL.md)
 documents bounded lexical lookup, authoritative confirmation, citations, and
 repair. The optional `@pegma/knowledge-base-mcp` package adds HTTP/MCP adapters
 over this API; it supplies no login or token issuer. Real-host acceptance and
@@ -43,7 +43,7 @@ or a support model.
 `limits`, `evidenceVerifier`, `privateSources`, and nested `retrieval` settings.
 Hosts authenticate callers
 and resolve current scoped `AccessContext` values. The
-[public types](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/packages/application/src/types.ts) define commands and purpose-specific results;
+[public types](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/packages/application/src/types.ts) define commands and purpose-specific results;
 the package owns no HTTP routes or credentials.
 
 Creates use `expectedGeneration: 0`; later mutations use exact application
@@ -58,6 +58,21 @@ commands create/update drafts, submit verified evidence and review, publish an
 exact `ReviewSnapshot`, reject, retire, set private provenance, or revoke an
 exact historical proof. The snapshot includes the core approval binding plus
 article/source/governance generations.
+
+Privileged direct host calls to `createDraft`/`updateDraft` may supply optional
+`sourceReferences` as the complete current private source set. Presence,
+including `[]`, requires both `draftWrite` and `provenanceWrite`; every reference
+must pass current `PrivateSourcesVerifier.canRead` checks on the initial
+attempt, CAS retry, and exact replay. Content and current provenance commit in
+one existing article transaction with Audit, receipt, and causal jobs. An update
+preserves the older publication's `publishedProvenance`. Omission retains
+legacy draft-only behavior.
+
+SD-03 hosts must always supply a complete nonempty set to close the empty/stale
+source window. A readable reference may still be ineligible or stale;
+review/publication and published reads retain their eligibility/currentness
+checks. The initial HTTP/MCP schemas reject `sourceReferences`; this extension
+adds no agent scope or tool.
 
 `CommandResult` returns `{ value, replayed }`, where `value` is a bounded
 historical acknowledgement. It contains no body/evidence/provenance. Replay
@@ -77,7 +92,8 @@ approved content/safe metadata. It is not KB-03 search or bot-only retrieval.
 `EvidenceVerifier.verify` authenticates an opaque receipt against the entire
 submission, authenticated actor, exact article, and governance configuration.
 It returns trusted attestation facts or null. A missing verifier fails closed.
-`PrivateSourcesVerifier.canRead` controls private reference disclosure;
+`PrivateSourcesVerifier.canRead` controls atomic draft source input and private
+reference disclosure;
 `canPublish` and `isCurrent` independently attest source eligibility without
 making source tickets readable to customers. Missing required gates fail
 closed for nonempty source snapshots.
@@ -116,7 +132,7 @@ provider data controls; current publication checks remain mandatory.
 ranked prefix of whole articles within aggregate byte/token budgets with a
 positive local count; reconfirmation is exact and all-or-nothing.
 `retrieval.limits` can only lower fixed component ceilings.
-See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RETRIEVAL.md)
+See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RETRIEVAL.md)
 for the exact API, limits, authority/reference fences, and evaluation boundary.
 
 `repairArticleIndex`, `repairRetrievalPage`, and `getArticleIndexStatus` require
@@ -133,13 +149,13 @@ causal jobs share one resource partition in `knowledge-base.records.v1`.
 Native flat chunk properties keep bounded rows compatible with the host's
 store adapter. The application separately bounds physical rows, encoded bytes,
 history, transaction work, retries, and control reserve. Read the
-[layout limits](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/COLLECTIONS.md#physical-representation-and-hard-bounds)
+[layout limits](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/COLLECTIONS.md#physical-representation-and-hard-bounds)
 before changing admission or retention; these are component safety bounds,
 not measured host throughput. No private persistence or parallel audit log is
 implemented here.
 
 Merging source does not publish a package. Hosts verify exact registry artifacts
 and provenance and complete their release/host activation gates. See
-[release operations](https://github.com/pegma-dev/knowledge-base/blob/v0.1.1/docs/RELEASING.md).
+[release operations](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RELEASING.md).
 
 Built in the open by RetireGolden, LLC.
