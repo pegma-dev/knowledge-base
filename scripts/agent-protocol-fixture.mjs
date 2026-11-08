@@ -888,10 +888,25 @@ async function authorization(
   bootstrap.onerror = () => {};
   owned.push(initial, bootstrap);
   let redirected = false;
-  try {
-    await bootstrap.connect(initial);
-  } catch (error) {
-    assert.ok(error instanceof UnauthorizedError);
+  if (isDeepStrictEqual(requestedScopes, scopes)) {
+    try {
+      await bootstrap.connect(initial);
+    } catch (error) {
+      assert.ok(error instanceof UnauthorizedError);
+      redirected = true;
+    }
+  } else {
+    // The SDK prefers discovered scopes_supported over clientMetadata.scope.
+    // Its public explicit-scope option selects this deliberately narrower grant
+    // without altering the real resource metadata, token or consent boundary.
+    assert.equal(
+      await auth(provider.provider, {
+        serverUrl: host.resource,
+        scope: requestedScopes.join(" "),
+        fetchFn: request,
+      }),
+      "REDIRECT",
+    );
     redirected = true;
   }
   assert.equal(redirected, true);
@@ -1362,6 +1377,7 @@ async function runReportProof() {
     const readOnly = await authorization(host, owned, false, [
       knowledgeAgentScopes.draftRead,
     ]);
+    assert.equal(readOnly.tokens().scope, knowledgeAgentScopes.draftRead);
     const forbidden = await mcpCall(
       readOnly.client,
       "getValidationRequirements",
