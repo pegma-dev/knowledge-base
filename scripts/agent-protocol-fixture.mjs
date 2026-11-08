@@ -19,7 +19,10 @@ import {
   createProtectedResourceAuthenticator,
 } from "@pegma/agent-access";
 import { hasPermission, resolveAccess } from "@pegma/authorization-core";
-import { createKnowledgeBaseApplication } from "@pegma/knowledge-base-application";
+import {
+  createKnowledgeBaseApplication,
+  createKnowledgeEvidenceReports,
+} from "@pegma/knowledge-base-application";
 import {
   articleKinds,
   knowledgePermissions,
@@ -39,6 +42,7 @@ const PRINCIPAL = "fictional/staff/admin";
 const RUNNER = "fictional/runner/loopback";
 const ATTESTER = "fictional/verifier/registry";
 const LINK = "agent.access.link";
+const CONFIRM = "fictional.knowledge.evidence.confirm";
 const COLLECTION = "fictional/collection/workshop";
 const ARTICLE = "fictional/article/export";
 const BUILD = "fictional-loopback-build-42";
@@ -98,7 +102,7 @@ async function formPost(url, values, headers = {}) {
   });
 }
 
-async function createHost() {
+async function createHost({ reportsEnabled = false } = {}) {
   const store = createMemoryStore();
   let milliseconds = Date.now();
   let administrator = true;
@@ -109,8 +113,28 @@ async function createHost() {
       {
         version: "fictional-kb-protocol-1",
         roles: {
-          Admin: [LINK, ...Object.values(knowledgePermissions)],
+          Admin: [
+            LINK,
+            ...Object.values(knowledgePermissions),
+            ...(reportsEnabled ? [CONFIRM] : []),
+          ],
           Viewer: [],
+        },
+      },
+    );
+  const reviewerAccess = () =>
+    resolveAccess(
+      { principalId: ATTESTER, roles: ["EvidenceReviewer"] },
+      {
+        version: "fictional-kb-protocol-1",
+        roles: {
+          EvidenceReviewer: [
+            CONFIRM,
+            knowledgePermissions.draftRead,
+            knowledgePermissions.draftWrite,
+            knowledgePermissions.evidenceRead,
+            knowledgePermissions.evidenceSubmit,
+          ],
         },
       },
     );
@@ -147,10 +171,49 @@ async function createHost() {
     callbacks: 0,
   };
   stage = 11;
-  const application = createKnowledgeBaseApplication({
+  let application;
+  const reports = reportsEnabled
+    ? createKnowledgeEvidenceReports({
+        store,
+        clock,
+        collectionName: "fictional-protocol.evidence-reports.v1",
+        confirmationPermission: CONFIRM,
+        async resolvePrincipal(principalId) {
+          return principalId === PRINCIPAL
+            ? currentAccess()
+            : principalId === ATTESTER
+              ? reviewerAccess()
+              : null;
+        },
+        async readContext(access, articleId) {
+          const draft = await application.getDraft(access, { articleId });
+          const requirements = await application.getValidationRequirements(
+            access,
+            {
+              collectionId: draft.revision.collectionId,
+              kind: draft.revision.kind,
+            },
+          );
+          const accepted = hasPermission(
+            access,
+            knowledgePermissions.evidenceRead,
+          )
+            ? await application.getEvidence(access, { articleId })
+            : undefined;
+          const latest = await application.getDraft(access, { articleId });
+          assert.equal(latest.generation, draft.generation);
+          return {
+            draft: latest,
+            requirements,
+            ...(accepted === undefined ? {} : { evidence: accepted }),
+          };
+        },
+      })
+    : undefined;
+  application = createKnowledgeBaseApplication({
     store,
     clock,
-    evidenceVerifier: {
+    evidenceVerifier: reports?.verifier ?? {
       async verify(proof) {
         const execution = executions.get(proof.receipt);
         if (
@@ -371,6 +434,7 @@ async function createHost() {
     const dispatcher = createKnowledgeAgentDispatcher({
       application: trackedApplication,
       resource,
+      ...(reports === undefined ? {} : { reports }),
     });
     const common = {
       resource,
@@ -501,6 +565,30 @@ async function createHost() {
       demote: () => {
         administrator = false;
       },
+      async acceptedEvidence() {
+        return application.getEvidence(currentAccess(), { articleId: ARTICLE });
+      },
+      async confirmReport(queued) {
+        assert.ok(reports);
+        const access = reviewerAccess();
+        const view = await reports.read(access, {
+          articleId: ARTICLE,
+          ledgerEpoch: queued.ledgerEpoch,
+          reportId: queued.reportId,
+        });
+        return reports.decide(
+          access,
+          {
+            commandId: "fictional/report/confirm/" + queued.reportId,
+            articleId: ARTICLE,
+            ledgerEpoch: queued.ledgerEpoch,
+            reportId: queued.reportId,
+            expectedReportGeneration: view.expectedReportGeneration,
+            reviewBindingHash: view.reviewBindingHash,
+          },
+          "confirmed",
+        );
+      },
       async wrongResourceCredential() {
         const issued = await otherService.beginDeviceAuthorization({
           clientId: CLIENT_ID,
@@ -584,7 +672,7 @@ async function createHost() {
   }
 }
 
-function createProvider(host) {
+function createProvider(host, requestedScopes = scopes) {
   let savedTokens;
   let verifier;
   let authorizationUrl;
@@ -598,7 +686,7 @@ function createProvider(host) {
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none",
-      scope: scopes.join(" "),
+      scope: requestedScopes.join(" "),
     },
     clientInformation: () => ({
       client_id: CLIENT_ID,
@@ -656,7 +744,12 @@ function createProvider(host) {
   };
 }
 
-async function approve(host, authorizationUrl, checkProtections = false) {
+async function approve(
+  host,
+  authorizationUrl,
+  checkProtections = false,
+  requestedScopes = scopes,
+) {
   assert.equal(authorizationUrl.origin, host.origin);
   assert.equal(authorizationUrl.pathname, "/authorize");
   assert.equal(
@@ -686,7 +779,7 @@ async function approve(host, authorizationUrl, checkProtections = false) {
   assert.equal(view.resource, host.resource);
   assert.deepEqual(
     view.requestedScopes.map(({ name }) => name).sort(),
-    [...scopes].sort(),
+    [...requestedScopes].sort(),
   );
   const values = {
     request_id: consent.searchParams.get("request_id"),
@@ -777,8 +870,13 @@ async function rejectedCredential(host, token, replay) {
   assert.equal(host.counts.applicationCalls, before);
 }
 
-async function authorization(host, owned, checkProtections = false) {
-  const provider = createProvider(host);
+async function authorization(
+  host,
+  owned,
+  checkProtections = false,
+  requestedScopes = scopes,
+) {
+  const provider = createProvider(host, requestedScopes);
   const initial = new StreamableHTTPClientTransport(new URL(host.resource), {
     authProvider: provider.provider,
     fetch: request,
@@ -790,10 +888,25 @@ async function authorization(host, owned, checkProtections = false) {
   bootstrap.onerror = () => {};
   owned.push(initial, bootstrap);
   let redirected = false;
-  try {
-    await bootstrap.connect(initial);
-  } catch (error) {
-    assert.ok(error instanceof UnauthorizedError);
+  if (isDeepStrictEqual(requestedScopes, scopes)) {
+    try {
+      await bootstrap.connect(initial);
+    } catch (error) {
+      assert.ok(error instanceof UnauthorizedError);
+      redirected = true;
+    }
+  } else {
+    // The SDK prefers discovered scopes_supported over clientMetadata.scope.
+    // Its public explicit-scope option selects this deliberately narrower grant
+    // without altering the real resource metadata, token or consent boundary.
+    assert.equal(
+      await auth(provider.provider, {
+        serverUrl: host.resource,
+        scope: requestedScopes.join(" "),
+        fetchFn: request,
+      }),
+      "REDIRECT",
+    );
     redirected = true;
   }
   assert.equal(redirected, true);
@@ -801,6 +914,7 @@ async function authorization(host, owned, checkProtections = false) {
     host,
     provider.authorizationUrl(),
     checkProtections,
+    requestedScopes,
   );
   const code = provider.callbackCode(callback);
   await initial.finishAuth(code);
@@ -952,6 +1066,15 @@ async function runProof() {
     assert.deepEqual(await httpRequirements.json(), requirements);
     assert.equal("trustedAttesterIds" in requirements.result, false);
     assert.equal("trustedRunnerIds" in requirements.result.checks[0], false);
+    const omittedReports = await mcpCall(
+      session.client,
+      "getValidationRequirements",
+      {
+        ...requirementsInput,
+        articleId: ARTICLE,
+      },
+    );
+    assert.equal(omittedReports.error.code, "invalid_request");
     const execution = host.executeFixtureCheck(current);
     const submission = {
       ...command("evidence-submit", current.generation),
@@ -1087,6 +1210,7 @@ async function runProof() {
       httpMcpParity: true,
       replayAcknowledgements: true,
       privateEvidenceExcluded: true,
+      optionalReportsOmitted: true,
       wrongResourceRejected: true,
       wrongPkceRejected: true,
       expiredRejected: true,
@@ -1114,8 +1238,262 @@ async function runProof() {
   }
 }
 
+function privateReportFree(value) {
+  const serialized = JSON.stringify(value);
+  for (const marker of [
+    "SYNTHETIC_PRIVATE_REPORT",
+    "SYNTHETIC_PRIVATE_EVIDENCE",
+  ])
+    assert.equal(serialized.includes(marker), false);
+  for (const key of [
+    "report",
+    "evidence",
+    "reportHash",
+    "submissionHash",
+    "governanceHash",
+    "confirmation",
+    "reviewerId",
+    "submittedBy",
+    "trustedAttesterIds",
+    "trustedRunnerIds",
+  ])
+    assert.equal(serialized.includes(JSON.stringify(key) + ":"), false);
+}
+
+async function runReportProof() {
+  stage = 90;
+  const host = await createHost({ reportsEnabled: true });
+  const owned = [];
+  try {
+    stage = 91;
+    const session = await authorization(host, owned);
+    const tools = await session.client.listTools();
+    assert.deepEqual(
+      tools.tools.map(({ name }) => name).sort(),
+      Object.values(knowledgeAgentToolNames).sort(),
+    );
+    assert.equal(tools.tools.length, 5);
+    assert.equal(host.configuration.scopes.length, 3);
+    const created = await mcpCall(session.client, "createDraft", {
+      ...command("report-draft-create", 0),
+      articleId: ARTICLE,
+      collectionId: COLLECTION,
+      draft: guide,
+    });
+    const updated = await mcpCall(session.client, "updateDraft", {
+      ...command("report-draft-update", created.result.value.generation),
+      articleId: ARTICLE,
+      collectionId: COLLECTION,
+      draft: {
+        ...guide,
+        summary: "Save the exact fictional workspace as a CSV spreadsheet.",
+      },
+    });
+    assert.equal(updated.result.value.articleRevision, 2);
+    const current = (
+      await mcpCall(session.client, "getDraft", { articleId: ARTICLE })
+    ).result;
+    const requirementsInput = {
+      collectionId: COLLECTION,
+      kind: "walkthrough",
+      articleId: ARTICLE,
+    };
+    stage = 92;
+    const requirements = await mcpCall(
+      session.client,
+      "getValidationRequirements",
+      requirementsInput,
+    );
+    assert.deepEqual(requirements.result.reportLedger, {
+      ledgerEpoch: 1,
+      status: "active",
+    });
+    assert.equal("reportStatus" in requirements.result, false);
+    privateReportFree(requirements);
+    const execution = host.executeFixtureCheck(current);
+    const reportInput = {
+      ...command("queue-human-report", current.generation),
+      articleId: ARTICLE,
+      evidence: execution.evidence,
+      ledgerEpoch: requirements.result.reportLedger.ledgerEpoch,
+      report: {
+        summary: "SYNTHETIC_PRIVATE_REPORT: locally checked fictional CSV.",
+        details:
+          "SYNTHETIC_PRIVATE_REPORT: the independent fictional CSV check completed exactly.",
+      },
+    };
+    const queued = await mcpCall(session.client, "submitEvidence", reportInput);
+    assert.equal(queued.result.kind, "pending-human-review");
+    assert.deepEqual(Object.keys(queued.result).sort(), [
+      "kind",
+      "ledgerEpoch",
+      "receipt",
+      "reportGeneration",
+      "reportId",
+    ]);
+    assert.equal(queued.result.reportGeneration, 1);
+    privateReportFree(queued);
+    assert.equal((await host.acceptedEvidence()).evidence.length, 0);
+    const lookup = {
+      ...requirementsInput,
+      reportLookup: {
+        ledgerEpoch: queued.result.ledgerEpoch,
+        reportId: queued.result.reportId,
+      },
+    };
+    const pending = await mcpCall(
+      session.client,
+      "getValidationRequirements",
+      lookup,
+    );
+    assert.deepEqual(pending.result.reportLedger, {
+      ledgerEpoch: 1,
+      status: "active",
+    });
+    assert.deepEqual(Object.keys(pending.result.reportStatus).sort(), [
+      "ledgerEpoch",
+      "receipt",
+      "reportGeneration",
+      "reportId",
+      "status",
+    ]);
+    assert.equal(pending.result.reportStatus.status, "pending");
+    assert.equal(pending.result.reportStatus.receipt, queued.result.receipt);
+    privateReportFree(pending);
+    const commitInput = {
+      ...command("reported-evidence-commit", current.generation),
+      articleId: ARTICLE,
+      evidence: execution.evidence,
+      receipt: queued.result.receipt,
+    };
+    const premature = await mcpCall(session.client, "submitEvidence", {
+      ...commitInput,
+      ...command("unconfirmed-report-receipt", current.generation),
+    });
+    assert.equal(premature.error.code, "prerequisite");
+    assert.equal((await host.acceptedEvidence()).evidence.length, 0);
+
+    stage = 93;
+    const readOnly = await authorization(host, owned, false, [
+      knowledgeAgentScopes.draftRead,
+    ]);
+    assert.equal(readOnly.tokens().scope, knowledgeAgentScopes.draftRead);
+    const forbidden = await mcpCall(
+      readOnly.client,
+      "getValidationRequirements",
+      lookup,
+    );
+    assert.equal(forbidden.error.code, "forbidden");
+    privateReportFree(forbidden);
+    const privateLookup = await mcpCall(
+      session.client,
+      "getValidationRequirements",
+      {
+        ...lookup,
+        reportLookup: { ...lookup.reportLookup, reviewerId: ATTESTER },
+      },
+    );
+    assert.equal(privateLookup.error.code, "invalid_request");
+    privateReportFree(privateLookup);
+
+    stage = 94;
+    const confirmation = await host.confirmReport(queued.result);
+    assert.equal(confirmation.receipt, queued.result.receipt);
+    assert.equal((await host.acceptedEvidence()).evidence.length, 0);
+    const confirmed = await mcpCall(
+      session.client,
+      "getValidationRequirements",
+      lookup,
+    );
+    assert.equal(confirmed.result.reportStatus.status, "confirmed");
+    assert.equal(confirmed.result.reportStatus.receipt, queued.result.receipt);
+    assert.equal(confirmed.result.reportStatus.reportGeneration, 2);
+    privateReportFree(confirmed);
+    const tampered = await mcpCall(session.client, "submitEvidence", {
+      ...commitInput,
+      ...command("tampered-reported-evidence", current.generation),
+      evidence: {
+        ...execution.evidence,
+        artifacts: [{ id: "forged", hash: "f".repeat(64) }],
+      },
+    });
+    assert.equal(tampered.error.code, "prerequisite");
+    assert.equal((await host.acceptedEvidence()).evidence.length, 0);
+
+    stage = 95;
+    const committed = await mcpCall(
+      session.client,
+      "submitEvidence",
+      commitInput,
+    );
+    assert.equal(committed.result.replayed, false);
+    assert.equal(committed.result.value.generation, current.generation + 1);
+    const accepted = await host.acceptedEvidence();
+    assert.equal(accepted.evidence.length, 1);
+    assert.equal(accepted.evidence[0].attestation.id, queued.result.receipt);
+    assert.equal(accepted.evidence[0].attestation.verifiedBy, ATTESTER);
+    const replay = await mcpCall(session.client, "submitEvidence", commitInput);
+    assert.equal(replay.result.replayed, true);
+    assert.deepEqual(replay.result.value, committed.result.value);
+    assert.equal((await host.acceptedEvidence()).evidence.length, 1);
+    const reportReplay = await mcpCall(
+      session.client,
+      "submitEvidence",
+      reportInput,
+    );
+    assert.deepEqual(reportReplay.result, queued.result);
+    const reboundReport = await mcpCall(session.client, "submitEvidence", {
+      ...reportInput,
+      expectedGeneration: committed.result.value.generation,
+    });
+    assert.equal(reboundReport.error.code, "conflict");
+    assert.equal((await host.acceptedEvidence()).evidence.length, 1);
+    const safeDraft = await mcpCall(session.client, "getDraft", {
+      articleId: ARTICLE,
+    });
+    assert.equal(safeDraft.result.hasPublication, false);
+    privateReportFree(safeDraft);
+    return {
+      passed: true,
+      tools: tools.tools.length,
+      scopes: host.configuration.scopes.length,
+      reportQueued: true,
+      bodyFreePolling: true,
+      humanConfirmed: true,
+      originalReceiptCommitted: true,
+      evidenceAccepted: true,
+      acceptedEvidenceCount: 1,
+      acknowledgementWasNotAcceptance: true,
+      publicationProven: false,
+      readOnlyReportDenied: true,
+      privateLookupRejected: true,
+      unconfirmedReceiptRejected: true,
+      tamperedEvidenceRejected: true,
+      exactReplay: true,
+      historicalReportAckRecovered: true,
+      reportGenerationRebindingRejected: true,
+    };
+  } finally {
+    let cleanupFailed = false;
+    try {
+      for (const resource of owned.reverse()) {
+        try {
+          await resource.close();
+        } catch {
+          cleanupFailed = true;
+        }
+      }
+    } finally {
+      await host.close();
+    }
+    assert.equal(cleanupFailed, false, "Report client cleanup failed.");
+  }
+}
+
 try {
-  console.log(JSON.stringify(await runProof()));
+  const legacy = await runProof();
+  const reportWorkflow = await runReportProof();
+  console.log(JSON.stringify({ ...legacy, reportWorkflow }));
 } catch {
   console.error(JSON.stringify({ passed: false, stage }));
   process.exitCode = 1;

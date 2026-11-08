@@ -364,8 +364,9 @@ async function prepareArtifacts(mode, options = {}) {
           'import assert from "node:assert/strict";',
           'import { readFile } from "node:fs/promises";',
           'import { createMemoryStore } from "@pegma/storage-core";',
-          'import { createKnowledgeBaseApplication } from "@pegma/knowledge-base-application";',
-          'import { createKnowledgeAgentDispatcher, createKnowledgeAgentMcp } from "@pegma/knowledge-base-mcp";',
+          'import { createKnowledgeBaseApplication, createKnowledgeEvidenceReports } from "@pegma/knowledge-base-application";',
+          'import { knowledgePermissions } from "@pegma/knowledge-base-contracts";',
+          'import { createKnowledgeAgentDispatcher, createKnowledgeAgentMcp, knowledgeAgentOperations, knowledgeAgentScopes, knowledgeAgentToolNames } from "@pegma/knowledge-base-mcp";',
           ...packages.map(
             ({ name, runtimeExport, runtimeExportType }, index) =>
               `const package${index} = await import(${JSON.stringify(name)});\nassert.equal(typeof package${index}[${JSON.stringify(runtimeExport)}], ${JSON.stringify(runtimeExportType)});`,
@@ -376,10 +377,25 @@ const mcpManifest = JSON.parse(await readFile(
   "utf8",
 ));
 const resource = "https://knowledge-artifact.example/mcp";
+const store = createMemoryStore();
+const clock = { now: () => "2026-11-07T12:00:00.000Z" };
 const application = createKnowledgeBaseApplication({
-  store: createMemoryStore(),
-  clock: { now: () => "2026-11-07T12:00:00.000Z" },
+  store,
+  clock,
 });
+assert.equal(typeof createKnowledgeEvidenceReports, "function");
+const reports = createKnowledgeEvidenceReports({
+  store,
+  clock,
+  collectionName: "artifact.knowledge-reports.v1",
+  confirmationPermission: "artifact.knowledge.report.confirm",
+  resolvePrincipal: async () => null,
+  async readContext() {
+    throw new Error("Artifact metadata smoke does not read report content");
+  },
+});
+assert.equal(typeof reports.report, "function");
+assert.equal(typeof reports.verifier.verify, "function");
 const dispatcher = createKnowledgeAgentDispatcher({ application, resource });
 const identity = {
   clientId: "synthetic-artifact-client",
@@ -393,8 +409,7 @@ const identity = {
     permissions: [],
   },
 };
-const mcp = createKnowledgeAgentMcp({
-  dispatcher,
+const transportOptions = {
   resource,
   mcpUrl: resource,
   protectedResourceMetadataUrl:
@@ -405,7 +420,8 @@ const mcp = createKnowledgeAgentMcp({
     assert.equal(request.headers.get("Authorization"), "Bearer synthetic-artifact-smoke");
     return identity;
   },
-});
+};
+const mcp = createKnowledgeAgentMcp({ ...transportOptions, dispatcher });
 const initialized = await mcp.handle(new Request(resource, {
   method: "POST",
   headers: {
@@ -432,6 +448,88 @@ assert.equal(initializedBody.id, 1);
 assert.equal(initializedBody.error, undefined);
 assert.equal(initializedBody.result.serverInfo.name, mcpManifest.name);
 assert.equal(initializedBody.result.serverInfo.version, mcpManifest.version);
+async function listTools(adapter, id) {
+  const response = await adapter.handle(new Request(resource, {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer synthetic-artifact-smoke",
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/list" }),
+  }));
+  assert.ok(response instanceof Response);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.id, id);
+  assert.equal(body.error, undefined);
+  assert.ok(Array.isArray(body.result.tools));
+  return body.result.tools;
+}
+assert.deepEqual(knowledgeAgentOperations, [
+  "getDraft", "createDraft", "updateDraft", "getValidationRequirements", "submitEvidence",
+]);
+assert.deepEqual(Object.values(knowledgeAgentScopes).sort(), [
+  knowledgePermissions.draftRead,
+  knowledgePermissions.draftWrite,
+  knowledgePermissions.evidenceSubmit,
+].sort());
+const legacyTools = await listTools(mcp, 2);
+const expectedNames = [
+  "knowledge_v1_get_draft", "knowledge_v1_create_draft", "knowledge_v1_update_draft",
+  "knowledge_v1_get_validation_requirements", "knowledge_v1_submit_evidence",
+].sort();
+assert.deepEqual(Object.values(knowledgeAgentToolNames).sort(), expectedNames);
+assert.deepEqual(legacyTools.map((tool) => tool.name).sort(), expectedNames);
+const inputSchema = (tools, operation) => {
+  const tool = tools.find((entry) => entry.name === knowledgeAgentToolNames[operation]);
+  assert.ok(tool);
+  return tool.inputSchema;
+};
+const legacySubmission = inputSchema(legacyTools, "submitEvidence");
+assert.ok(legacySubmission.required.includes("receipt"));
+assert.equal(legacySubmission.properties.report, undefined);
+assert.equal(legacySubmission.properties.ledgerEpoch, undefined);
+assert.equal(inputSchema(legacyTools, "getValidationRequirements").properties.reportLookup, undefined);
+const reportDispatcher = createKnowledgeAgentDispatcher({ application, resource, reports });
+assert.equal(dispatcher.reportWorkflow, undefined);
+assert.equal(reportDispatcher.reportWorkflow, true);
+const reportTools = await listTools(createKnowledgeAgentMcp({
+  ...transportOptions, dispatcher: reportDispatcher,
+}), 3);
+assert.deepEqual(reportTools.map((tool) => tool.name).sort(), expectedNames);
+for (const operation of ["getDraft", "createDraft", "updateDraft"])
+  assert.deepEqual(inputSchema(reportTools, operation), inputSchema(legacyTools, operation));
+const reportSubmissionBranches = inputSchema(reportTools, "submitEvidence").anyOf;
+assert.ok(Array.isArray(reportSubmissionBranches));
+const retainedLegacySubmission = reportSubmissionBranches.find((schema) => schema.required.includes("receipt"));
+assert.ok(retainedLegacySubmission);
+assert.deepEqual(retainedLegacySubmission.properties, legacySubmission.properties);
+assert.deepEqual(retainedLegacySubmission.required, legacySubmission.required);
+assert.equal(retainedLegacySubmission.additionalProperties, false);
+const reportSubmission = reportSubmissionBranches.find((schema) => schema.required.includes("report"));
+assert.ok(reportSubmission);
+assert.ok(reportSubmission.required.includes("ledgerEpoch"));
+assert.equal(reportSubmission.properties.receipt, undefined);
+assert.equal(reportSubmission.additionalProperties, false);
+assert.equal(reportSubmission.properties.report.additionalProperties, false);
+assert.deepEqual(reportSubmission.properties.report.required, ["summary", "details"]);
+assert.equal(reportSubmission.properties.report.properties.summary.maxLength, 1000);
+assert.equal(reportSubmission.properties.report.properties.details.maxLength, 16000);
+const requirementsBranches = inputSchema(reportTools, "getValidationRequirements").anyOf;
+assert.ok(Array.isArray(requirementsBranches));
+const retainedLegacyRequirements = requirementsBranches.find((schema) => !schema.required.includes("articleId"));
+assert.ok(retainedLegacyRequirements);
+assert.deepEqual(retainedLegacyRequirements.properties,
+  inputSchema(legacyTools, "getValidationRequirements").properties);
+assert.deepEqual(retainedLegacyRequirements.required,
+  inputSchema(legacyTools, "getValidationRequirements").required);
+assert.equal(retainedLegacyRequirements.additionalProperties, false);
+const reportRequirements = requirementsBranches.find((schema) => schema.required.includes("articleId"));
+assert.ok(reportRequirements);
+assert.equal(reportRequirements.additionalProperties, false);
+assert.equal(reportRequirements.properties.reportLookup.additionalProperties, false);
+assert.deepEqual(reportRequirements.properties.reportLookup.required, ["ledgerEpoch", "reportId"]);
 `,
         ].join("\n"),
       ],

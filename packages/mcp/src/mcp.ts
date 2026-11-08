@@ -15,6 +15,7 @@ import {
 } from "./errors.js";
 import {
   knowledgeAgentInputSchemas,
+  knowledgeAgentReportInputSchemas,
   snapshotKnowledgeAgentJson,
 } from "./schemas.js";
 import {
@@ -214,21 +215,35 @@ const descriptions: Readonly<Record<KnowledgeAgentOperation, string>> = {
   submitEvidence:
     "Submit evidence with a host-verifiable receipt for an exact revision.",
 };
-const tools = knowledgeAgentOperations.map((operation) =>
-  ToolSchema.parse({
-    name: knowledgeAgentToolNames[operation],
-    description: descriptions[operation],
-    inputSchema: z.toJSONSchema(knowledgeAgentInputSchemas[operation], {
-      unrepresentable: "any",
+function toolsFor(reportWorkflow = false) {
+  const schemas = reportWorkflow
+    ? knowledgeAgentReportInputSchemas
+    : knowledgeAgentInputSchemas;
+  return knowledgeAgentOperations.map((operation) =>
+    ToolSchema.parse({
+      name: knowledgeAgentToolNames[operation],
+      description:
+        reportWorkflow && operation === "getValidationRequirements"
+          ? "Read requirements; with articleId, discover its report epoch and optionally poll your own report status."
+          : reportWorkflow && operation === "submitEvidence"
+            ? "Queue an exact-revision test report for human review, or submit evidence with its confirmed opaque receipt. Pending review is not verified evidence."
+            : descriptions[operation],
+      inputSchema: {
+        ...z.toJSONSchema(schemas[operation], { unrepresentable: "any" }),
+        // MCP requires an object root even when strict object alternatives are
+        // advertised through anyOf. Each branch retains its closed field set.
+        type: "object",
+      },
+      annotations: {
+        readOnlyHint:
+          operation === "getDraft" || operation === "getValidationRequirements",
+        destructiveHint: false,
+        openWorldHint: false,
+      },
     }),
-    annotations: {
-      readOnlyHint:
-        operation === "getDraft" || operation === "getValidationRequirements",
-      destructiveHint: false,
-      openWorldHint: false,
-    },
-  }),
-);
+  );
+}
+const tools = toolsFor();
 
 function operationForTool(name: string): KnowledgeAgentOperation | null {
   return (
@@ -274,6 +289,8 @@ export function createKnowledgeAgentMcp(
     "mcp",
   );
   const dispatcher = options.dispatcher;
+  const configuredTools =
+    dispatcher.reportWorkflow === true ? toolsFor(true) : tools;
   // The logical response is identical to HTTP. JSON text inside JSON-RPC can
   // double its escaping; bounded framing must not reject a complete valid guide.
   const wireBudget = dispatcher.limits.maxResponseBytes * 2 + 4_096;
@@ -332,14 +349,16 @@ export function createKnowledgeAgentMcp(
         maxRequestBodySize: dispatcher.limits.maxRequestBytes,
       });
       const server = new Server(
-        { name: "@pegma/knowledge-base-mcp", version: "0.1.2" },
+        { name: "@pegma/knowledge-base-mcp", version: "0.1.3" },
         {
           capabilities: { tools: {} },
           // Workers prohibit the runtime code generation used by SDK-default AJV.
           jsonSchemaValidator: new CfWorkerJsonSchemaValidator(),
         },
       );
-      server.setRequestHandler(ListToolsRequestSchema, () => ({ tools }));
+      server.setRequestHandler(ListToolsRequestSchema, () => ({
+        tools: configuredTools,
+      }));
       server.setRequestHandler(CallToolRequestSchema, async (call) => {
         const operation = operationForTool(call.params.name);
         if (operation === null)

@@ -5,7 +5,7 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status as of 2026-11-07: KB-01 through KB-03 provide contracts, pure domain
+> Development status as of 2026-11-08: KB-01 through KB-03 provide contracts, pure domain
 > transitions, authorized application/persistence, and bounded retrieval/repair.
 > [Merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) adds
 > the optional five-operation HTTP/MCP adapter and authenticated protocol proof.
@@ -15,10 +15,14 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > supplies exact-artifact tooling. Both are merged. All four `0.1.0` packages
 > completed manual bootstrap with exact-byte postflight on 2026-11-07, without
 > OIDC provenance. All four `0.1.1` packages subsequently completed
-> [verified trusted publication](docs/BOOTSTRAP.md#verified-knowledge-base-release).
-> Source `0.1.2` is the SD-03 atomic draft/source candidate; its own review,
-> current-head gates, trusted release, and strict registry/provenance verification
-> remain required. Actual two-host existing-login/client acceptance remains open.
+> [verified trusted publication](docs/BOOTSTRAP.md#historical-verified-011-release).
+> All four `0.1.2` packages have since completed
+> [verified trusted publication](docs/BOOTSTRAP.md#verified-knowledge-base-release)
+> for SD-03 atomic draft/source authoring. Synchronized `0.1.3` is the
+> **unpublished source candidate** for optional human-reviewed
+> [evidence reports](docs/EVIDENCE_REPORTS.md); its review, current-head CI,
+> trusted publication and strict consumer verification remain pending.
+> Actual two-host existing-login/client acceptance remains open.
 > Host activation remains separately gated; this repository supplies no hosted KB.
 
 | Package                                                               | Scope                                                                                   |
@@ -143,10 +147,11 @@ Merging source does not publish a package. The
 [maintainer bootstrap ledger](docs/BOOTSTRAP.md) records the completed manual
 `0.1.0` uploads and exact-byte postflight. All five KB/Agent Access trusted
 publishers are configured through the CLI. Agent Access's verified trusted
-`0.1.1` release and the four-package KB trusted `0.1.1` release are complete;
-their exact receipts remain in the ledger. All four KB packages and Agent Access
-have `latest: 0.1.1` and `bootstrap: 0.1.0`. Source `0.1.2` remains a candidate
-for a separately reviewed trusted release. Neither registry publication nor
+`0.1.1` release and the four-package KB trusted `0.1.2` release are complete;
+their exact receipts remain in the ledger. All four KB packages have
+`latest: 0.1.2`; Agent Access has `latest: 0.1.1`; all retain historical
+`bootstrap: 0.1.0`. Source `0.1.3` remains unpublished and needs its own review,
+current-head CI, trusted release and strict consumer verification. Neither registry publication nor
 synthetic proof satisfies real host acceptance or approves activation.
 
 Built in the open by RetireGolden, LLC.

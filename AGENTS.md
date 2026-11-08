@@ -22,9 +22,11 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   `0.1.0` packages completed manual maintainer bootstrap with exact-byte
   postflight on 2026-11-07, without OIDC provenance. All four `0.1.1` packages
   subsequently completed verified trusted publication; retain the
-  [release receipt](docs/BOOTSTRAP.md#verified-knowledge-base-release).
-  Source `0.1.2` is the SD-03 atomic draft/source candidate and still requires
-  its own review, current-head gates, trusted publication, and strict verification.
+  [historical release receipt](docs/BOOTSTRAP.md#historical-verified-011-release).
+  All four `0.1.2` packages have since completed verified trusted publication
+  for SD-03 atomic draft/source authoring. Source `0.1.3` is the synchronized,
+  unpublished optional human-reviewed evidence-report candidate and still
+  requires its own review, current-head gates, trusted publication, and strict verification.
   Real-host acceptance remains separate.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
@@ -110,7 +112,7 @@ only from the downloaded artifact. Preflight all four registry versions before
 any publish, and recover only by accepting byte-identical existing artifacts.
 See [release operations](docs/RELEASING.md) and the
 [publication ledger](docs/BOOTSTRAP.md) for the completed manual bootstrap
-and verified trusted `0.1.1` receipts. All five KB/Agent Access trusted publishers
+and verified KB `0.1.2` and Agent Access `0.1.1` receipts. All five KB/Agent Access trusted publishers
 have been configured through the CLI; that configuration does not prove a
 trusted publish. Recheck ownership, signer, tag, approval environment, direct
 publishing, and 2FA/token restrictions for the release. OIDC publishing receives only verified prepared
@@ -126,7 +128,7 @@ packed KB candidate artifacts and the official SDK in a fresh temporary consumer
 with lifecycle scripts disabled. It accepts no source-producer fallback.
 Historical source-fixture evidence is not evidence for changed proof code;
 current-head Node 22/24 gates must execute the registry composition. The KB
-`0.1.2` candidate's own review, trusted publication, and strict registry
+`0.1.3` candidate's own review, trusted publication, and strict registry
 verification remain open. Host acceptance remains open before activation.
 Keep actual existing-login/Admin-consent and every requested client/mode proof
 open in P-00 and PG-01/RG-01 until both hosts record them before activation.

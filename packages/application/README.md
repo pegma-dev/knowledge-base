@@ -14,10 +14,10 @@ repair. The optional `@pegma/knowledge-base-mcp` package adds HTTP/MCP adapters
 over this API; it supplies no login or token issuer. Real-host acceptance and
 production activation remain separately gated.
 
-GitHub documentation links target this package's release tag rather than
-development `main`. During release preparation that tag may still be pending;
-it is created after the reviewed merge and before publishing. Source readers
-can use the explicitly moving
+Existing versioned documentation links below describe the verified `v0.1.2`
+release. The optional report service is new unpublished `0.1.3` candidate source;
+the new guide uses DEVELOPMENT `main` until its own reviewed release tag exists.
+Source readers can use the explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
 while preparing a release. The versioned contract references remain tag-pinned;
 the DEVELOPMENT link is a source-reader fallback.
@@ -129,6 +129,24 @@ and publication use current time, while current policy/source eligibility,
 proof availability, and revocation remain live checks. Article CAS cannot
 globally fence separate collection/
 validation-policy partitions.
+
+## Human-reviewed evidence reports (`0.1.3` source candidate)
+
+New source exports `createKnowledgeEvidenceReports` and its public option,
+input, view, acknowledgement and error types. This API is unpublished in the
+synchronized `0.1.3` candidate and is absent from the verified `0.1.2` release.
+Its own review, current-head CI, trusted publication, strict consumer
+verification and host acceptance remain pending. The
+[DEVELOPMENT evidence-report guide](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md)
+describes explicit Store namespace/current-authority ports, human confirmation
+before actual KB qualification, bounded epochs/retention, and the separate
+report-ledger-to-article commit window.
+
+Choose default `portable-v1` encoded physical keys for a new ledger. Select
+`legacy-raw-v1` explicitly only to retain a compatible existing raw-key ledger;
+no populated-namespace detection, layout switch or migration is automatic.
+The factory adds no agent scope, MCP tool, role, login, scheduler or provenance
+bridge. Hosts retain exact-publication and activation prerequisites.
 
 ## Bounded retrieval and repair
 

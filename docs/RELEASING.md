@@ -13,27 +13,37 @@ All four `0.1.0` packages completed manual bootstrap with exact-byte postflight
 at **2026-11-07T21:56:24Z**, without OIDC provenance. The first advertised trusted
 KB release, `0.1.1`, completed strict complete-set registry/signature/provenance
 and clean-consumer verification at **2026-11-07T23:35:31Z**. The
-[release receipt](BOOTSTRAP.md#verified-knowledge-base-release) retains its
+[historical release receipt](BOOTSTRAP.md#historical-verified-011-release) retains its
 reviewed head, merged source, signed tag, immutable artifact/digests, successful
 attempt-5 workflow, and separate unprivileged verification job.
-Source `0.1.2` is the synchronized SD-03 atomic draft/source candidate. It still
-requires its own review, current-head gates, signed tag, trusted publication,
-and strict verification. Package README links target its expected `v0.1.2`
-release tag, which remains pending.
+The current verified KB release is `0.1.2`, at signed source
+`004044bfa836b74a61fb5defa49d5ebab1fe37dd`. Its separate
+[strict verification job](https://github.com/pegma-dev/knowledge-base/actions/runs/42436081951/job/128617897564)
+completed complete-set registry/signature/provenance and clean-consumer checks
+at **2026-11-08T03:39:55Z**; the
+[current receipt](BOOTSTRAP.md#verified-knowledge-base-release) retains its
+source/tag and original prepared artifact bindings.
+
+Source `0.1.3` is the synchronized **unpublished** candidate for the optional
+shared human-reviewed evidence-report service. Its own review, current-head CI,
+signed tag, trusted publication and strict consumer verification remain pending.
+Existing package links to `v0.1.2` describe that verified release; the new
+[report guide](EVIDENCE_REPORTS.md) remains DEVELOPMENT documentation until its
+own reviewed release tag exists. No `v0.1.3` release is claimed here.
 [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 and [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
 are merged. The separate earlier [partial KB-05 source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
 supplied local D1 conformance and public synthetic composition; PR #6 added
 release tooling. The canonical [historical source-gate record](SOURCE_PREPARATION.md#historical-source-gates)
 identifies reviewed heads separately from merge commits and retains exact
-CI links, counts, review, and security receipts. The verified `0.1.1` publication
+CI links, counts, review, and security receipts. The verified `0.1.2` publication
 is a separate receipt, not a claim about changed candidate source.
 Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
 packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
 manual commands/stdout, exact identities, preparation runs/artifacts, and
-independently retained digests. All four KB packages and Agent Access now have
-`latest: 0.1.1` and `bootstrap: 0.1.0`. The manual bootstraps remain historical
+independently retained digests. All four KB packages have `latest: 0.1.2`;
+Agent Access has `latest: 0.1.1`; all retain `bootstrap: 0.1.0`. The manual bootstraps remain historical
 integrity receipts without OIDC provenance.
 
 [Agent Access](https://github.com/pegma-dev/agent-access) is a separate release.
@@ -45,7 +55,7 @@ retains its exact artifact/digest, successful attempt-2 workflow, and unprivileg
 verification job. That public producer prerequisite is closed.
 The active `agent:proof` installs exact registry `@pegma/agent-access@0.1.1`
 with four packed KB artifacts and official MCP SDK `1.32.2` in a fresh consumer.
-The KB `0.1.2` candidate still needs its own current-head gates, review, PR, publication,
+The KB `0.1.3` candidate still needs its own current-head gates, review, PR, publication,
 and strict verification; historical source-proof results do not validate this
 changed composition. Production hosts require verified trusted versions of
 both components and their separately retained acceptance.

@@ -261,6 +261,7 @@ async function proof() {
       JSON.parse(run(process.execPath, ["proof.mjs"], consumer, env)),
     );
     assert.equal(receipt.passed, true);
+    assert.equal(receipt.reportWorkflow?.passed, true);
     return {
       ...receipt,
       packedPackages: dependencies.length,

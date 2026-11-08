@@ -5,8 +5,10 @@ adds optional authoring transports over the existing Knowledge Base
 application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
 is also merged. All four KB `0.1.0` packages completed manual bootstrap and
 exact-byte postflight without OIDC provenance. All four `0.1.1` packages have
-since completed [verified trusted publication](BOOTSTRAP.md#verified-knowledge-base-release).
-Source `0.1.2` remains a candidate for a separately reviewed trusted release; this document
+since completed verified trusted publication, followed by the current verified
+[`0.1.2` release](BOOTSTRAP.md#current-verified-012-release).
+Optional human-report mode is unpublished `0.1.3` candidate source with its own
+review/release gates. This document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -86,7 +88,8 @@ the five tools and three consent scopes remain unchanged.
    revision/content hash and product/build. Protect test artifacts through the
    host's evidence channel. The KB transport executes no steps and fetches no
    submitted artifact URL.
-4. Submit evidence and the host's opaque receipt using the current generation.
+4. Submit evidence and the host's opaque receipt using the current generation,
+   or use the configured human-report flow below to obtain confirmation first.
    The host attester must verify the authenticated actor and runner, exact
    revision/content hash, check, staging build, result, and receipt before
    returning trusted verification facts. An authenticated agent's own `passed`
@@ -96,6 +99,66 @@ the five tools and three consent scopes remain unchanged.
    changes the revision and invalidates older evidence/review authority. Staff
    review and publication separately bind the exact current revision, audience,
    policy, applicability, and verified evidence.
+
+## Submit a report and poll through the same MCP connection
+
+When the host composes the optional `reports` port, native clients use the same
+five tools and three consent scopes. The requirements and evidence tools
+advertise their additional input variants; there is no report-management or
+staff tool. Without that port, their legacy schemas and behavior remain exact.
+The [wire contract](AGENT_API.md#optional-native-client-report-mode) defines
+the public DTOs. Both variants need effective `draftRead` and `evidenceSubmit`.
+
+1. Read the exact draft and call `getValidationRequirements` with its
+   `collectionId`, `kind` and `articleId`. Keep the returned
+   `reportLedger.ledgerEpoch`; a resetting ledger needs authorized staff
+   recovery before new report work.
+2. Run the actual required checks against authorized staging. Call the existing
+   `submitEvidence` tool with the whole exact evidence submission, original
+   command/correlation fields, current `expectedGeneration`, `ledgerEpoch`,
+   and `report: { summary, details }`, omitting `receipt`. Preserve the returned
+   `{ kind: "pending-human-review", ledgerEpoch, reportId, receipt,
+reportGeneration }` and exact command input. This acknowledges a private
+   report, not verified evidence or an article mutation.
+3. A currently authorized human reviews the full report, exact revision/build,
+   hashes, execution and current requirements through the host's staff surface.
+   Staff may explicitly review their own agent's report; there is no two-person
+   rule. The agent's same-principal bearer still cannot perform that decision.
+4. Poll `getValidationRequirements` with `articleId` and
+   `reportLookup: { ledgerEpoch, reportId }`. `reportStatus` contains only the
+   owner's opaque receipt/generation/status. Pending means wait; rejected or
+   changed/expired context requires a fresh authorized workflow. Polling never
+   exposes private report bodies, reviewers, accepted evidence or registries.
+   Observed report receipt/generation/status drift conflicts; retry the poll
+   for a fresh point-in-time view, not an atomic cross-system snapshot.
+5. After confirmation, read the current draft generation and use the original
+   receipt-bearing `submitEvidence` input with the same exact evidence and
+   report receipt. First confirmation preserves that receipt. Explicit staff
+   reassessment rotates its cycle, so obtain the current receipt and a new
+   confirmation if reassessment occurred. Actual KB qualification can still
+   refuse runner, result, staging/build, governance, applicability, revision or
+   freshness mismatches. Complete every required check, then let staff perform
+   separate exact review/publication.
+
+The host must bind optional report-port calls to the same authenticated
+request/grant, rechecking its current scope/resource/identity and revocation
+before and after awaited report work. Current owner/Admin authority never
+substitutes for the restricted delegated context. Report/KB transactions remain
+separate; a final conflict or lost response can follow a queued report without
+rolling it back. See [report retention and replay](EVIDENCE_REPORTS.md#capacity-retention-and-replay)
+for epoch reset, receipt cycles and bounded recovery.
+
+If a report acknowledgement is lost, retry that exact report command under
+fresh authority with its **original** `expectedGeneration`, even if the article
+has since advanced. The dispatcher forwards this generation as the shared
+report service's optional `expectedArticleGeneration`; exact replay precedes
+new-admission checks. At a stable newer generation the accepted command returns
+its historical acknowledgement without another report write. Changing the
+expected generation on that same command conflicts, and a new command with a
+stale generation is refused. The observed draft fence can still withhold a
+response if the article changes during recovery. After recovering the report
+key, poll its status: the acknowledgement does not establish the current human
+decision, receipt cycle or eligibility for actual KB evidence acceptance.
 
 For an uncertain mutation result, authenticate again and retry the same
 `commandId` and exact semantic input, including the original
@@ -122,7 +185,7 @@ Historical source-proof evidence retains the original reviewed AUTH-01
 accepts no source fallback and requires its own current-head gate results.
 
 The merged KB-04 source exit closes only its source slice. KB-05 release-preparation
-source is merged, and the separate KB `0.1.1` trusted release is verified.
+source is merged, and the current separate KB `0.1.2` trusted release is verified.
 Agent Access's
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
 is also merged; its manual `0.1.0` bootstrap is complete and its verified
@@ -130,7 +193,7 @@ trusted `0.1.1` release closed the public producer prerequisite at
 **2026-11-07T22:32:42Z**. The
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
 identities, the successful attempt-2 workflow, and strict verification stdout.
-The KB `0.1.2` candidate retains its own gates, PR, and verified trusted release
+The KB `0.1.3` report-mode candidate retains its own gates, PR, and verified trusted release
 pending. Both verified trusted dependencies precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.
@@ -148,7 +211,8 @@ targets all remain unproven until actual results are recorded on both hosts:
 
 For every target client/mode on each host, record discovery, existing human
 login/current-Admin consent, draft read/create/update, requirements, verified
-evidence submission, and matching HTTP/MCP outcomes using exact released
+evidence submission, configured report submission/own-status polling/human
+confirmation where used, and matching HTTP/MCP outcomes using exact released
 dependencies. Record unsupported or unavailable flows as open gaps.
 
 Retain explicit expiry, wrong-audience, revocation, excess-scope, current

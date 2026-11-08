@@ -19,6 +19,7 @@ export {
   type ReviewContext,
 } from "./articles.js";
 export {
+  digest as knowledgeDigest,
   KnowledgeBaseError,
   knowledgeLimits,
   validatePolicy as validateValidationPolicy,

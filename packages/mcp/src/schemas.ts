@@ -158,6 +158,69 @@ export const knowledgeAgentEnvelopeSchema = z.discriminatedUnion("operation", [
     .strict(),
 ]);
 
+const reportLookup = z
+  .object({ ledgerEpoch: positiveInteger, reportId: identifier })
+  .strict();
+const reportRequirementsInput = z
+  .object({
+    collectionId: identifier,
+    kind,
+    articleId: identifier,
+    reportLookup: reportLookup.optional(),
+  })
+  .strict();
+const reportSubmissionInput = z
+  .object({
+    ...command,
+    articleId: identifier,
+    evidence: evidenceSubmission,
+    ledgerEpoch: positiveInteger,
+    report: z
+      .object({
+        summary: boundedText(1000).regex(/^[^\u007f-\u009f]*$/u),
+        details: z
+          .string()
+          .min(1)
+          .max(16_000)
+          .regex(
+            /^[^\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\ud800-\udfff]*$/u,
+          ),
+      })
+      .strict(),
+  })
+  .strict();
+
+/** Enabled only by the host's explicit report-service composition. The legacy
+ * schemas above remain exact when that optional service is omitted. */
+export const knowledgeAgentReportInputSchemas = Object.freeze({
+  ...knowledgeAgentInputSchemas,
+  getValidationRequirements: z.union([
+    knowledgeAgentInputSchemas.getValidationRequirements,
+    reportRequirementsInput,
+  ]),
+  submitEvidence: z.union([
+    knowledgeAgentInputSchemas.submitEvidence,
+    reportSubmissionInput,
+  ]),
+});
+export const knowledgeAgentReportEnvelopeSchema = z.union([
+  knowledgeAgentEnvelopeSchema,
+  z
+    .object({
+      apiVersion: z.literal("1"),
+      operation: z.literal("getValidationRequirements"),
+      input: reportRequirementsInput,
+    })
+    .strict(),
+  z
+    .object({
+      apiVersion: z.literal("1"),
+      operation: z.literal("submitEvidence"),
+      input: reportSubmissionInput,
+    })
+    .strict(),
+]);
+
 // Output schemas deliberately construct purpose-specific DTOs. Extra private
 // fields from an application wrapper never become transport response fields.
 const articleState = z.enum(["draft", "in-review", "published", "retired"]);
@@ -223,6 +286,43 @@ export const knowledgeAgentResultSchemas = Object.freeze({
     })
     .strip(),
   submitEvidence: acknowledgement,
+});
+
+// A report acknowledgement fits the existing prepaid 2048-byte minimum: one
+// 200-character identifier, a <=512-byte JSON-encoded receipt, safe integers and fixed
+// framing. Current report receipts are compact epoch/generation/opaque-ID data.
+const reportAcknowledgement = z
+  .object({
+    ledgerEpoch: positiveInteger,
+    reportId: identifier,
+    receipt: boundedText(512).refine(
+      (value) =>
+        new TextEncoder().encode(JSON.stringify(value)).byteLength <= 512,
+    ),
+    reportGeneration: positiveInteger,
+  })
+  .strip();
+const reportRequirementsResult =
+  knowledgeAgentResultSchemas.getValidationRequirements
+    .extend({
+      reportLedger: z
+        .object({
+          ledgerEpoch: positiveInteger,
+          status: z.enum(["active", "resetting"]),
+        })
+        .strip(),
+      reportStatus: reportAcknowledgement
+        .extend({ status: z.enum(["pending", "confirmed", "rejected"]) })
+        .strip()
+        .optional(),
+    })
+    .strip();
+export const knowledgeAgentReportResultSchemas = Object.freeze({
+  ...knowledgeAgentResultSchemas,
+  getValidationRequirements: reportRequirementsResult,
+  submitEvidence: reportAcknowledgement
+    .extend({ kind: z.literal("pending-human-review") })
+    .strip(),
 });
 
 export function resolveKnowledgeAgentLimits(
