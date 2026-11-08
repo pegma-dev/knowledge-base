@@ -388,9 +388,13 @@ export async function evidenceReportsFixture(
       value: logicalReportRow(definition.codec.decode(item.value)),
     }));
   }
-  async function installPreparedHistory(rows: readonly ReportLedgerRow[]) {
-    if (rows.length !== 160 || (await rawRows()).length !== 0)
-      throw new Error("Prepared history requires an empty 160-row target");
+  async function installCapturedRows(rows: readonly ReportLedgerRow[]) {
+    if (
+      rows.length === 0 ||
+      rows.length > 160 ||
+      (await rawRows()).length !== 0
+    )
+      throw new Error("Captured rows require an empty bounded target");
     const definition = factoryDefinition();
     const partition = definition.key(rows[0]!).partition;
     if (
@@ -413,6 +417,11 @@ export async function evidenceReportsFixture(
       if (!result.committed)
         throw new Error("Prepared history insertion did not commit");
     }
+  }
+  async function installPreparedHistory(rows: readonly ReportLedgerRow[]) {
+    if (rows.length !== 160)
+      throw new Error("Prepared history requires exactly 160 rows");
+    await installCapturedRows(rows);
   }
   return {
     app,
@@ -452,6 +461,7 @@ export async function evidenceReportsFixture(
     advance: (milliseconds: number) => setTime(offset + milliseconds),
     rawRows,
     physicalRows,
+    installCapturedRows,
     installPreparedHistory,
     insertOpaqueRow: (value: ReportLedgerRow) => {
       if (value.articleId !== articleId || value.id === "head")

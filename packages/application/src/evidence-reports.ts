@@ -370,6 +370,35 @@ function parseKnowledgeEvidence(value: unknown): EvidenceSubmission {
     }),
   };
 }
+function validSubmissionSyntax(evidence: EvidenceSubmission): boolean {
+  // Keep the report parser's intentionally stricter C1-control rejection.
+  // Check Core's additional syntax without trimming or rewriting stored data.
+  const text = [
+    evidence.id,
+    evidence.articleId,
+    evidence.validationPolicy.id,
+    evidence.checkId,
+    evidence.testKind,
+    evidence.stagingBuildId,
+    evidence.runnerId,
+    evidence.applicability.productId,
+    evidence.applicability.productVersion,
+    ...(evidence.applicability.buildId === undefined
+      ? []
+      : [evidence.applicability.buildId]),
+    ...evidence.steps,
+    ...evidence.artifacts.map((artifact) => artifact.id),
+  ];
+  const locale = evidence.applicability.locale;
+  return (
+    text.every((value) => value.trim() === value) &&
+    (locale === undefined ||
+      (locale.length <= 64 &&
+        /^[a-zA-Z]{2,8}(?:-[a-zA-Z0-9]{1,8})*$/u.test(locale))) &&
+    new Set(evidence.artifacts.map((artifact) => artifact.id)).size ===
+      evidence.artifacts.length
+  );
+}
 function parseReport(value: unknown): KnowledgeTestReport {
   const report = exactObject(value, ["summary", "details"]);
   return {
@@ -847,6 +876,7 @@ export function createKnowledgeEvidenceReports(
     at: string,
   ): Promise<boolean> {
     if (
+      !validSubmissionSyntax(report.evidence) ||
       report.reportHash !== (await knowledgeDigest(reportBinding(report))) ||
       report.articleHash !== (await knowledgeDigest(article)) ||
       report.governanceHash !== (await knowledgeDigest(value.requirements)) ||
@@ -1189,6 +1219,8 @@ export function createKnowledgeEvidenceReports(
         await current(access, knowledgePermissions.evidenceSubmit);
         return accepted;
       }
+      if (!validSubmissionSyntax(evidence))
+        throw new KnowledgeEvidenceReportsError("invalid_request");
       const valueContext = await context(access, articleId);
       if (
         expectedArticleGeneration !== undefined &&

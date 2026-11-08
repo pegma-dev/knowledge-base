@@ -18,6 +18,7 @@ import {
   evidenceReportsHistoryFixture,
   reportBarrier,
 } from "../test/evidence-reports-fixtures.js";
+import { retainedWhitespaceReport } from "../test/evidence-reports-retained-whitespace.js";
 
 const unavailable = { code: "report_ledger_unavailable" };
 const kbEvidenceRefusal = {
@@ -1634,6 +1635,193 @@ for (const [backend, createStore] of storeFactories) {
       ).rejects.toMatchObject({ code: "report_too_large" });
       expect(await f.rows()).toEqual([]);
     });
+
+    it("rejects malformed submission syntax before new admission without changing ledger rows", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const input = await f.reportInput();
+      const proof = input.evidence;
+      const artifact = proof.artifacts[0]!;
+      const malformed: readonly [string, EvidenceSubmission][] = [
+        ["leading step whitespace", { ...proof, steps: [" Run export"] }],
+        ["trailing step whitespace", { ...proof, steps: ["Run export "] }],
+        ["whitespace-only step", { ...proof, steps: ["   "] }],
+        ["C1 control step", { ...proof, steps: ["Run\u0085export"] }],
+        ["leading evidence ID whitespace", { ...proof, id: " " + proof.id }],
+        ["trailing evidence ID whitespace", { ...proof, id: proof.id + " " }],
+        [
+          "leading runner ID whitespace",
+          { ...proof, runnerId: " " + proof.runnerId },
+        ],
+        [
+          "trailing runner ID whitespace",
+          { ...proof, runnerId: proof.runnerId + " " },
+        ],
+        [
+          "leading artifact ID whitespace",
+          { ...proof, artifacts: [{ ...artifact, id: " " + artifact.id }] },
+        ],
+        [
+          "trailing artifact ID whitespace",
+          { ...proof, artifacts: [{ ...artifact, id: artifact.id + " " }] },
+        ],
+        [
+          "duplicate artifact IDs with different hashes",
+          {
+            ...proof,
+            artifacts: [artifact, { ...artifact, hash: "b".repeat(64) }],
+          },
+        ],
+        ...["en_US", " en-US", "en-US ", "en" + "-abcdefgh".repeat(7)].map(
+          (locale): [string, EvidenceSubmission] => [
+            "invalid locale " + JSON.stringify(locale),
+            { ...proof, applicability: { ...proof.applicability, locale } },
+          ],
+        ),
+      ];
+      const before = await f.rawRows();
+      const writes = f.observed.transactions.length;
+      for (const [label, evidence] of malformed) {
+        await expect(
+          f.reports.report(f.agent, { ...input, evidence }),
+          label,
+        ).rejects.toMatchObject({ code: "invalid_request" });
+        expect(await f.rawRows(), label).toEqual(before);
+        expect(f.observed.transactions, label).toHaveLength(writes);
+      }
+    });
+
+    it("accepts clean submission syntax with internal spaces and valid bounded language tags through actual KB qualification", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const longestLocale = "en" + "-abcdefgh".repeat(6) + "-abcdefg";
+      expect(longestLocale).toHaveLength(64);
+      for (const locale of ["en-US", "zh-Hant-TW", longestLocale]) {
+        const current = await f.current();
+        if (current.revision.applicability.locale !== locale) {
+          const value = draft("walkthrough");
+          await f.app.updateDraft(f.agent, {
+            ...f.command("valid-submission-locale", current.generation),
+            articleId: f.articleId,
+            collectionId: f.collectionId,
+            draft: {
+              ...value,
+              applicability: { ...value.applicability, locale },
+            },
+          });
+          f.advance(2_000);
+        }
+        const proof: EvidenceSubmission = {
+          ...(await f.submission()),
+          id: "evidence/export content check",
+          steps: ["Run  the export check, then inspect  its output"],
+          artifacts: [
+            { id: "private/artifact/export report", hash: "c".repeat(64) },
+          ],
+        };
+        const packet = await f.report(proof);
+        const reviewed = await f.decide(packet.ack);
+        expect(reviewed.view.evidence).toEqual(proof);
+        await f.submit(reviewed.ack, proof);
+        const accepted = (
+          await f.app.getEvidence(f.reviewer, { articleId: f.articleId })
+        ).evidence;
+        expect(accepted).toMatchObject([
+          {
+            id: proof.id,
+            steps: proof.steps,
+            artifacts: proof.artifacts,
+            applicability: { locale },
+            attestation: { id: reviewed.ack.receipt },
+          },
+        ]);
+      }
+    });
+
+    it.each(["pending", "confirmed"] as const)(
+      "preserves retained pre-guard %s report reads and exact ACKs while refusing new qualification and retaining recovery",
+      async (status) => {
+        const retained = retainedWhitespaceReport;
+        const f = await evidenceReportsFixture(await createStore(), {
+          commandPrefix: "after-syntax-guard-",
+        });
+        expect(f.clock.now()).toBe(retained.clock);
+        expect(f.agent).toEqual(retained.agent);
+        expect(f.reviewer).toEqual(retained.reviewer);
+        expect(await f.readContext(f.reviewer, f.articleId)).toEqual(
+          retained.context,
+        );
+        const rows =
+          status === "pending" ? retained.pendingRows : retained.confirmedRows;
+        await f.installCapturedRows(rows);
+        expect(await f.rows()).toEqual(rows);
+        const before = await f.rawRows();
+        expect(await f.reports.report(f.agent, retained.report.input)).toEqual(
+          retained.report.ack,
+        );
+        if (status === "confirmed")
+          expect(
+            await f.reports.decide(
+              f.reviewer,
+              retained.confirmation.input,
+              "confirmed",
+            ),
+          ).toEqual(retained.confirmation.ack);
+        const ack =
+          status === "pending"
+            ? retained.report.ack
+            : retained.confirmation.ack;
+        const view = await f.reports.read(f.reviewer, f.key(ack));
+        expect(view).toMatchObject({
+          status,
+          reportGeneration: ack.reportGeneration,
+          evidence: retained.report.input.evidence,
+          report: retained.report.input.report,
+        });
+        await expect(
+          f.reports.report(f.agent, {
+            ...retained.report.input,
+            commandId: "new-copy-of-retained-malformed-report",
+          }),
+        ).rejects.toMatchObject({ code: "invalid_request" });
+        await expect(
+          f.decide(ack, status === "pending" ? "confirmed" : "pending"),
+        ).rejects.toMatchObject({ code: "report_not_verifiable" });
+        expect(
+          await f.reports.verifier.verify(
+            await f.verificationRequest(ack, retained.report.input.evidence),
+          ),
+        ).toBeNull();
+        if (status === "confirmed")
+          await expect(
+            f.submit(ack, retained.report.input.evidence),
+          ).rejects.toMatchObject({
+            name: "KnowledgeBasePrerequisiteError",
+            prerequisite: "evidence-verifier",
+          });
+        expect(await f.rawRows()).toEqual(before);
+        if (status === "pending") {
+          const rejected = await f.decide(ack, "rejected");
+          expect(await f.reports.status(f.agent, f.key(ack))).toEqual({
+            ...rejected.ack,
+            status: "rejected",
+          });
+        }
+        let state = await f.reports.reset(f.reviewer, {
+          articleId: f.articleId,
+          commandId: "reset-retained-malformed-report",
+          expectedLedgerEpoch: ack.ledgerEpoch,
+        });
+        for (let page = 0; state.status === "resetting" && page < 4; page++)
+          state = await f.reports.drain(f.reviewer, {
+            articleId: f.articleId,
+            ledgerEpoch: state.ledgerEpoch,
+          });
+        expect(state).toMatchObject({ status: "active", ledgerEpoch: 2 });
+        expect(await f.rows()).toHaveLength(1);
+        await expect(
+          f.reports.report(f.agent, retained.report.input),
+        ).rejects.toMatchObject({ code: "ledger_epoch_changed" });
+      },
+    );
 
     it.each(["principal", "context"] as const)(
       "sanitizes a failed %s port without trusting its exception or losing confirmation history",

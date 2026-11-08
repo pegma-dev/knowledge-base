@@ -71,6 +71,14 @@ command conflicts. Omitting it preserves the existing legacy fingerprints;
 the service does not invent a default generation. The agent dispatcher passes
 its wire `expectedGeneration` through this field.
 
+After an exact replay lookup misses, new report admission rejects evidence text
+fields and steps that Core would trim, a supplied locale outside Core's
+language-tag syntax or longer than 64 characters, and duplicate artifact IDs.
+These are rejection checks: no evidence, opaque ID or receipt is normalized.
+The report boundary also retains its existing C1-control rejection, which is
+intentionally stricter than Core's legacy syntax. The legacy MCP schemas are
+unchanged.
+
 | Method           | Purpose and authority                                                                                         |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | `ledger`         | Body-free current epoch/capacity state; requires current `evidenceSubmit`.                                    |
@@ -108,6 +116,14 @@ trusted-attester membership. Actual KB qualification still enforces runner,
 result, staging build, governance, applicability, policy and freshness.
 A confirmed receipt can therefore be refused. Every required check must qualify
 before the separate exact SDK review/publication workflow can proceed.
+
+The stored decoder, scalar rules and fingerprints are unchanged. Evidence
+previously admitted but failing the added syntax checks can still recover an
+exact retained command's historical acknowledgement. That replay does not
+qualify the evidence: confirmation, reassessment and the verifier refuse its
+malformed syntax, even if the retained report was already confirmed. Such a
+confirmed report uses the existing authorized ledger reset/drain recovery;
+there is no new repair or reactivation transition.
 
 To reassess a confirmed or rejected report, freshly `read` it and call `decide`
 with `"pending"`. This clears confirmation, advances report generation and
