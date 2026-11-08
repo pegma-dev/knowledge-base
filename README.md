@@ -14,10 +14,12 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > [release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
 > supplies exact-artifact tooling. Both are merged. All four `0.1.0` packages
 > completed manual bootstrap with exact-byte postflight on 2026-11-07, without
-> OIDC provenance. Source `0.1.1` is a candidate for the first advertised trusted
-> release. Its review, publication, strict registry/provenance verification,
-> and actual two-host existing-login/client acceptance remain separate gates.
-> This repository is not an operational hosted KB or a production dependency.
+> OIDC provenance. All four `0.1.1` packages subsequently completed
+> [verified trusted publication](docs/BOOTSTRAP.md#verified-knowledge-base-release).
+> Source `0.1.2` is the SD-03 atomic draft/source candidate; its own review,
+> current-head gates, trusted release, and strict registry/provenance verification
+> remain required. Actual two-host existing-login/client acceptance remains open.
+> Host activation remains separately gated; this repository supplies no hosted KB.
 
 | Package                                                               | Scope                                                                                   |
 | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -67,6 +69,17 @@ reject stale authority; no cross-partition policy transaction is promised.
 Read [declared collections](docs/COLLECTIONS.md) and
 [host composition](docs/HOST_COMPOSITION.md) for the layout, limits, verifier
 contract, and safe read boundaries.
+
+Privileged direct application callers can supply complete `sourceReferences`
+with `createDraft`/`updateDraft` to commit content and current provenance in
+one article transaction. Presence requires both draft-write and provenance-write
+authority, including an explicit empty set. SD-03 host workflows must always
+supply the complete nonempty set to close the empty/stale source window;
+source readability alone does not establish publication eligibility/currentness.
+Omission retains legacy behavior. The five-operation HTTP/MCP schemas continue
+to reject this field and add no scope or tool. The
+[approved source progression](https://github.com/pegma-dev/support-desk/pull/38)
+does not close release or host acceptance gates.
 
 KB-03 adds deterministic lexical retrieval over a bounded, repairable
 projection. Hints are confirmed against current authoritative publication,
@@ -130,13 +143,10 @@ Merging source does not publish a package. The
 [maintainer bootstrap ledger](docs/BOOTSTRAP.md) records the completed manual
 `0.1.0` uploads and exact-byte postflight. All five KB/Agent Access trusted
 publishers are configured through the CLI. Agent Access's verified trusted
-`0.1.1` release is complete, while the KB trusted release remains gated. The
-four KB packages' `latest` tags still resolve to `0.1.0`. A verified KB `0.1.1`
-release is intended to advance them. An earlier attempt to delete Agent Access's
-`latest` tag returned HTTP 400 before its `0.1.1` release. Agent Access now has
-`latest: 0.1.1` and `bootstrap: 0.1.0`.
-This does not advertise the KB bootstrap set or approve host use. SD-02 and host installation wait
-for the verified trusted dependencies; source and synthetic proof cannot satisfy
-real host acceptance.
+`0.1.1` release and the four-package KB trusted `0.1.1` release are complete;
+their exact receipts remain in the ledger. All four KB packages and Agent Access
+have `latest: 0.1.1` and `bootstrap: 0.1.0`. Source `0.1.2` remains a candidate
+for a separately reviewed trusted release. Neither registry publication nor
+synthetic proof satisfies real host acceptance or approves activation.
 
 Built in the open by RetireGolden, LLC.

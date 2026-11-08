@@ -11,9 +11,10 @@ document alone does not mark a task complete. The authoritative collection is
 The approved scope is the
 [implementation plan](https://github.com/pegma-dev/support-desk/blob/main/docs/KNOWLEDGE_AI_PLAN.md)
 and its P-00 capacity/privacy requirements. KB-04's optional HTTP/MCP adapter
-source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Package
-publication, real-host acceptance, and production readiness remain separate
-gates.
+source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The
+[verified `0.1.1` release](BOOTSTRAP.md#verified-knowledge-base-release) is
+complete; the `0.1.2` source candidate, real-host acceptance, and production
+readiness retain their own gates.
 
 ## Partition and authority rules
 
@@ -165,6 +166,31 @@ Audit, receipt, and causal work. A conflict reloads/redecides within a bound
 and repeats resource checks under the call's trusted access-context freshness
 boundary; it does not append an unbounded attempt log.
 
+Direct host `createDraft`/`updateDraft` inputs may include complete
+`sourceReferences`. Presence, including `[]`, requires both `draftWrite` and
+`provenanceWrite`. Every supplied reference must pass current `canRead` checks,
+repeated on CAS retry, after a successful commit, and on exact replay. Content
+and current private provenance commit in the existing article transaction with its head,
+immutable rows, Audit, receipt, and causal jobs; there is no second provenance
+write. An update preserves the older publication's separate
+`publishedProvenance`. Each accepted command supplying the field creates a fresh
+current source-snapshot generation even when the references are unchanged, as
+with `setProvenance`; bounded history admission still applies. Exact replay adds
+no rows. An absent property retains legacy draft-only behavior and preserves an
+existing current source snapshot; `sourceReferences: undefined` is rejected by
+the strict JSON-data boundary.
+
+The exact ordered array participates in both command and source-snapshot
+identity. Persist and retry its original order; a same-command-ID permutation
+conflicts without writes.
+
+This closes SD-03's empty/stale source window only when the owning host always
+supplies its complete nonempty reference set. A readable source may still be
+ineligible or stale: review/publication and current published reads retain
+their independent source eligibility/currentness gates. This operation adds no
+cross-partition fence over external source policy. The initial HTTP/MCP
+authoring schemas reject `sourceReferences` and add no scope or tool.
+
 A command ID is scoped to its actor, operation, target, and exact input
 semantic fingerprint. Identical replay returns a bounded historical
 acknowledgement without duplicating history/Audit/jobs; a changed fingerprint
@@ -177,6 +203,12 @@ revocation. It returns no content, evidence, or provenance, and does not promise
 that the acknowledged content is still published or usable. A separate current
 read establishes current availability. Published-history hydration uses its
 exact retained immutable versions, not the new mutable draft's material.
+
+A post-commit source-read denial or unavailable dependency can return an error
+after the mutation was accepted. Do not assume rollback or issue a new command
+ID. Under refreshed authority, retry the same command ID, exact payload and
+source order, and original `expectedGeneration` to resolve its bounded historical
+acknowledgement without duplicate writes.
 
 Invalid rows or an unavailable dependency produce a visible failure. There is
 no best-effort acceptance through Spine's event bus. Projection/search repair

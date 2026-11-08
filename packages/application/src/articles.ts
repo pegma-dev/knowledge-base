@@ -42,11 +42,13 @@ import type {
   ArticleAcknowledgement,
   ArticleCommandInput,
   CommandResult,
+  CreateDraftInput,
   KnowledgeBaseApplication,
   KnowledgeBaseServiceOptions,
   PrivateSourceReference,
   ReviewSnapshot,
   SourceSnapshot,
+  UpdateDraftInput,
 } from "./types.js";
 
 type ArticleMethods = Pick<
@@ -168,11 +170,11 @@ function acknowledgement(
 
 function validateReferences(
   references: readonly PrivateSourceReference[],
+  mode: "write" | "historical" = "write",
 ): void {
-  if (
-    !Array.isArray(references) ||
-    references.length > maximumSourceReferences
-  ) {
+  if (!Array.isArray(references))
+    throw new TypeError("Source references must be an array");
+  if (references.length > maximumSourceReferences) {
     throw new RepositoryCapacityError("source_references");
   }
   const ids = new Set<string>();
@@ -184,7 +186,14 @@ function validateReferences(
     );
     for (const [field, value] of Object.entries(reference)) {
       boundedText(value, "source." + field, 200);
-      if (value.includes("://"))
+      if (
+        value.includes("://") ||
+        (mode === "write" &&
+          (value.startsWith("//") ||
+            /^(?:https?|wss?|ftps?|file|data|javascript|vbscript|blob|mailto|tel|sms|ssh|git):/iu.test(
+              value,
+            )))
+      )
         throw new TypeError("Source references must use opaque identifiers");
     }
     for (const field of ["id", "system", "resourceId", "version"] as const) {
@@ -208,7 +217,8 @@ async function sourceSnapshot(
 
 async function verifySourceSnapshot(snapshot: SourceSnapshot): Promise<void> {
   requireGeneration(snapshot.generation, 1);
-  validateReferences(snapshot.references);
+  // Preserve the lexical rules under which an existing snapshot was accepted.
+  validateReferences(snapshot.references, "historical");
   if (
     snapshot.hash !==
     (await fingerprint({
@@ -303,6 +313,22 @@ export function createArticleServices(
     }
   }
 
+  async function recheckDraftSources(
+    command: Pick<
+      CreateDraftInput | UpdateDraftInput,
+      "articleId" | "sourceReferences"
+    >,
+    caller: AccessContext,
+  ): Promise<void> {
+    if (command.sourceReferences === undefined) return;
+    requirePermission(caller, knowledgePermissions.provenanceWrite);
+    await requireSourceAccess(
+      caller,
+      command.articleId,
+      command.sourceReferences,
+    );
+  }
+
   async function execute<T extends ArticleCommandInput>(
     access: AccessContext,
     input: T,
@@ -317,6 +343,7 @@ export function createArticleServices(
     ) => Promise<ArticleChange>,
     control = false,
     create = false,
+    recheckCommand?: (command: T, caller: AccessContext) => Promise<void>,
   ): Promise<CommandResult<ArticleAcknowledgement>> {
     const request = commandSnapshot(access, input, permission, extraFields);
     if (
@@ -360,6 +387,7 @@ export function createArticleServices(
           if (collection === null)
             throw new KnowledgeBaseNotFoundError("collection");
         }
+        await recheckCommand?.(request.input, request.access);
       },
       decide: async (current, generation) =>
         decide(current, generation, request.input, request.access),
@@ -374,7 +402,7 @@ export function createArticleServices(
         input,
         knowledgePermissions.draftWrite,
         "article.create",
-        ["collectionId", "draft"],
+        ["collectionId", "draft", "sourceReferences"],
         async (current, _generation, command, caller) => {
           if (current !== null) throw new RepositoryConflictError();
           requireIdentifier(command.collectionId, "collectionId");
@@ -391,7 +419,10 @@ export function createArticleServices(
           return {
             next: {
               article,
-              provenance: await sourceSnapshot(1, []),
+              provenance: await sourceSnapshot(
+                1,
+                command.sourceReferences ?? [],
+              ),
               publicationHeld: false,
               revokedEvidence: [],
             },
@@ -399,6 +430,7 @@ export function createArticleServices(
         },
         false,
         true,
+        recheckDraftSources,
       );
     },
 
@@ -408,7 +440,7 @@ export function createArticleServices(
         input,
         knowledgePermissions.draftWrite,
         "article.update",
-        ["collectionId", "draft"],
+        ["collectionId", "draft", "sourceReferences"],
         async (current, _generation, command, caller) => {
           const stored = requireArticle(current);
           requireIdentifier(command.collectionId, "collectionId");
@@ -422,8 +454,20 @@ export function createArticleServices(
             draft: command.draft,
             context: { ...governance.context, actorId: caller.principalId },
           });
-          return { next: { ...withoutPendingReview(stored), article } };
+          const provenance =
+            command.sourceReferences === undefined
+              ? stored.provenance
+              : await sourceSnapshot(
+                  stored.provenance.generation + 1,
+                  command.sourceReferences,
+                );
+          return {
+            next: { ...withoutPendingReview(stored), article, provenance },
+          };
         },
+        false,
+        false,
+        recheckDraftSources,
       );
     },
 

@@ -4,8 +4,10 @@
 an MCP adapter, and a Web Request/Response adapter. Both transports invoke the
 existing `KnowledgeBaseApplication`; neither introduces
 an authorization engine or another article lifecycle. The KB `0.1.0` packages
-completed manual bootstrap without OIDC provenance; source `0.1.1` remains an
-unpublished candidate with its own gates and verified trusted release pending.
+completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
+have since completed [verified trusted publication](BOOTSTRAP.md#verified-knowledge-base-release).
+Source `0.1.2` remains a candidate with its own review, gates, and verified
+trusted release pending.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
 [release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
 synthetic transport tests does not establish live host login, protected staging
@@ -66,7 +68,7 @@ validation requirements. There are no collection, private-evidence read,
 provenance, review, publication, retirement, retrieval, or administration tools
 in this initial transport surface.
 
-Inputs mirror the public application contracts:
+Inputs use the following bounded subset of the public application contracts:
 
 - `getDraft`: `{ articleId }`.
 - `getValidationRequirements`: `{ collectionId, kind }`.
@@ -81,6 +83,10 @@ articleId, evidence, receipt }`. Evidence contains `id`, `articleId`,
   `checkId`, `testKind`, `applicability`, `stagingBuildId`, `steps`, `result`,
   `executedAt`, `runnerId`, and `artifacts: [{ id, hash }]`. The opaque receipt
   is nonempty and at most 8,192 UTF-8 bytes.
+
+`sourceReferences` is rejected by the strict `createDraft`/`updateDraft` schemas
+over both HTTP and MCP. The optional atomic draft/source input belongs only to
+privileged direct host application calls; no scope or tool is added here.
 
 Caller-supplied context, scopes, principal, proof, evidence version/hash, or
 attestation fields are rejected. Evidence's revision/content hash, policy

@@ -4,8 +4,9 @@ The [merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 adds optional authoring transports over the existing Knowledge Base
 application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
 is also merged. All four KB `0.1.0` packages completed manual bootstrap and
-exact-byte postflight without OIDC provenance. Source `0.1.1` is a candidate
-for the first advertised trusted release, which remains gated; this document
+exact-byte postflight without OIDC provenance. All four `0.1.1` packages have
+since completed [verified trusted publication](BOOTSTRAP.md#verified-knowledge-base-release).
+Source `0.1.2` remains a candidate for a separately reviewed trusted release; this document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -67,6 +68,10 @@ or grant-management tool. Agents cannot act as staff or Admin through this
 surface. Hosts use their separately authorized staff services for review and
 publication.
 
+Both transports reject `sourceReferences` on draft create/update. Atomic
+draft/source authoring remains a privileged direct host application operation;
+the five tools and three consent scopes remain unchanged.
+
 ## Prepare, test, and submit
 
 1. Obtain the target collection and article identity through the host's
@@ -117,15 +122,16 @@ Historical source-proof evidence retains the original reviewed AUTH-01
 accepts no source fallback and requires its own current-head gate results.
 
 The merged KB-04 source exit closes only its source slice. KB-05 release-preparation
-source is merged; full KB-05 publication remains open. Agent Access's
+source is merged, and the separate KB `0.1.1` trusted release is verified.
+Agent Access's
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
 is also merged; its manual `0.1.0` bootstrap is complete and its verified
 trusted `0.1.1` release closed the public producer prerequisite at
 **2026-11-07T22:32:42Z**. The
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
 identities, the successful attempt-2 workflow, and strict verification stdout.
-The KB `0.1.1` candidate remains unpublished with its own gates, PR, and trusted
-release pending. Both verified trusted releases precede production host
+The KB `0.1.2` candidate retains its own gates, PR, and verified trusted release
+pending. Both verified trusted dependencies precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.
 

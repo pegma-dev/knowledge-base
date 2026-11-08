@@ -18,7 +18,7 @@ Core `0.4.0`, Storage Core `0.4.0`, exact registry `@pegma/agent-access@0.1.1`,
 and all four packed KB candidate artifacts. It does
 not establish any of the four target client applications, a deployed host,
 real browser login, real staging execution, verified KB publication, or host activation.
-Those acceptance tasks remain open.
+Real host/client acceptance and activation remain open.
 
 ## Artifact boundary
 

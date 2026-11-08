@@ -271,12 +271,16 @@ export interface CreateDraftInput extends CommandInput {
   readonly articleId: string;
   readonly collectionId: string;
   readonly draft: ArticleDraft;
+  /** Supplied references are committed with content and require provenanceWrite. */
+  readonly sourceReferences?: readonly PrivateSourceReference[];
 }
 
 export interface UpdateDraftInput extends CommandInput {
   readonly articleId: string;
   readonly collectionId: string;
   readonly draft: ArticleDraft;
+  /** Omission preserves current provenance; supplied references replace it atomically. */
+  readonly sourceReferences?: readonly PrivateSourceReference[];
 }
 
 export interface SubmitEvidenceInput extends CommandInput {

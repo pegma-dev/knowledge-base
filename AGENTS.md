@@ -20,9 +20,12 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   slices are merged. The partial slice adds local D1 conformance and a public
   synthetic composition; the release slice adds exact-artifact tooling. All four
   `0.1.0` packages completed manual maintainer bootstrap with exact-byte
-  postflight on 2026-11-07, without OIDC provenance. Source `0.1.1` is a candidate
-  for the first advertised trusted release; its review, publication, strict
-  registry/provenance verification, and host acceptance remain gates.
+  postflight on 2026-11-07, without OIDC provenance. All four `0.1.1` packages
+  subsequently completed verified trusted publication; retain the
+  [release receipt](docs/BOOTSTRAP.md#verified-knowledge-base-release).
+  Source `0.1.2` is the SD-03 atomic draft/source candidate and still requires
+  its own review, current-head gates, trusted publication, and strict verification.
+  Real-host acceptance remains separate.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -39,6 +42,13 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   enforces named permissions and current KB resources; the host authenticates
   access contexts and evidence/source facts. Caller-supplied proof fields do
   not establish that trust.
+- Direct host `createDraft`/`updateDraft` may supply complete `sourceReferences`
+  atomically with content. Presence, including `[]`, requires `draftWrite` and
+  `provenanceWrite`; every reference needs current source-read authority on
+  conflict retry and replay. Initial HTTP/MCP schemas reject the field and
+  expose no new scope or tool. SD-03 hosts must always supply a complete
+  nonempty set; omission retains legacy behavior and does not close its source
+  window. Readability does not establish publication eligibility/currentness.
 - KB-02 article heads are normalized; content/evidence/publication history is
   immutable and bounded. Application generation fences every state change,
   independently of content revision. Same-partition CAS, Audit, receipts, and
@@ -99,8 +109,8 @@ tarballs. Independently retain its SHA-256 digest; never trust a digest taken
 only from the downloaded artifact. Preflight all four registry versions before
 any publish, and recover only by accepting byte-identical existing artifacts.
 See [release operations](docs/RELEASING.md) and the
-[first-publication handoff](docs/BOOTSTRAP.md) for the completed manual bootstrap
-receipt and pending trusted release. All five KB/Agent Access trusted publishers
+[publication ledger](docs/BOOTSTRAP.md) for the completed manual bootstrap
+and verified trusted `0.1.1` receipts. All five KB/Agent Access trusted publishers
 have been configured through the CLI; that configuration does not prove a
 trusted publish. Recheck ownership, signer, tag, approval environment, direct
 publishing, and 2FA/token restrictions for the release. OIDC publishing receives only verified prepared
@@ -116,8 +126,8 @@ packed KB candidate artifacts and the official SDK in a fresh temporary consumer
 with lifecycle scripts disabled. It accepts no source-producer fallback.
 Historical source-fixture evidence is not evidence for changed proof code;
 current-head Node 22/24 gates must execute the registry composition. The KB
-`0.1.1` candidate's own review, publication, strict registry verification, and
-host acceptance remain open before real host assembly.
+`0.1.2` candidate's own review, trusted publication, and strict registry
+verification remain open. Host acceptance remains open before activation.
 Keep actual existing-login/Admin-consent and every requested client/mode proof
 open in P-00 and PG-01/RG-01 until both hosts record them before activation.
 

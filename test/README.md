@@ -17,6 +17,14 @@ boundary, not a production attestation or credential implementation. Evidence
 times follow the draft being tested; malformed-time cases call the public
 service directly instead of using the successful-staging helper.
 
+Upgrade tests use the dev-only exact registry alias
+`@pegma/knowledge-base-application-previous` to
+`npm:@pegma/knowledge-base-application@0.1.1` to write real legacy records before
+the candidate reads them. The lockfile integrity pin matches the previously
+verified `0.1.1` artifact; no copied source or branch supplies this writer.
+The four candidate runtime packages remain `0.1.2`, and the Agent Access
+protocol-proof pin remains `0.1.1`.
+
 `trace-store.ts` delegates every record operation to the supplied real store.
 Its transaction interception adds refusals or a manual race barrier; captured
 traces are observations, not another persistence implementation. The race
@@ -81,5 +89,7 @@ establish actual site logins or target-client application acceptance.
 Local storage tests establish no browser UI, live
 Workers/host acceptance, model-provider settings, production throughput, or
 retention operations. All four KB `0.1.0` packages completed manual bootstrap
-without OIDC provenance. KB `0.1.1` remains an unpublished candidate; its full
-verified trusted release and the host activation gates remain required.
+without OIDC provenance. The four-package KB `0.1.1` trusted release is now
+[verified](../docs/BOOTSTRAP.md#verified-knowledge-base-release). Source `0.1.2`
+remains a candidate with its own gates and verified trusted release required;
+host activation gates remain open.

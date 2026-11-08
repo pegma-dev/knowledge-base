@@ -10,9 +10,11 @@ application composes contracts/core with host-supplied Storage Core and
 Authorization Core. The
 optional `@pegma/knowledge-base-mcp` package supplies bounded HTTP/MCP adapters
 over that application. All four `0.1.0` packages completed manual bootstrap
-and exact-byte postflight without OIDC provenance. Source `0.1.1` is a candidate
-for the first advertised trusted release; review, publication, strict registry/
-provenance verification, and host acceptance remain gates.
+and exact-byte postflight without OIDC provenance. The four-package `0.1.1`
+trusted release is now [verified](BOOTSTRAP.md#verified-knowledge-base-release).
+Source `0.1.2` is the atomic draft/source candidate; its own review, current-head
+gates, trusted release, and strict registry/provenance verification remain open.
+Host acceptance remains separate.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
@@ -36,7 +38,7 @@ draft/evidence transport loop. Agent Access's
 is also merged, and its manual `0.1.0` bootstrap is complete without OIDC
 provenance. Its trusted `0.1.1` release and strict registry verification have
 since closed the public producer prerequisite. Actual existing-login/client
-acceptance on both hosts and full KB-05 publication remain open. See the
+acceptance on both hosts remains open. See the
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) for the exact
 Agent Access receipt. The changed registry proof still needs current-head
 execution; historical source-producer evidence does not validate it.
@@ -133,6 +135,36 @@ and proof checks remain additional requirements. `getPublishedArticle` is a
 portal read, not bot-only retrieval. The separate retrieval methods below
 enforce their own effective-customer use and audience.
 
+Privileged hosts calling `createDraft` or `updateDraft` directly may pass optional
+`sourceReferences` as the complete current private source set. Supplying the
+field requires both `draftWrite` and `provenanceWrite`, even for `[]`; every
+reference must pass `PrivateSourcesVerifier.canRead`. The application repeats
+per-reference checks after a CAS conflict, after a successful commit, and before
+acknowledging exact replay; current operation/resource authority also remains
+required. Content and current provenance commit
+atomically in the existing article transaction, including Audit, receipt, and
+causal jobs. Updating a draft preserves the older publication's separate
+`publishedProvenance`. Omission means the property is absent and retains legacy
+draft-only behavior, preserving an existing current source snapshot. Explicit
+`undefined` is rejected by the strict JSON-data boundary rather than normalized
+away.
+
+The exact ordered `sourceReferences` array participates in command and
+source-snapshot identity. Persist and retry its original order; a same-command-ID
+permutation conflicts without writes. Each accepted command supplying the field
+creates a fresh current source-snapshot generation even for unchanged references,
+as with `setProvenance`, subject to bounded history admission. Exact replay adds
+no rows.
+
+SD-03 closes its empty/stale source window only if the owning host always
+supplies a complete nonempty reference set for each generated draft create or
+update. The [approved source progression](https://github.com/pegma-dev/support-desk/pull/38)
+does not establish release, host/client, privacy, or pilot acceptance. Source
+readability may coexist with publication ineligibility or staleness;
+`canPublish`/`isCurrent` and exact review/publication checks remain required.
+The initial local-agent HTTP/MCP schemas reject `sourceReferences`. This direct
+host extension adds no tool or consent scope.
+
 `getValidationRequirements` returns the current article-kind checks,
 validation-policy reference, governance generation, and expected staging
 build for authorized authors. It omits trusted attester IDs; full governance
@@ -204,8 +236,9 @@ source metadata or resolving the reference; unavailable source authorization
 must not be treated as an allow. Keep raw customer conversations in the owning
 support system rather than copying them into KB history.
 
-`PrivateSourcesVerifier.canRead` checks each private reference returned by
-`getProvenance`. The separate `canPublish` and `isCurrent` callbacks attest
+`PrivateSourcesVerifier.canRead` checks each private reference supplied through
+atomic draft authoring or returned by `getProvenance`. The separate `canPublish`
+and `isCurrent` callbacks attest
 source eligibility/currentness without returning source bodies. Nonempty
 source snapshots fail closed when those required gates are unavailable.
 A portal customer does not need permission to read private source tickets in
@@ -312,10 +345,12 @@ replay, while a new command must match current generation. A retained receipt
 cannot restore access after revocation.
 
 A storage or transport failure can leave the caller uncertain whether the
-transaction committed. Retry the same command ID and exact semantic input,
-including its original expected generation, under freshly resolved access.
-The committed receipt resolves an accepted command without duplicating its
-effects; an unknown outcome is not a reason to issue a new command ID.
+transaction committed. A post-commit source-read denial or dependency error can
+also follow an accepted mutation. Do not assume rollback or issue a new command
+ID. Retry the same command ID and exact payload, including the source-reference
+order and original `expectedGeneration`, under freshly resolved authority.
+The committed receipt resolves the bounded historical acknowledgement without
+duplicating effects once the current authorization checks pass.
 
 Resource generation, content revision, and opaque store version are distinct:
 the first is the application command fence, the second identifies immutable

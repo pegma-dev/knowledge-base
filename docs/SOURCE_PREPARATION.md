@@ -6,8 +6,9 @@ KB-05 source preparation has two separately reviewed source slices. The earlier
 [partial source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
 supplied the real local D1 consumer fixture and public synthetic composition.
 The later [release-preparation slice](https://github.com/pegma-dev/knowledge-base/pull/6)
-added exact-artifact release tooling. Neither source slice completes full
-KB-05 publication or host acceptance.
+added exact-artifact release tooling. Those source slices established source
+readiness only; later verified publication is separately recorded below.
+Neither source slice establishes host acceptance.
 
 ### Historical source gates
 
@@ -47,16 +48,18 @@ current-head gates. The historical `0.1.0` absence snapshot below predates the
 completed manual bootstrap. All four exact `0.1.0` artifacts passed manual
 postflight at **2026-11-07T21:56:24Z**, without OIDC provenance; see the
 [operator-recorded bootstrap receipt](BOOTSTRAP.md#recorded-manual-bootstrap-receipt).
-Source `0.1.1` is a candidate for the first advertised trusted release, with
-its own review, current-head gates, publication, and strict registry/provenance
-verification pending.
+The subsequent four-package `0.1.1` trusted release completed strict verification
+at **2026-11-07T23:35:31Z**; see its separate
+[release receipt](BOOTSTRAP.md#verified-knowledge-base-release). Source `0.1.2`
+is now the SD-03 atomic draft/source candidate with its own review, current-head
+gates, trusted publication, and strict verification still required.
 
-| Evidence area    | This source slice                                                                   | Separate remaining proof                                                                              |
-| ---------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1            | Production Azure/Workers configuration, operations, and host acceptance                               |
-| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow                | Real host identity, staging verification, existing-login/client acceptance, and UI                    |
-| Artifacts        | Four-package checks, schema-2 preparation, and manual `0.1.0` exact-byte postflight | First advertised trusted release with its own registry/provenance verification and released consumers |
-| Task readiness   | Current-head repository gates establish source readiness                            | Verified trusted releases and two-host/client acceptance remain separately recorded                   |
+| Evidence area    | This source slice                                                                   | Separate remaining proof                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1            | Production Azure/Workers configuration, operations, and host acceptance                           |
+| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow                | Real host identity, staging verification, existing-login/client acceptance, and UI                |
+| Artifacts        | Four-package checks, schema-2 preparation, and manual `0.1.0` exact-byte postflight | The separate `0.1.1` trusted-release receipt; each candidate still needs its own verified release |
+| Task readiness   | Current-head repository gates establish source readiness                            | Verified trusted releases and two-host/client acceptance remain separately recorded               |
 
 The merged-source results above do not certify this working tree. Record verified
 current-head gate results before treating changed source as validated.
@@ -293,9 +296,11 @@ trusted-publisher entries have been configured through the CLI. Recheck the
 full ownership, protected tag/main, approved signer, approval environment,
 per-package publisher binding, direct-publishing, and 2FA/token-policy checklist
 in [release operations](RELEASING.md) for the actual trusted release.
-Full KB-05 still requires the `0.1.1` candidate's review and current-head gates,
-then its own trusted publication, complete-set registry
-integrity/signature/provenance verification, and released-consumer proof.
+The KB `0.1.1` trusted release has completed complete-set registry
+integrity/signature/provenance verification and released-consumer proof; its
+[receipt](BOOTSTRAP.md#verified-knowledge-base-release) is separate from these
+historical source records. Source `0.1.2` retains its own review, current-head
+gates, trusted publication, strict verification, and released-consumer proof.
 Manual bootstrap is not OIDC provenance.
 Agent Access has its own publication history:
 [Agent Access release preparation](https://github.com/pegma-dev/agent-access/pull/2)
@@ -316,7 +321,8 @@ closed the public producer prerequisite; see the
 [exact receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). The original
 source-producer proof remains historical evidence, while the changed registry
 composition requires its own current-head gates.
-SD-02 waits for the verified trusted KB release, and both hosts wait for exact
-verified trusted KB and Agent Access dependencies before their retained acceptance.
+The verified KB `0.1.1` and Agent Access `0.1.1` producer release prerequisites
+are closed. Both hosts still require exact verified trusted dependencies and
+their retained acceptance before activation.
 Hosts must wait for exact released artifacts rather than adopting branches,
 copied source, local paths, or unpublished production tarballs.

@@ -1,6 +1,6 @@
 {
   "name": "@pegma/knowledge-base-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Optional MCP transport for authorized Pegma knowledge authoring and validation.",
   "license": "MIT",
   "type": "module",
@@ -32,9 +32,9 @@
     "@cfworker/json-schema": "4.1.6",
     "@modelcontextprotocol/sdk": "1.32.2",
     "@pegma/authorization-core": "0.4.0",
-    "@pegma/knowledge-base-application": "0.1.1",
-    "@pegma/knowledge-base-contracts": "0.1.1",
-    "@pegma/knowledge-base-core": "0.1.1",
+    "@pegma/knowledge-base-application": "0.1.2",
+    "@pegma/knowledge-base-contracts": "0.1.2",
+    "@pegma/knowledge-base-core": "0.1.2",
     "zod": "4.6.7"
   },
   "scripts": {

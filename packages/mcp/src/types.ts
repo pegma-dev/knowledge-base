@@ -49,8 +49,9 @@ export interface KnowledgeAgentIdentity {
 
 export interface KnowledgeAgentInputMap {
   readonly getDraft: ArticleReadInput;
-  readonly createDraft: CreateDraftInput;
-  readonly updateDraft: UpdateDraftInput;
+  /** Privileged host provenance delivery is outside initial agent consent. */
+  readonly createDraft: Omit<CreateDraftInput, "sourceReferences">;
+  readonly updateDraft: Omit<UpdateDraftInput, "sourceReferences">;
   readonly getValidationRequirements: ValidationRequirementsReadInput;
   readonly submitEvidence: SubmitEvidenceInput;
 }
