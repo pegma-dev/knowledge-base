@@ -72,7 +72,7 @@ the service does not invent a default generation. The agent dispatcher passes
 its wire `expectedGeneration` through this field.
 
 After an exact replay lookup misses, new report admission rejects evidence text
-fields and steps that Core would trim, a supplied locale outside Core's
+fields and steps that Core rejects for surrounding whitespace, a supplied locale outside Core's
 language-tag syntax or longer than 64 characters, and duplicate artifact IDs.
 These are rejection checks: no evidence, opaque ID or receipt is normalized.
 The report boundary also retains its existing C1-control rejection, which is
