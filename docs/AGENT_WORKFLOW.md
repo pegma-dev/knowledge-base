@@ -5,10 +5,11 @@ adds optional authoring transports over the existing Knowledge Base
 application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
 is also merged. All four KB `0.1.0` packages completed manual bootstrap and
 exact-byte postflight without OIDC provenance. All four `0.1.1` packages have
-since completed verified trusted publication, followed by the current verified
-[`0.1.2` release](BOOTSTRAP.md#current-verified-012-release).
-Optional human-report mode is unpublished `0.1.3` candidate source with its own
-review/release gates. This document
+since completed verified trusted publication. All four packages are now verified
+published at [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3),
+including optional human-report mode. The synchronized unpublished `0.1.4`
+candidate adds governed context reads and an optional aggregate report query;
+its own review, gates, publication and strict verification remain open. This document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -109,6 +110,15 @@ staff tool. Without that port, their legacy schemas and behavior remain exact.
 The [wire contract](AGENT_API.md#optional-native-client-report-mode) defines
 the public DTOs. Both variants need effective `draftRead` and `evidenceSubmit`.
 
+The `0.1.4` source candidate can compose optional `reports.query` behind that
+same requirements tool. It consolidates the current target/requirements,
+ledger and optional owner-status observations without changing the client
+request, result schema, five tools or three scopes. The original three report
+methods remain a compatible fallback; omitting reports retains legacy mode.
+Query target metadata, private report data and opaque context observations are
+never added to the wire. A failed configured query refuses rather than silently
+switching read paths. Clients do not request or authorize this optimization.
+
 1. Read the exact draft and call `getValidationRequirements` with its
    `collectionId`, `kind` and `articleId`. Keep the returned
    `reportLedger.ledgerEpoch`; a resetting ledger needs authorized staff
@@ -140,10 +150,18 @@ reportGeneration }` and exact command input. This acknowledges a private
    freshness mismatches. Complete every required check, then let staff perform
    separate exact review/publication.
 
-The host must bind optional report-port calls to the same authenticated
-request/grant, rechecking its current scope/resource/identity and revocation
-before and after awaited report work. Current owner/Admin authority never
-substitutes for the restricted delegated context. Report/KB transactions remain
+The host must bind optional report/query calls to the original authenticated
+request, credential, principal, grant, client and resource. Keep initial request
+authentication. Pure reads may use a request-local full-credential check before
+the first read and another after the complete actual dispatcher invocation,
+checking every required scope/permission clause before disclosing its result.
+That final check belongs inside the awaited MCP tool callback; guarding only an
+outer Response is insufficient. Per-port read checks remain valid, and writes
+retain fresh before/after guards. Never cache a read group across invocations.
+Current owner/Admin authority never substitutes for the restricted delegated
+context. An opaque application context observation only rechecks the producing
+instance's exact read; it supplies no credential, human review or proof authority.
+Report/KB transactions remain
 separate; a final conflict or lost response can follow a queued report without
 rolling it back. See [report retention and replay](EVIDENCE_REPORTS.md#capacity-retention-and-replay)
 for epoch reset, receipt cycles and bounded recovery.
@@ -185,7 +203,8 @@ Historical source-proof evidence retains the original reviewed AUTH-01
 accepts no source fallback and requires its own current-head gate results.
 
 The merged KB-04 source exit closes only its source slice. KB-05 release-preparation
-source is merged, and the current separate KB `0.1.2` trusted release is verified.
+source is merged, and all four KB `0.1.3` packages have completed verified
+publication. The earlier `0.1.2` release remains historical evidence.
 Agent Access's
 [release-preparation source](https://github.com/pegma-dev/agent-access/pull/2)
 is also merged; its manual `0.1.0` bootstrap is complete and its verified
@@ -193,8 +212,8 @@ trusted `0.1.1` release closed the public producer prerequisite at
 **2026-11-07T22:32:42Z**. The
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
 identities, the successful attempt-2 workflow, and strict verification stdout.
-The KB `0.1.3` report-mode candidate retains its own gates, PR, and verified trusted release
-pending. Both verified trusted dependencies precede production host
+The KB `0.1.4` context/query candidate retains its own gates, PR, and verified
+trusted release pending. Both verified trusted dependencies precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.
 
@@ -229,3 +248,6 @@ content, and operational evidence in their owning private systems. Actual
 client runs, staff review/publication, privacy, isolation, bounded work, and
 full human-workflow acceptance remain prerequisites before activation, A-01,
 and either supervised pilot. Synthetic SDK success waives none of them.
+Fewer repeated reads do not prove a Free-tier D1 budget, CPU allowance or bounded
+physical-row cost. Measure the actual supported host invocation profiles before
+claiming readiness; this candidate closes no such acceptance gate.

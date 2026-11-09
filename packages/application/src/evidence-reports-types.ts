@@ -1,6 +1,7 @@
 import type { AccessContext } from "@pegma/authorization-core";
 import type {
   Clock,
+  ArticleKind,
   IsoTimestamp,
   Logger,
   PrincipalId,
@@ -9,6 +10,7 @@ import type { EvidenceSubmission } from "@pegma/knowledge-base-core";
 import type { Store } from "@pegma/storage-core";
 import type {
   DraftArticleDto,
+  KnowledgeBaseApplication,
   EvidenceDto,
   EvidenceVerifier,
   ValidationRequirementsDto,
@@ -80,6 +82,28 @@ export interface KnowledgeReportArticleInput {
   readonly articleId: string;
 }
 
+export interface KnowledgeReportQueryInput extends KnowledgeReportArticleInput {
+  readonly status?: {
+    readonly ledgerEpoch: number;
+    readonly reportId: string;
+  };
+}
+
+/** Body-free governed authoring target and owner-only report status. */
+export interface KnowledgeReportQueryResult {
+  readonly target: {
+    readonly articleId: string;
+    readonly generation: number;
+    readonly collectionId: string;
+    readonly kind: ArticleKind;
+  };
+  readonly requirements: ValidationRequirementsDto;
+  readonly ledger: KnowledgeReportLedgerState;
+  readonly status?: KnowledgeReportAcknowledgement & {
+    readonly status: KnowledgeReportStatus;
+  };
+}
+
 export interface KnowledgeReportKey extends KnowledgeReportArticleInput {
   readonly ledgerEpoch: number;
   readonly reportId: string;
@@ -136,11 +160,20 @@ export interface KnowledgeEvidenceReportsOptions {
     access: AccessContext,
     articleId: string,
   ) => Promise<KnowledgeEvidenceContext>;
+  /** Optional operation-local observation/recheck; legacy readContext remains valid. */
+  readonly authoringContext?: Pick<
+    KnowledgeBaseApplication,
+    "getAuthoringContext" | "confirmAuthoringContext"
+  >;
   readonly logger?: Logger;
 }
 
 export interface KnowledgeEvidenceReports {
   readonly verifier: EvidenceVerifier;
+  query(
+    access: AccessContext,
+    input: KnowledgeReportQueryInput,
+  ): Promise<KnowledgeReportQueryResult>;
   report(
     access: AccessContext,
     input: SubmitKnowledgeReportInput,

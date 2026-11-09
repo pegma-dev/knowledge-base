@@ -1,5 +1,7 @@
 import type { AccessContext } from "@pegma/authorization-core";
 import { KnowledgeEvidenceReportsError } from "@pegma/knowledge-base-application";
+import { articleKinds } from "@pegma/knowledge-base-contracts";
+import { z } from "zod";
 
 import {
   createKnowledgeAgentErrorResponse,
@@ -191,7 +193,9 @@ export function createKnowledgeAgentDispatcher(
     (!suppliedReports ||
       typeof suppliedReports.report !== "function" ||
       typeof suppliedReports.ledger !== "function" ||
-      typeof suppliedReports.status !== "function")
+      typeof suppliedReports.status !== "function" ||
+      (suppliedReports.query !== undefined &&
+        typeof suppliedReports.query !== "function"))
   ) {
     throw new TypeError("Invalid knowledge agent report service");
   }
@@ -202,6 +206,9 @@ export function createKnowledgeAgentDispatcher(
           report: suppliedReports.report.bind(suppliedReports),
           ledger: suppliedReports.ledger.bind(suppliedReports),
           status: suppliedReports.status.bind(suppliedReports),
+          ...(suppliedReports.query === undefined
+            ? {}
+            : { query: suppliedReports.query.bind(suppliedReports) }),
         });
   const envelopeSchema =
     reports === undefined
@@ -221,6 +228,25 @@ export function createKnowledgeAgentDispatcher(
   }
   const reportResult =
     knowledgeAgentReportResultSchemas.getValidationRequirements.shape;
+  // Trusted aggregate data is still bounded and projected; none of its internal
+  // target binding or private implementation fields become new wire fields.
+  const aggregateResult = z
+    .object({
+      target: z
+        .object({
+          articleId: z.unknown().transform((value) => trustedText(value, 200)),
+          generation: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+          collectionId: z
+            .unknown()
+            .transform((value) => trustedText(value, 200)),
+          kind: z.enum(articleKinds),
+        })
+        .strip(),
+      requirements: knowledgeAgentResultSchemas.getValidationRequirements,
+      ledger: reportResult.reportLedger,
+      status: reportResult.reportStatus,
+    })
+    .strip();
   return Object.freeze({
     limits,
     ...(reports === undefined ? {} : { reportWorkflow: true as const }),
@@ -264,6 +290,47 @@ export function createKnowledgeAgentDispatcher(
               throw new KnowledgeAgentBoundaryError("invalid_request");
             {
               const input = envelope.input;
+              if (reports.query !== undefined) {
+                const lookup = input.reportLookup;
+                const queried = reportOutput(
+                  aggregateResult,
+                  await reports.query(access, {
+                    articleId: input.articleId,
+                    ...(lookup === undefined ? {} : { status: lookup }),
+                  }),
+                );
+                if (
+                  queried.target.articleId !== input.articleId ||
+                  queried.requirements.collectionId !==
+                    queried.target.collectionId
+                )
+                  throw new KnowledgeAgentBoundaryError("unavailable");
+                if (
+                  queried.target.collectionId !== input.collectionId ||
+                  queried.target.kind !== input.kind
+                )
+                  throw new KnowledgeAgentBoundaryError("conflict");
+                if (
+                  lookup !== undefined &&
+                  queried.ledger.ledgerEpoch !== lookup.ledgerEpoch
+                )
+                  throw new KnowledgeAgentBoundaryError("conflict");
+                if (
+                  (lookup === undefined) !== (queried.status === undefined) ||
+                  (queried.status !== undefined &&
+                    (queried.status.ledgerEpoch !== lookup?.ledgerEpoch ||
+                      queried.status.reportId !== lookup?.reportId))
+                )
+                  throw new KnowledgeAgentBoundaryError("unavailable");
+                result = {
+                  ...queried.requirements,
+                  reportLedger: queried.ledger,
+                  ...(queried.status === undefined
+                    ? {}
+                    : { reportStatus: queried.status }),
+                };
+                break;
+              }
               const target = await application.getDraft(access, {
                 articleId: input.articleId,
               });

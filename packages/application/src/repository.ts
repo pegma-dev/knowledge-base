@@ -105,6 +105,23 @@ export interface ArticlePublicationState {
   readonly publishedProvenance?: SourceSnapshot;
   readonly publicationReview?: ReviewSnapshot;
 }
+/** Current authoring material only; excludes publication and provenance rows. */
+export interface ArticleAuthoringState {
+  readonly articleId: string;
+  readonly generation: number;
+  readonly state: Article["state"];
+  readonly current: ArticleRevision;
+  readonly hasPendingReview: boolean;
+  readonly hasPublication: boolean;
+  readonly publicationHeld: boolean;
+  readonly evidence?: readonly VerificationEvidence[];
+  readonly revokedEvidence?: readonly EvidenceRevocation[];
+}
+export interface ResourceVersion {
+  readonly kind: ResourceKind;
+  readonly id: string;
+  readonly version: string;
+}
 export interface KnowledgeRepository {
   readonly limits: KnowledgeRepositoryLimits;
   readArticleVersioned(
@@ -113,6 +130,19 @@ export interface KnowledgeRepository {
   readArticlePublicationVersioned(
     id: string,
   ): Promise<VersionedState<ArticlePublicationState> | null>;
+  /** Complete approved proof rows and revocation markers in one prepared wave. */
+  readPublicationEvidence(
+    id: string,
+    publication: PublishedArticle,
+  ): Promise<readonly VerificationEvidence[] | null>;
+  readArticleAuthoringVersioned(
+    id: string,
+    includeEvidence: boolean,
+  ): Promise<VersionedState<ArticleAuthoringState> | null>;
+  confirmResourceVersions(resources: readonly ResourceVersion[]): Promise<void>;
+  confirmGovernanceVersions(
+    resources: readonly ResourceVersion[],
+  ): Promise<void>;
   /** One keyed head read; never hydrates draft, evidence, or private source rows. */
   readResourceGeneration(
     kind: ResourceKind,
@@ -374,12 +404,52 @@ export function createKnowledgeRepository(
       throw new RepositoryIntegrityError();
     return row.data as T;
   }
-  async function getHead(
+  async function preparedRows(
     kind: ResourceKind,
     id: string,
-  ): Promise<VersionedRecord<KnowledgeRecord> | null> {
+    keys: readonly string[],
+  ): Promise<ReadonlyMap<string, KnowledgeRecord | null>> {
+    const unique = [...new Set(keys)];
+    for (const key of unique) {
+      if (
+        typeof key !== "string" ||
+        key.length === 0 ||
+        key.length > 300 ||
+        /[^A-Za-z0-9|:._-]/u.test(key)
+      )
+        throw new RepositoryIntegrityError();
+    }
     const scope = await partition(kind, id);
-    const row = await records.getVersioned({ partition: scope, id: "head" });
+    const rows = await Promise.all(
+      unique.map((key) => records.get({ partition: scope, id: key })),
+    );
+    return new Map(
+      unique.map((key, index) => {
+        const row = rows[index];
+        if (row === undefined) throw new RepositoryIntegrityError();
+        if (row !== null) checkIdentity(row, kind, id, scope, key);
+        return [key, row] as const;
+      }),
+    );
+  }
+  function planned<T>(
+    rows: ReadonlyMap<string, KnowledgeRecord | null>,
+    key: string,
+    expectedKind: KnowledgeRecord["kind"],
+  ): T {
+    const row = rows.get(key);
+    if (row === undefined || row === null || row.kind !== expectedKind)
+      throw new RepositoryIntegrityError();
+    // Separate logical references retain detached values even when they share
+    // one immutable physical row in this operation's plan.
+    return snapshotData(row.data) as T;
+  }
+  function checkedHead(
+    kind: ResourceKind,
+    id: string,
+    scope: string,
+    row: VersionedRecord<KnowledgeRecord> | null,
+  ): VersionedRecord<KnowledgeRecord> | null {
     if (row === null) return null;
     checkIdentity(row.value, kind, id, scope, "head");
     try {
@@ -438,6 +508,135 @@ export function createKnowledgeRepository(
       throw new RepositoryIntegrityError();
     }
   }
+  async function getHead(
+    kind: ResourceKind,
+    id: string,
+  ): Promise<VersionedRecord<KnowledgeRecord> | null> {
+    const scope = await partition(kind, id);
+    return checkedHead(
+      kind,
+      id,
+      scope,
+      await records.getVersioned({ partition: scope, id: "head" }),
+    );
+  }
+  async function confirmVersions(
+    resources: readonly ResourceVersion[],
+  ): Promise<void> {
+    // Finish every async key calculation before issuing a synchronous read
+    // wave, allowing a provider's optional keyed-read batching to coalesce it.
+    const scopes = await Promise.all(
+      resources.map(({ kind, id }) => partition(kind, id)),
+    );
+    const heads = await Promise.all(
+      resources.map(({ kind, id }, index) =>
+        records
+          .getVersioned({ partition: scopes[index]!, id: "head" })
+          .then((row) => checkedHead(kind, id, scopes[index]!, row)),
+      ),
+    );
+    if (
+      heads.some(
+        (head, index) =>
+          head === null || head.version !== resources[index]!.version,
+      )
+    )
+      throw new RepositoryConflictError();
+  }
+  async function confirmResourceVersions(
+    resources: readonly ResourceVersion[],
+  ): Promise<void> {
+    if (resources.length !== 3) throw new RepositoryIntegrityError();
+    await confirmVersions(resources);
+  }
+  async function confirmGovernanceVersions(
+    resources: readonly ResourceVersion[],
+  ): Promise<void> {
+    if (
+      resources.length !== 2 ||
+      resources[0]?.kind !== "collection" ||
+      resources[1]?.kind !== "validation"
+    )
+      throw new RepositoryIntegrityError();
+    await confirmVersions(resources);
+  }
+  async function readAuthoring(
+    id: string,
+    includeEvidence: boolean,
+  ): Promise<VersionedState<ArticleAuthoringState> | null> {
+    const head = await getHead("article", id);
+    if (head === null) return null;
+    const pointer = (head.value.data as Head).pointer;
+    if (pointer.resourceKind !== "article")
+      throw new RepositoryIntegrityError();
+    const scope = await partition("article", id);
+    const references = includeEvidence ? pointer.evidence : [];
+    const revocations = includeEvidence ? pointer.revocations : [];
+    const evidenceKeys = await Promise.all(
+      references.map((reference) =>
+        evidenceId(reference.articleRevision, reference.id, reference.version),
+      ),
+    );
+    const keys = [
+      "revision:" + pointer.current,
+      ...evidenceKeys,
+      ...revocations.map((hash) => "revoked:" + hash),
+    ];
+    // All partitions and evidence hashes are ready. Do not call getRow here:
+    // its per-row async hashing would split the provider's keyed-read wave.
+    const rows = await Promise.all(
+      keys.map((key) => records.get({ partition: scope, id: key })),
+    );
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
+      if (row === null || row === undefined)
+        throw new RepositoryIntegrityError();
+      checkIdentity(row, "article", id, scope, keys[index]!);
+    }
+    const currentRow = rows[0]!;
+    const current = currentRow.data as ArticleRevision;
+    if (
+      currentRow.kind !== "revision" ||
+      current.articleId !== id ||
+      current.number !== pointer.current
+    )
+      throw new RepositoryIntegrityError();
+    const evidence = references.map((reference, index) => {
+      const row = rows[index + 1]!;
+      const value = row.data as VerificationEvidence;
+      if (
+        row.kind !== "evidence" ||
+        value.articleId !== id ||
+        value.articleRevision !== pointer.current ||
+        value.articleRevision !== reference.articleRevision ||
+        value.id !== reference.id ||
+        value.version !== reference.version ||
+        value.hash !== reference.hash
+      )
+        throw new RepositoryIntegrityError();
+      return value;
+    });
+    const revokedEvidence = revocations.map((hash, index) => {
+      const row = rows[1 + references.length + index]!;
+      const value = row.data as EvidenceRevocation;
+      if (row.kind !== "revocation" || value.hash !== hash)
+        throw new RepositoryIntegrityError();
+      return value;
+    });
+    return {
+      version: head.version,
+      value: {
+        articleId: id,
+        generation: pointer.generation,
+        state: pointer.state,
+        current,
+        hasPendingReview: pointer.review !== undefined,
+        hasPublication: pointer.published !== undefined,
+        publicationHeld: pointer.publicationHeld,
+        ...(includeEvidence ? { evidence, revokedEvidence } : {}),
+      },
+    };
+  }
   async function getRevision(
     id: string,
     number: number,
@@ -485,10 +684,14 @@ export function createKnowledgeRepository(
     if (pointer.resourceKind !== kind) throw new RepositoryIntegrityError();
     validatePointer(pointer);
     if (pointer.resourceKind === "collection") {
-      const collection = await required<Collection>(
-        kind,
-        id,
-        "collection-policy:" + pointer.revision,
+      const policyKey = "collection-policy:" + pointer.revision;
+      const rows = await preparedRows(kind, id, [
+        policyKey,
+        ...(pointer.configuration === undefined ? [] : [pointer.configuration]),
+      ]);
+      const collection = planned<Collection>(
+        rows,
+        policyKey,
         "collection-policy",
       );
       if (collection.id !== id || collection.revision !== pointer.revision)
@@ -496,9 +699,8 @@ export function createKnowledgeRepository(
       const configuration =
         pointer.configuration === undefined
           ? undefined
-          : await required<GovernanceConfiguration>(
-              kind,
-              id,
+          : planned<GovernanceConfiguration>(
+              rows,
               pointer.configuration,
               "configuration",
             );
@@ -528,44 +730,79 @@ export function createKnowledgeRepository(
       typeof pointer.publicationHeld !== "boolean"
     )
       throw new RepositoryIntegrityError();
-    const current = await getRevision(id, pointer.current);
-    if (current === null) throw new RepositoryIntegrityError();
-    const evidence = await Promise.all(
-      pointer.evidence.map(async (reference) => {
-        if (reference.articleRevision !== pointer.current)
-          throw new RepositoryIntegrityError();
-        const value = await getEvidence(
-          id,
-          reference.articleRevision,
-          reference.id,
-          reference.version,
-        );
-        if (value === null || value.hash !== reference.hash)
-          throw new RepositoryIntegrityError();
-        return value;
-      }),
+    const evidenceKeys = await Promise.all(
+      pointer.evidence.map((reference) =>
+        evidenceId(reference.articleRevision, reference.id, reference.version),
+      ),
     );
-    const provenance = await required<SourceSnapshot>(
-      kind,
-      id,
-      "provenance:" + pointer.provenance,
+    const currentKey = "revision:" + pointer.current;
+    const provenanceKey = "provenance:" + pointer.provenance;
+    const publishedRevisionKey =
+      pointer.published === undefined
+        ? undefined
+        : "revision:" + pointer.published.revision;
+    const publishedProvenanceKey =
+      pointer.publishedProvenance === undefined
+        ? undefined
+        : "provenance:" + pointer.publishedProvenance;
+    const rows = await preparedRows(kind, id, [
+      currentKey,
+      ...evidenceKeys,
+      provenanceKey,
+      ...(pointer.review === undefined ? [] : [pointer.review]),
+      ...(pointer.published === undefined
+        ? []
+        : [publishedRevisionKey!, pointer.published.approval]),
+      ...(publishedProvenanceKey === undefined ? [] : [publishedProvenanceKey]),
+      ...(pointer.publicationReview === undefined
+        ? []
+        : [pointer.publicationReview]),
+      ...pointer.revocations.map((hash) => "revoked:" + hash),
+    ]);
+    const current = planned<ArticleRevision>(rows, currentKey, "revision");
+    if (current.articleId !== id || current.number !== pointer.current)
+      throw new RepositoryIntegrityError();
+    const evidence = pointer.evidence.map((reference, index) => {
+      const value = planned<VerificationEvidence>(
+        rows,
+        evidenceKeys[index]!,
+        "evidence",
+      );
+      if (
+        reference.articleRevision !== pointer.current ||
+        value.articleId !== id ||
+        value.articleRevision !== reference.articleRevision ||
+        value.id !== reference.id ||
+        value.version !== reference.version ||
+        value.hash !== reference.hash
+      )
+        throw new RepositoryIntegrityError();
+      return value;
+    });
+    const provenance = planned<SourceSnapshot>(
+      rows,
+      provenanceKey,
       "provenance",
     );
     const review =
       pointer.review === undefined
         ? undefined
-        : await required<ReviewSnapshot>(kind, id, pointer.review, "review");
+        : planned<ReviewSnapshot>(rows, pointer.review, "review");
     let published: Article["published"];
     if (pointer.published !== undefined) {
-      const revision = await getRevision(id, pointer.published.revision);
-      const approval = await required<ArticleApproval>(
-        kind,
-        id,
+      const revision = planned<ArticleRevision>(
+        rows,
+        publishedRevisionKey!,
+        "revision",
+      );
+      const approval = planned<ArticleApproval>(
+        rows,
         pointer.published.approval,
         "publication",
       );
       if (
-        revision === null ||
+        revision.articleId !== id ||
+        revision.number !== pointer.published.revision ||
         approval.binding.articleId !== id ||
         approval.binding.articleRevision !== revision.number ||
         approval.binding.contentHash !== revision.contentHash
@@ -576,25 +813,13 @@ export function createKnowledgeRepository(
     const publishedProvenance =
       pointer.publishedProvenance === undefined
         ? undefined
-        : await required<SourceSnapshot>(
-            kind,
-            id,
-            "provenance:" + pointer.publishedProvenance,
-            "provenance",
-          );
+        : planned<SourceSnapshot>(rows, publishedProvenanceKey!, "provenance");
     const publicationReview =
       pointer.publicationReview === undefined
         ? undefined
-        : await required<ReviewSnapshot>(
-            kind,
-            id,
-            pointer.publicationReview,
-            "review",
-          );
-    const revokedEvidence = await Promise.all(
-      pointer.revocations.map((hash) =>
-        required<EvidenceRevocation>(kind, id, "revoked:" + hash, "revocation"),
-      ),
+        : planned<ReviewSnapshot>(rows, pointer.publicationReview, "review");
+    const revokedEvidence = pointer.revocations.map((hash) =>
+      planned<EvidenceRevocation>(rows, "revoked:" + hash, "revocation"),
     );
     const article: Article = {
       id,
@@ -640,30 +865,33 @@ export function createKnowledgeRepository(
       publicationHeld: pointer.publicationHeld,
     };
     if (pointer.published === undefined) return { value, version: row.version };
-    const [revision, approval, publishedProvenance, publicationReview] =
-      await Promise.all([
-        getRevision(id, pointer.published.revision),
-        required<ArticleApproval>(
-          "article",
-          id,
-          pointer.published.approval,
-          "publication",
-        ),
-        required<SourceSnapshot>(
-          "article",
-          id,
-          "provenance:" + pointer.publishedProvenance,
-          "provenance",
-        ),
-        required<ReviewSnapshot>(
-          "article",
-          id,
-          pointer.publicationReview!,
-          "review",
-        ),
-      ]);
+    const revisionKey = "revision:" + pointer.published.revision;
+    const provenanceKey = "provenance:" + pointer.publishedProvenance;
+    const rows = await preparedRows("article", id, [
+      revisionKey,
+      pointer.published.approval,
+      provenanceKey,
+      pointer.publicationReview!,
+    ]);
+    const revision = planned<ArticleRevision>(rows, revisionKey, "revision");
+    const approval = planned<ArticleApproval>(
+      rows,
+      pointer.published.approval,
+      "publication",
+    );
+    const publishedProvenance = planned<SourceSnapshot>(
+      rows,
+      provenanceKey,
+      "provenance",
+    );
+    const publicationReview = planned<ReviewSnapshot>(
+      rows,
+      pointer.publicationReview!,
+      "review",
+    );
     if (
-      revision === null ||
+      revision.articleId !== id ||
+      revision.number !== pointer.published.revision ||
       approval.binding.articleId !== id ||
       approval.binding.articleRevision !== revision.number ||
       approval.binding.contentHash !== revision.contentHash
@@ -679,6 +907,55 @@ export function createKnowledgeRepository(
       },
       version: row.version,
     };
+  }
+  async function readPublicationEvidence(
+    id: string,
+    publication: PublishedArticle,
+  ): Promise<readonly VerificationEvidence[] | null> {
+    const references = publication.approval.binding.evidence;
+    if (!Array.isArray(references) || references.length > 32)
+      throw new RepositoryIntegrityError();
+    const keys = await Promise.all(
+      references.map((reference) =>
+        evidenceId(
+          publication.revision.number,
+          reference.id,
+          reference.version,
+        ),
+      ),
+    );
+    const revokedKeys = references.map((reference) => {
+      if (!/^[a-f0-9]{64}$/u.test(reference.hash))
+        throw new RepositoryIntegrityError();
+      return "revoked:" + reference.hash;
+    });
+    const rows = await preparedRows("article", id, [...keys, ...revokedKeys]);
+    const result: VerificationEvidence[] = [];
+    for (const [index, reference] of references.entries()) {
+      const proof = rows.get(keys[index]!);
+      const revoked = rows.get(revokedKeys[index]!);
+      if (proof === undefined || revoked === undefined)
+        throw new RepositoryIntegrityError();
+      if (
+        revoked !== null &&
+        (revoked.kind !== "revocation" ||
+          (revoked.data as EvidenceRevocation).hash !== reference.hash)
+      )
+        throw new RepositoryIntegrityError();
+      if (proof === null || revoked !== null) return null;
+      const value = proof.data as VerificationEvidence;
+      if (
+        proof.kind !== "evidence" ||
+        value.articleId !== id ||
+        value.articleRevision !== publication.revision.number ||
+        value.id !== reference.id ||
+        value.version !== reference.version ||
+        value.hash !== reference.hash
+      )
+        throw new RepositoryIntegrityError();
+      result.push(snapshotData(value));
+    }
+    return result;
   }
   async function execute<T extends State>(
     kind: ResourceKind,
@@ -766,7 +1043,7 @@ export function createKnowledgeRepository(
       );
       const next = snapshotData({ ...decision.next, generation }) as T;
       const additions: KnowledgeRecord[] = [];
-      const queued = new Map<string, KnowledgeRecord>();
+      const proposals = new Map<string, KnowledgeRecord[]>();
       let immutablePlanningCollision = false;
       const buildRow = (
         id: string,
@@ -786,27 +1063,13 @@ export function createKnowledgeRepository(
         rowKind: KnowledgeRecord["kind"],
         data: unknown,
       ): Promise<void> => {
-        if (immutablePlanningCollision) return;
         const record = buildRow(key, rowKind, data);
-        const pending = queued.get(key);
+        const pending = proposals.get(key);
         if (pending !== undefined) {
-          if (canonicalJson(pending) !== canonicalJson(record))
-            throw new RepositoryIntegrityError();
+          pending.push(record);
           return;
         }
-        const previous = await getRow(kind, request.id, key);
-        if (previous !== null) {
-          if (canonicalJson(previous) !== canonicalJson(record)) {
-            // A matching command may have committed after this attempt read
-            // its receipt. Re-enter the receipt-first, authorized retry path;
-            // server timestamps are not part of semantic command identity.
-            immutablePlanningCollision = true;
-          }
-          return;
-        }
-        encodeKnowledgeRecord(record);
-        queued.set(key, record);
-        additions.push(record);
+        proposals.set(key, [record]);
       };
       let pointer: Pointer;
       if (kind === "article") {
@@ -991,6 +1254,36 @@ export function createKnowledgeRepository(
           version: value.policy.version,
         };
       }
+      // Finish every immutable proposal/hash before issuing keyed I/O. This
+      // map is attempt-local, including absent rows; no admission is cached
+      // across a conflict or authorized receipt-first retry.
+      const previousRows = await preparedRows(kind, request.id, [
+        ...proposals.keys(),
+      ]);
+      for (const [key, candidates] of proposals) {
+        const previous = previousRows.get(key);
+        if (previous === undefined) throw new RepositoryIntegrityError();
+        if (previous !== null) {
+          if (
+            candidates.some(
+              (record) => canonicalJson(previous) !== canonicalJson(record),
+            )
+          )
+            immutablePlanningCollision = true;
+          continue;
+        }
+        const record = candidates[0]!;
+        if (
+          candidates.some(
+            (candidate) => canonicalJson(candidate) !== canonicalJson(record),
+          )
+        )
+          throw new RepositoryIntegrityError();
+        encodeKnowledgeRecord(record);
+        additions.push(record);
+      }
+      // A matching command may have committed after the earlier receipt read.
+      // Retry that original authorized path rather than overwrite history.
       if (immutablePlanningCollision) continue;
       const audit = defineAudit<KnowledgeRecord>({
         collection: knowledgeRecords,
@@ -1154,6 +1447,10 @@ export function createKnowledgeRepository(
     limits,
     readArticleVersioned: (id) => read<StoredArticle>("article", id),
     readArticlePublicationVersioned: readPublication,
+    readPublicationEvidence,
+    readArticleAuthoringVersioned: readAuthoring,
+    confirmResourceVersions,
+    confirmGovernanceVersions,
     readResourceGeneration: async (kind, id) => {
       const row = await getHead(kind, id);
       return row === null ? null : (row.value.data as Head).pointer.generation;

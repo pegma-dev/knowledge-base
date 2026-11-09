@@ -23,9 +23,11 @@ prints a safe completion summary. These are workspace source examples. The KB
 `0.1.0` packages completed manual bootstrap without OIDC provenance, and the
 four-package `0.1.1` trusted release has a
 [historical receipt](../../docs/BOOTSTRAP.md#historical-verified-011-release).
-The current four-package `0.1.2` release is
-[verified](../../docs/BOOTSTRAP.md#current-verified-012-release). Source `0.1.3`
-is the unpublished human-report candidate requiring its own reviewed, verified
+The four-package `0.1.2` release has a
+[historical verified receipt](../../docs/BOOTSTRAP.md#historical-verified-012-release).
+The current four-package `0.1.3` release is
+[verified](../../docs/BOOTSTRAP.md#current-verified-013-release). Source `0.1.4`
+is the unpublished governed context/query candidate requiring its own reviewed, verified
 trusted release.
 Production hosts retain their separate acceptance gates.
 

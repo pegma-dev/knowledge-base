@@ -6,10 +6,10 @@ The maintainer owns npm publication and external configuration. All four KB
 `0.1.0` uploads were accepted through manual bootstrap, and their exact-byte
 postflight passed at **2026-11-07T21:56:24Z**. Agent Access `0.1.0` also completed
 manual bootstrap and postflight. Neither bootstrap has OIDC provenance.
-KB's current verified trusted release is `0.1.2`; Agent Access remains verified
+KB's current verified trusted release is `0.1.3`; Agent Access remains verified
 at `0.1.1`. Their receipts close public producer release prerequisites only.
-The dated first trusted KB `0.1.1` receipt remains below as history. Synchronized
-KB `0.1.3` is the unpublished optional human-reviewed evidence-report candidate;
+The dated trusted KB `0.1.1` and `0.1.2` receipts remain below as history. Synchronized
+KB `0.1.4` is the unpublished governed authoring-context/report-query candidate;
 its own review, current-head CI, trusted publication, strict consumer
 verification and host acceptance remain pending.
 
@@ -84,7 +84,65 @@ the approved dependency set or establishes real-host acceptance.
 
 ## Verified Knowledge Base release
 
-### Current verified `0.1.2` release
+### Current verified `0.1.3` release
+
+All four KB `0.1.3` packages completed exact-registry-byte, cryptographic
+signature/Sigstore, authenticated source-provenance and public-consumer
+qualification at **2026-11-09T00:05:01.700778Z**. The
+[`v0.1.3` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3)
+binds signed source
+[`8b4c25aa6a40f0c56be97f07e3b7b5ac6136a99b`](https://github.com/pegma-dev/knowledge-base/commit/8b4c25aa6a40f0c56be97f07e3b7b5ac6136a99b)
+and signed annotated tag object `07326885d0074075738b27d555790eda2802ffd2`.
+The [release run's final attempt 5](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/attempts/5)
+has six successful job records, including the separate
+[strict registry/consumer verification job](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128906942012).
+
+The actual original [Node 22](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128892580576)
+and [Node 24](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128892580550)
+release gates executed in attempt 1. Each passed 675 runtime tests across 16
+files and 128 release regressions, with zero skips, plus the required
+format/type/example/package/protocol steps. Their successful records and the
+original preparation were reused in the final attempt; they were not newly
+executed gates in attempt 5.
+
+| Field                                   | Value                                                              |
+| --------------------------------------- | ------------------------------------------------------------------ |
+| Original prepared attempt               | `1`                                                                |
+| Original prepared artifact ID           | `13638542884`                                                      |
+| Original ZIP SHA-256                    | `25a4f95e7d5f9722f3b8ece3e20cf6bd35c5d6618abfa52d218319236b449464` |
+| Independently retained manifest SHA-256 | `8a384bf5972eee0cd9796367a632d01b4b57832f33bac073665281dfd7b9ed8a` |
+| Successful final attempt                | `5`                                                                |
+
+The original [prepared ZIP is a public release asset](https://github.com/pegma-dev/knowledge-base/releases/download/v0.1.3/knowledge-base-v0.1.3-artifact-13638542884.zip).
+Recovery retained that artifact and exact manifest/tarballs without repacking,
+moving the signed tag or replacing any version. The authenticated original
+per-package publication invocations are distinct from the final successful
+idempotent publisher. An earlier writer job could fail after an accepted
+upload; recovery did not treat that failure as rollback or republish its bytes:
+
+| Package     | Original writer attempt | Original writer job                                                                                   |
+| ----------- | ----------------------- | ----------------------------------------------------------------------------------------------------- |
+| Contracts   | `1`                     | [128894569185](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128894569185) |
+| Core        | `2`                     | [128897903802](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128897903802) |
+| Application | `3`                     | [128900136498](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128900136498) |
+| MCP         | `4`                     | [128903298046](https://github.com/pegma-dev/knowledge-base/actions/runs/42533473529/job/128903298046) |
+
+The [public verification summary](https://github.com/pegma-dev/knowledge-base/releases/download/v0.1.3/knowledge-base-v0.1.3-verification.json)
+records these bindings and qualified checks. It is a summary, not a substitute
+for actual cryptographic verification. The clean synthetic registry consumer
+imported all four public package roots and constructed the report factory with
+both storage layouts and legacy optional modes. It did not perform report
+admission or establish a durable host or actual client/staging acceptance.
+
+This release provides optional human-reviewed evidence reports. Synchronized
+`0.1.4` source adds governed authoring contexts and optional report queries and
+still requires its own review, current-head gates, trusted publication and
+strict verification. Neither producer release closes Workers Free call/CPU
+acceptance, host activation or pilot gates.
+
+<a id="current-verified-012-release"></a>
+
+### Historical verified `0.1.2` release
 
 At **2026-11-08T03:39:55Z**, all four KB `0.1.2` packages completed strict
 registry/signature/provenance and clean-consumer verification. The
@@ -114,14 +172,13 @@ The verifier bound the source/tag/commit, original artifact and independent
 manifest digest to all four registry artifacts/dependencies, cryptographic
 signatures, source-bound provenance, and clean-consumer imports. Recovery kept
 the original prepared artifact; no package version, signed tag or tarball was
-replaced. Current KB dist-tags are `latest: 0.1.2` and historical
-`bootstrap: 0.1.0`; Agent Access remains `latest: 0.1.1`, `bootstrap: 0.1.0`.
+replaced. At that release checkpoint, KB dist-tags were `latest: 0.1.2` and
+`bootstrap: 0.1.0`; Agent Access was `latest: 0.1.1`, `bootstrap: 0.1.0`.
 
 This release provides SD-03 atomic draft/private-source authoring. It contains
-no shared human-reviewed report factory. That optional API is new `0.1.3`
-candidate source with its own pending review/CI/release/verification gates.
-Neither release establishes actual host/client, privacy, activation or pilot
-acceptance.
+no shared human-reviewed report factory; that API subsequently shipped in
+`0.1.3`, whose separate receipt is above. This historical release establishes
+no actual host/client, privacy, activation or pilot acceptance.
 
 ### Historical verified `0.1.1` release
 
@@ -153,8 +210,9 @@ At that historical checkpoint, all four packages had `latest: 0.1.1` and `bootst
 bootstrap receipts remain distinct and have no OIDC provenance.
 
 This dated receipt closed the KB `0.1.1` producer release prerequisite. The
-later `0.1.2` release has its own receipt above; neither completes host/client,
-privacy, activation or pilot acceptance, nor verifies changed `0.1.3` source.
+later `0.1.2` and `0.1.3` releases have their own receipts above; none completes
+host/client, privacy, activation or pilot acceptance or verifies changed
+`0.1.4` source.
 
 ## Verified Agent Access prerequisite
 
@@ -198,8 +256,8 @@ verification; no package version or artifact was replaced.
 
 This closes the verified public Agent Access `0.1.1` prerequisite. The KB
 protocol proof now composes that exact registry producer with four packed KB
-candidate artifacts in a fresh consumer. KB `0.1.2` has its separate verified
-receipt above; source `0.1.3` retains its own current-head gates, PR, trusted
+candidate artifacts in a fresh consumer. KB `0.1.3` has its separate verified
+receipt above; source `0.1.4` retains its own current-head gates, PR, trusted
 release, and strict verification. Existing-login, current-Admin consent, every requested
 client/mode, and both real hosts remain separately unproven.
 
@@ -278,10 +336,10 @@ must name this repository's exact `publish.yml` workflow and environment and
 explicitly permit direct publishing. Time new configurations to the prepared
 trusted release so their first-use expiry does not strand the release.
 
-The synchronized KB source candidate is `0.1.3` with exact internal dependency
+The synchronized KB source candidate is `0.1.4` with exact internal dependency
 pins. It still needs review and all current-head gates before release. The
 historical first advertised trusted release is `0.1.1`; the current verified
-release is `0.1.2`, recorded separately above.
+release is `0.1.3`, recorded separately above.
 A previously manually published version cannot be
 republished through OIDC to add provenance. Run the full review/Node 22/24 gate
 for the newly reviewed commit, create its approved signed annotated version tag
@@ -296,7 +354,7 @@ signatures, and matching source/workflow/tag/commit provenance. Preserve those
 results with the release identity and independent manifest digest. The active
 KB protocol proof uses the verified registry producer
 `@pegma/agent-access@0.1.1`; historical source-producer evidence remains in
-[source preparation](SOURCE_PREPARATION.md). The verified KB `0.1.2` and Agent
+[source preparation](SOURCE_PREPARATION.md). The verified KB `0.1.3` and Agent
 Access `0.1.1` public producer release prerequisites are closed. This candidate
 requires its own verified release, and both hosts still require their retained
 actual login/Admin-consent/client/staging acceptance.

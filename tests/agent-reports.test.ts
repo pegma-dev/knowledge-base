@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type {
+  KnowledgeBaseApplication,
   KnowledgeEvidenceReports,
   KnowledgeReportAcknowledgement,
 } from "@pegma/knowledge-base-application";
@@ -29,12 +30,17 @@ import {
 import { evidenceReportsFixture } from "../test/evidence-reports-fixtures.js";
 
 type Channel = "HTTP" | "MCP";
-type Reports = Pick<KnowledgeEvidenceReports, "report" | "ledger" | "status">;
+type Reports = Pick<KnowledgeEvidenceReports, "report" | "ledger" | "status"> &
+  Partial<Pick<KnowledgeEvidenceReports, "query">>;
 
 async function fixture(
   options: {
     legacy?: boolean;
+    aggregate?: boolean;
     limits?: Partial<KnowledgeAgentLimits>;
+    wrapApplication?: (
+      application: KnowledgeBaseApplication,
+    ) => KnowledgeBaseApplication;
     wrapReports?: (
       reports: Reports,
       f: Awaited<ReturnType<typeof evidenceReportsFixture>>,
@@ -52,12 +58,22 @@ async function fixture(
       resource: agentResource,
     },
   };
+  // Keep the original trio explicit so its compatibility/fence cases continue
+  // exercising the legacy path even after the actual factory gains query().
+  const suppliedReports: Reports = {
+    report: f.reports.report,
+    ledger: f.reports.ledger,
+    status: f.reports.status,
+    ...(options.aggregate ? { query: f.reports.query } : {}),
+  };
   const dispatcher = createKnowledgeAgentDispatcher({
-    application: f.app,
+    application: options.wrapApplication?.(f.app) ?? f.app,
     resource: agentResource,
     ...(options.legacy
       ? {}
-      : { reports: options.wrapReports?.(f.reports, f) ?? f.reports }),
+      : {
+          reports: options.wrapReports?.(suppliedReports, f) ?? suppliedReports,
+        }),
     ...(options.limits === undefined ? {} : { limits: options.limits }),
   });
   const common = {
@@ -220,104 +236,107 @@ describe.each(["HTTP", "MCP"] as const)(
   (channel) => {
     const other: Channel = channel === "HTTP" ? "MCP" : "HTTP";
 
-    it("queues privately, requires human confirmation, polls its own receipt, accepts every real check and leaves publication to staff", async () => {
-      const f = await fixture();
-      const before = await f.current();
-      const first = await f.packet(channel);
-      expect(first.ack).toMatchObject({
-        kind: "pending-human-review",
-        ledgerEpoch: 1,
-        reportGeneration: 1,
-      });
-      bodyFree(first.ack);
-      expect((await f.current()).generation).toBe(before.generation);
-      expect(
-        (await f.app.getEvidence(f.reviewer, { articleId: f.articleId }))
-          .evidence,
-      ).toHaveLength(0);
-      const pending = success<KnowledgeAgentReportRequirementsResult>(
-        await f.call(
-          other,
-          "getValidationRequirements",
-          f.requirementsInput(first.ack),
-        ),
-      );
-      expect(pending.reportStatus).toMatchObject({
-        status: "pending",
-        receipt: first.ack.receipt,
-      });
-      bodyFree(pending);
-      const trusted = {
-        ...f.command("submit-native-evidence", before.generation),
-        articleId: f.articleId,
-        evidence: first.input.evidence,
-        receipt: first.ack.receipt,
-      };
-      privateError(
-        await f.call(channel, "submitEvidence", trusted),
-        "prerequisite",
-      );
-      const confirmation = await f.decide(first.ack);
-      expect(confirmation.ack.receipt).toBe(first.ack.receipt);
-      const checked = success<KnowledgeAgentReportRequirementsResult>(
-        await f.call(
-          channel,
-          "getValidationRequirements",
-          f.requirementsInput(first.ack),
-        ),
-      );
-      expect(checked.reportStatus).toMatchObject({
-        status: "confirmed",
-        receipt: first.ack.receipt,
-      });
-      bodyFree(checked);
-      expect(
-        success<{ replayed: boolean }>(
-          await f.call(channel, "submitEvidence", trusted),
-        ).replayed,
-      ).toBe(false);
-      expect(
-        success<{ replayed: boolean }>(
-          await f.call(other, "submitEvidence", trusted),
-        ).replayed,
-      ).toBe(true);
-      const second = await f.packet(other, "walkthrough-workflow");
-      await f.decide(second.ack);
-      const current = await f.current();
-      success(
-        await f.call(channel, "submitEvidence", {
-          ...f.command("submit-native-workflow", current.generation),
-          articleId: f.articleId,
-          evidence: second.input.evidence,
-          receipt: second.ack.receipt,
-        }),
-      );
-      const accepted = await f.app.getEvidence(f.reviewer, {
-        articleId: f.articleId,
-      });
-      expect(accepted.evidence).toHaveLength(2);
-      expect(
-        accepted.evidence.every(
-          (value) => value.attestation.verifiedBy === f.reviewer.principalId,
-        ),
-      ).toBe(true);
-      expect((await f.current()).hasPublication).toBe(false);
-      await expect(
-        f.app.submitForReview(f.agent, {
-          ...f.command(
-            "forbidden-agent-review",
-            (await f.current()).generation,
+    it.each([false, true])(
+      "queues privately, requires human confirmation, polls its own receipt, accepts every real check and leaves publication to staff (aggregate=%s)",
+      async (aggregate) => {
+        const f = await fixture({ aggregate });
+        const before = await f.current();
+        const first = await f.packet(channel);
+        expect(first.ack).toMatchObject({
+          kind: "pending-human-review",
+          ledgerEpoch: 1,
+          reportGeneration: 1,
+        });
+        bodyFree(first.ack);
+        expect((await f.current()).generation).toBe(before.generation);
+        expect(
+          (await f.app.getEvidence(f.reviewer, { articleId: f.articleId }))
+            .evidence,
+        ).toHaveLength(0);
+        const pending = success<KnowledgeAgentReportRequirementsResult>(
+          await f.call(
+            other,
+            "getValidationRequirements",
+            f.requirementsInput(first.ack),
           ),
+        );
+        expect(pending.reportStatus).toMatchObject({
+          status: "pending",
+          receipt: first.ack.receipt,
+        });
+        bodyFree(pending);
+        const trusted = {
+          ...f.command("submit-native-evidence", before.generation),
           articleId: f.articleId,
-        }),
-      ).rejects.toMatchObject({ name: "KnowledgeBaseAuthorizationError" });
-      await f.publish();
-      const published = await f.app.getPublishedArticle(f.customer, {
-        articleId: f.articleId,
-      });
-      expect(published.revision).toBe(1);
-      bodyFree(published);
-    });
+          evidence: first.input.evidence,
+          receipt: first.ack.receipt,
+        };
+        privateError(
+          await f.call(channel, "submitEvidence", trusted),
+          "prerequisite",
+        );
+        const confirmation = await f.decide(first.ack);
+        expect(confirmation.ack.receipt).toBe(first.ack.receipt);
+        const checked = success<KnowledgeAgentReportRequirementsResult>(
+          await f.call(
+            channel,
+            "getValidationRequirements",
+            f.requirementsInput(first.ack),
+          ),
+        );
+        expect(checked.reportStatus).toMatchObject({
+          status: "confirmed",
+          receipt: first.ack.receipt,
+        });
+        bodyFree(checked);
+        expect(
+          success<{ replayed: boolean }>(
+            await f.call(channel, "submitEvidence", trusted),
+          ).replayed,
+        ).toBe(false);
+        expect(
+          success<{ replayed: boolean }>(
+            await f.call(other, "submitEvidence", trusted),
+          ).replayed,
+        ).toBe(true);
+        const second = await f.packet(other, "walkthrough-workflow");
+        await f.decide(second.ack);
+        const current = await f.current();
+        success(
+          await f.call(channel, "submitEvidence", {
+            ...f.command("submit-native-workflow", current.generation),
+            articleId: f.articleId,
+            evidence: second.input.evidence,
+            receipt: second.ack.receipt,
+          }),
+        );
+        const accepted = await f.app.getEvidence(f.reviewer, {
+          articleId: f.articleId,
+        });
+        expect(accepted.evidence).toHaveLength(2);
+        expect(
+          accepted.evidence.every(
+            (value) => value.attestation.verifiedBy === f.reviewer.principalId,
+          ),
+        ).toBe(true);
+        expect((await f.current()).hasPublication).toBe(false);
+        await expect(
+          f.app.submitForReview(f.agent, {
+            ...f.command(
+              "forbidden-agent-review",
+              (await f.current()).generation,
+            ),
+            articleId: f.articleId,
+          }),
+        ).rejects.toMatchObject({ name: "KnowledgeBaseAuthorizationError" });
+        await f.publish();
+        const published = await f.app.getPublishedArticle(f.customer, {
+          articleId: f.articleId,
+        });
+        expect(published.revision).toBe(1);
+        bodyFree(published);
+      },
+    );
 
     it("keeps exact default legacy schemas, tool count and receipt submission behavior", async () => {
       const f = await fixture({ legacy: true });
@@ -883,5 +902,531 @@ describe("optional native report bounds and observational fences", () => {
       ),
       "conflict",
     );
+  });
+});
+
+describe.each(["HTTP", "MCP"] as const)(
+  "aggregate report query over %s",
+  (channel) => {
+    it("uses one real aggregate query for discovery/polling and no redundant dispatcher subreads", async () => {
+      const calls = {
+        query: 0,
+        ledger: 0,
+        status: 0,
+        draft: 0,
+        requirements: 0,
+      };
+      const f = await fixture({
+        aggregate: true,
+        wrapApplication: (app) => ({
+          ...app,
+          async getDraft(...args) {
+            calls.draft++;
+            return app.getDraft(...args);
+          },
+          async getValidationRequirements(...args) {
+            calls.requirements++;
+            return app.getValidationRequirements(...args);
+          },
+        }),
+        wrapReports: (reports) => {
+          const query = reports.query;
+          if (query === undefined)
+            throw new Error("Expected actual aggregate query");
+          return {
+            ...reports,
+            async query(access, input) {
+              calls.query++;
+              expect(access.roles).toEqual([]);
+              expect(access.entitlements).toEqual([]);
+              expect(access.permissions).toEqual(
+                Object.values(knowledgeAgentScopes),
+              );
+              expect(Object.keys(input).sort()).toEqual(
+                input.status === undefined
+                  ? ["articleId"]
+                  : ["articleId", "status"],
+              );
+              return query(access, input);
+            },
+            async ledger(...args) {
+              calls.ledger++;
+              return reports.ledger(...args);
+            },
+            async status(...args) {
+              calls.status++;
+              return reports.status(...args);
+            },
+          };
+        },
+      });
+      f.authority.current = {
+        ...f.authority.current,
+        access: {
+          ...f.owner,
+          roles: ["synthetic-admin"],
+          entitlements: ["PRIVATE_ENTITLEMENT"],
+        },
+      };
+      const before = await f.physicalRows();
+      const discovery = success<KnowledgeAgentReportRequirementsResult>(
+        await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput(),
+        ),
+      );
+      expect(discovery).toHaveProperty("reportLedger", {
+        ledgerEpoch: 1,
+        status: "active",
+      });
+      expect(discovery).not.toHaveProperty("reportStatus");
+      expect(calls).toEqual({
+        query: 1,
+        ledger: 0,
+        status: 0,
+        draft: 0,
+        requirements: 0,
+      });
+      expect(await f.physicalRows()).toEqual(before);
+      const recorded = await f.report();
+      await f.decide(recorded.ack);
+      const saved = await f.physicalRows();
+      const polled = success<KnowledgeAgentReportRequirementsResult>(
+        await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput({
+            ...recorded.ack,
+            kind: "pending-human-review",
+          }),
+        ),
+      );
+      expect(polled.reportStatus).toEqual(
+        await f.reports.status(f.agent, f.key(recorded.ack)),
+      );
+      expect(calls).toEqual({
+        query: 2,
+        ledger: 0,
+        status: 0,
+        draft: 0,
+        requirements: 0,
+      });
+      expect(await f.physicalRows()).toEqual(saved);
+      bodyFree(polled);
+      expect(polled).not.toHaveProperty("target");
+    });
+
+    it("retains the same advertised schemas and legacy requirements without invoking query", async () => {
+      let calls = 0;
+      const f = await fixture({
+        aggregate: true,
+        wrapReports: (reports) => ({
+          ...reports,
+          async query() {
+            calls++;
+            throw new Error("PRIVATE_UNUSED_QUERY");
+          },
+        }),
+      });
+      const input = {
+        collectionId: f.collectionId,
+        kind: "walkthrough" as const,
+      };
+      expect(
+        success(await f.call(channel, "getValidationRequirements", input)),
+      ).toEqual(await f.app.getValidationRequirements(f.agent, input));
+      expect(calls).toBe(0);
+      const legacy = await fixture();
+      expect((await (await f.sdk()).listTools()).tools).toEqual(
+        (await (await legacy.sdk()).listTools()).tools,
+      );
+      expect(Object.values(knowledgeAgentScopes)).toHaveLength(3);
+    });
+
+    it("projects away internal target, ledger capacity and private fields from trusted aggregate output", async () => {
+      const f = await fixture({
+        aggregate: true,
+        wrapReports: (reports) => {
+          const query = reports.query;
+          if (query === undefined)
+            throw new Error("Expected actual aggregate query");
+          return {
+            ...reports,
+            async query(...args) {
+              const actual = structuredClone(await query(...args));
+              Reflect.set(
+                actual,
+                "PRIVATE_REPORT_BODY_CANARY",
+                "private/artifact",
+              );
+              Reflect.set(
+                actual.target,
+                "privateSource",
+                "PRIVATE_SOURCE_BODY",
+              );
+              Reflect.set(actual.requirements, "trustedAttesterIds", [
+                "staff/verifier",
+              ]);
+              Reflect.set(
+                actual.ledger,
+                "privateDetails",
+                "PRIVATE_LEDGER_BODY",
+              );
+              if (actual.status !== undefined)
+                Reflect.set(
+                  actual.status,
+                  "confirmation",
+                  "PRIVATE_CONFIRMATION",
+                );
+              return actual;
+            },
+          };
+        },
+      });
+      const recorded = await f.report();
+      const result = success<KnowledgeAgentReportRequirementsResult>(
+        await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput({
+            ...recorded.ack,
+            kind: "pending-human-review",
+          }),
+        ),
+      );
+      expect(Object.keys(result.reportLedger).sort()).toEqual([
+        "ledgerEpoch",
+        "status",
+      ]);
+      expect(Object.keys(result.reportStatus ?? {}).sort()).toEqual([
+        "ledgerEpoch",
+        "receipt",
+        "reportGeneration",
+        "reportId",
+        "status",
+      ]);
+      expect(result).not.toHaveProperty("target");
+      bodyFree(result);
+    });
+
+    it.each([
+      ["target article", "target", "articleId", "article/foreign"],
+      ["target generation", "target", "generation", -1],
+      ["target kind", "target", "kind", "private-kind"],
+      [
+        "requirements collection",
+        "requirements",
+        "collectionId",
+        "collection/foreign",
+      ],
+      ["ledger status", "ledger", "status", "invalid"],
+      ["status receipt", "status", "receipt", 19],
+      ["status identity", "status", "reportId", "foreign-report"],
+    ] as const)(
+      "refuses malformed or mismatched trusted %s without fallback",
+      async (_name, part, field, invalid) => {
+        let fallback = 0;
+        const f = await fixture({
+          aggregate: true,
+          wrapReports: (reports) => {
+            const query = reports.query;
+            if (query === undefined)
+              throw new Error("Expected actual aggregate query");
+            return {
+              ...reports,
+              async query(...args) {
+                const actual = structuredClone(await query(...args));
+                const selected = actual[part];
+                if (selected === undefined)
+                  throw new Error("Expected owner status");
+                Reflect.set(selected, field, invalid);
+                return actual;
+              },
+              async ledger(...args) {
+                fallback++;
+                return reports.ledger(...args);
+              },
+              async status(...args) {
+                fallback++;
+                return reports.status(...args);
+              },
+            };
+          },
+        });
+        const recorded = await f.report();
+        const before = await f.physicalRows();
+        privateError(
+          await f.call(
+            channel,
+            "getValidationRequirements",
+            f.requirementsInput({
+              ...recorded.ack,
+              kind: "pending-human-review",
+            }),
+          ),
+          "unavailable",
+        );
+        expect(fallback).toBe(0);
+        expect(await f.physicalRows()).toEqual(before);
+      },
+    );
+
+    it("keeps target, epoch, owner and effective scope refusals on the real aggregate", async () => {
+      const f = await fixture({ aggregate: true });
+      const recorded = await f.report();
+      const input = f.requirementsInput({
+        ...recorded.ack,
+        kind: "pending-human-review",
+      });
+      const before = await f.physicalRows();
+      privateError(
+        await f.call(channel, "getValidationRequirements", {
+          ...input,
+          collectionId: "collection/foreign",
+        }),
+        "conflict",
+      );
+      privateError(
+        await f.call(channel, "getValidationRequirements", {
+          ...input,
+          kind: "explanation",
+        }),
+        "conflict",
+      );
+      privateError(
+        await f.call(channel, "getValidationRequirements", {
+          ...input,
+          reportLookup: {
+            ledgerEpoch: recorded.ack.ledgerEpoch + 1,
+            reportId: recorded.ack.reportId,
+          },
+        }),
+        "conflict",
+      );
+      f.authority.current = { ...f.authority.current, access: f.otherAgent };
+      privateError(
+        await f.call(channel, "getValidationRequirements", input),
+        "not_found",
+      );
+      for (const scope of Object.values(knowledgeAgentScopes)) {
+        f.authority.current = {
+          ...f.authority.current,
+          access: f.agent,
+          scopes: [scope],
+        };
+        privateError(
+          await f.call(channel, "getValidationRequirements", input),
+          "forbidden",
+        );
+      }
+      expect(await f.physicalRows()).toEqual(before);
+    });
+
+    it.each(["missing", "unsolicited"] as const)(
+      "refuses %s aggregate status instead of leaking or downgrading it",
+      async (mode) => {
+        let recorded: KnowledgeReportAcknowledgement | undefined;
+        const f = await fixture({
+          aggregate: true,
+          wrapReports: (reports) => {
+            const query = reports.query;
+            if (query === undefined)
+              throw new Error("Expected actual aggregate query");
+            return {
+              ...reports,
+              async query(access, input) {
+                const actual = structuredClone(await query(access, input));
+                if (mode === "missing")
+                  Reflect.deleteProperty(actual, "status");
+                else {
+                  if (recorded === undefined)
+                    throw new Error("Expected actual owner report");
+                  Reflect.set(
+                    actual,
+                    "status",
+                    await reports.status(access, {
+                      articleId: input.articleId,
+                      ledgerEpoch: recorded.ledgerEpoch,
+                      reportId: recorded.reportId,
+                    }),
+                  );
+                }
+                return actual;
+              },
+            };
+          },
+        });
+        recorded = (await f.report()).ack;
+        const before = await f.physicalRows();
+        privateError(
+          await f.call(
+            channel,
+            "getValidationRequirements",
+            mode === "missing"
+              ? f.requirementsInput({
+                  ...recorded,
+                  kind: "pending-human-review",
+                })
+              : f.requirementsInput(),
+          ),
+          "unavailable",
+        );
+        expect(await f.physicalRows()).toEqual(before);
+      },
+    );
+
+    it("fails closed on unavailable aggregate work without falling back or exposing its exception", async () => {
+      let fallback = 0;
+      const f = await fixture({
+        aggregate: true,
+        wrapReports: (reports) => ({
+          ...reports,
+          async query() {
+            throw new Error("PRIVATE_REPORT_BODY_CANARY private/artifact");
+          },
+          async ledger(...args) {
+            fallback++;
+            return reports.ledger(...args);
+          },
+          async status(...args) {
+            fallback++;
+            return reports.status(...args);
+          },
+        }),
+      });
+      const before = await f.physicalRows();
+      privateError(
+        await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput(),
+        ),
+        "unavailable",
+      );
+      expect(fallback).toBe(0);
+      expect(await f.physicalRows()).toEqual(before);
+    });
+
+    it("propagates an actual aggregate target-change conflict without exposing stale report status", async () => {
+      const f = await fixture({ aggregate: true });
+      const recorded = await f.report();
+      const before = await f.physicalRows();
+      let edit = true;
+      f.hooks.afterContext = async () => {
+        if (!edit) return;
+        edit = false;
+        await f.updateDraft();
+      };
+      privateError(
+        await f.call(
+          channel,
+          "getValidationRequirements",
+          f.requirementsInput({
+            ...recorded.ack,
+            kind: "pending-human-review",
+          }),
+        ),
+        "conflict",
+      );
+      expect((await f.current()).revision.number).toBe(2);
+      expect(await f.physicalRows()).toEqual(before);
+    });
+
+    it("never makes query a prerequisite for historical report ACK recovery after a real draft edit", async () => {
+      let queries = 0;
+      const f = await fixture({
+        aggregate: true,
+        wrapReports: (reports) => ({
+          ...reports,
+          async query() {
+            queries++;
+            throw new Error("PRIVATE_QUERY_UNAVAILABLE");
+          },
+        }),
+      });
+      const current = await f.current();
+      const input = {
+        ...f.command("aggregate-history", current.generation),
+        ...(await f.reportInput()),
+      };
+      const ack = success<KnowledgeAgentPendingReport>(
+        await f.call(channel, "submitEvidence", input),
+      );
+      await f.updateDraft();
+      const before = await f.physicalRows();
+      const next: Channel = channel === "HTTP" ? "MCP" : "HTTP";
+      expect(success(await f.call(next, "submitEvidence", input))).toEqual(ack);
+      privateError(
+        await f.call(channel, "submitEvidence", {
+          ...input,
+          expectedGeneration: (await f.current()).generation,
+        }),
+        "conflict",
+      );
+      expect(queries).toBe(0);
+      expect(await f.physicalRows()).toEqual(before);
+    });
+  },
+);
+
+describe("aggregate report configuration", () => {
+  it.each([null, false, "query"])(
+    "rejects a supplied non-callable query %s",
+    async (invalid) => {
+      const f = await fixture();
+      const reports = {
+        report: f.reports.report,
+        ledger: f.reports.ledger,
+        status: f.reports.status,
+        query: f.reports.query,
+      };
+      Reflect.set(reports, "query", invalid);
+      expect(() =>
+        createKnowledgeAgentDispatcher({
+          application: f.app,
+          resource: agentResource,
+          reports,
+        }),
+      ).toThrow(TypeError);
+    },
+  );
+
+  it("captures the trusted query method and receiver before caller mutation", async () => {
+    let supplied: Reports | undefined;
+    let calls = 0;
+    const f = await fixture({
+      aggregate: true,
+      wrapReports: (reports) => {
+        const query = reports.query;
+        if (query === undefined)
+          throw new Error("Expected actual aggregate query");
+        const ports: Reports = {
+          ...reports,
+          async query(...args) {
+            expect(this).toBe(ports);
+            calls++;
+            return query(...args);
+          },
+        };
+        supplied = ports;
+        return ports;
+      },
+    });
+    if (supplied === undefined)
+      throw new Error("Expected supplied report methods");
+    Reflect.set(supplied, "query", async () => {
+      throw new Error("PRIVATE_REPLACEMENT_QUERY");
+    });
+    expect(
+      success<KnowledgeAgentReportRequirementsResult>(
+        await f.call(
+          "HTTP",
+          "getValidationRequirements",
+          f.requirementsInput(),
+        ),
+      ).reportLedger.status,
+    ).toBe("active");
+    expect(calls).toBe(1);
   });
 });

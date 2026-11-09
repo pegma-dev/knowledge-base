@@ -5,6 +5,12 @@ adapts the authorized application API to bounded agent commands and the Model
 Context Protocol. Hosts compose it with their protected Knowledge Base
 endpoints; the package does not supply a hosted service.
 
+All four Knowledge Base packages are verified published at
+[`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
+This synchronized `0.1.4` source candidate adds an optional aggregate query over
+the existing report workflow; its own review, gates, trusted publication and
+strict verification remain open. Host and actual client acceptance are separate.
+
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent
 access. The adapter pins `@modelcontextprotocol/sdk` at `1.32.2` and `zod` at
@@ -48,12 +54,12 @@ application extension; it adds no agent scope or tool.
 through host-configured protected endpoints. Both require fresh host
 authentication and admission control on every request; neither issues tokens.
 
-The [host composition contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/HOST_COMPOSITION.md)
+The [host composition contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/HOST_COMPOSITION.md)
 describes authenticated contexts, trusted evidence, replay, and safe DTOs. The
-[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RETRIEVAL.md)
+[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/RETRIEVAL.md)
 describes authoritative current-publication confirmation and audience boundaries.
 
-## Optional native-client report mode (unpublished `0.1.3` source)
+## Optional native-client report mode
 
 `createKnowledgeAgentDispatcher` optionally accepts
 `reports: Pick<KnowledgeEvidenceReports, "report" | "ledger" | "status">`.
@@ -63,6 +69,18 @@ The existing five operations remain `getDraft`, `createDraft`, `updateDraft`,
 advertise report discovery/polling and submission variants on the latter two;
 HTTP uses the same envelopes. Omitting `reports` preserves the exact legacy
 schemas and results, rejecting extension fields.
+
+The verified `0.1.3` release provides that report trio. The unpublished `0.1.4`
+candidate additionally accepts `reports.query`, typed as the optional
+`Partial<Pick<KnowledgeEvidenceReports, "query">>` extension. The dispatcher
+calls it once for report-aware requirements, passing only the article ID and
+optional owner-status key. It projects the returned governed requirements,
+ledger and status into the same wire result. Internal target metadata and
+capacity, report bodies, evidence and opaque context observations never appear
+as added fields. No tool, scope, schema or client option changes. Supplying only
+the original trio retains its existing read sequence; legacy requirements do
+not invoke query. A configured query's failure or malformed output refuses
+without falling back.
 
 Both report variants need effective `draftRead` and `evidenceSubmit`.
 Requirements input adds `articleId` and optional
@@ -81,17 +99,28 @@ confirmation preserves the report receipt; reassessment rotates its cycle.
 Current runner/result/build/governance and freshness checks still apply.
 Report bodies, reviewer details and private accepted evidence remain staff-only.
 
-Hosts must bind optional report methods to the same authenticated request/grant
-and revalidate it before and after every awaited `report`, `ledger` or `status`
-call. Preserve the dispatcher-supplied restricted context rather than replacing
-it with current owner/Admin authority. Principal resolution inside a report
-ledger does not replace host credential/grant freshness checks.
+Hosts bind all report/query work to the original request, credential, principal,
+grant, client and resource. Keep initial request authentication. For pure reads,
+hosts may revalidate per port or use one request-local full-credential check
+before the first read and another after the completed actual dispatcher call,
+checking all required scopes/permissions before disclosure. MCP needs that fence
+inside its awaited tool callback, not only around an outer Response. Writes
+retain fresh before/after guards; no read group is reused across invocations.
+Preserve the restricted context rather than substituting current owner/Admin
+authority. Ledger principal resolution is not a host credential verifier.
 
-Read the DEVELOPMENT [wire contract](https://github.com/pegma-dev/knowledge-base/blob/main/docs/AGENT_API.md#optional-native-client-report-mode),
-[native-client workflow](https://github.com/pegma-dev/knowledge-base/blob/main/docs/AGENT_WORKFLOW.md#submit-a-report-and-poll-through-the-same-mcp-connection)
-and [report lifecycle](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md)
-before composing this unpublished mode. The verified `0.1.2` release does not
-contain it; its own reviewed publication and host/client acceptance remain open.
+The optional application context/read-confirm pair is trusted composition only.
+Its opaque observation is instance- and caller-bound, single-use read
+bookkeeping; it is neither authority nor an attestation and never reaches the
+agent or durable records. Fewer repeated reads do not establish a D1 Free50,
+CPU, physical-row or latency guarantee; actual host profiles remain unproven.
+
+Read the verified `0.1.3` [wire contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/AGENT_API.md#optional-native-client-report-mode),
+[native-client workflow](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/AGENT_WORKFLOW.md#submit-a-report-and-poll-through-the-same-mcp-connection)
+and [report lifecycle](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/EVIDENCE_REPORTS.md)
+for the published report trio. The aggregate query and context/read-confirm pair
+are DEVELOPMENT `0.1.4` additions and require their own verified publication
+before host adoption. Actual client/host acceptance remains open.
 
 ## Local verification and release
 
@@ -121,9 +150,9 @@ Each package has its own README, MIT LICENSE, build-on-prepack hook, and
 compiled-test exclusion. All four package versions remain synchronized with
 exact internal dependency pins. Publishing, release tags, trusted-publisher configuration, and
 host activation are separate maintainer operations in the
-[release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RELEASING.md).
-The base-contract links above target verified `v0.1.2`; new report-mode links
-explicitly target DEVELOPMENT `main` until their own reviewed release tag exists.
+[release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/RELEASING.md).
+The published-contract links above target verified `v0.1.3`; new aggregate and
+context-pair source retains its separate `0.1.4` release gates.
 Source readers can use the
 explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)

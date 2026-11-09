@@ -44,8 +44,25 @@ export interface RetrievalCatalog {
   readonly scopes: readonly RetrievalScope[];
 }
 
+/** Invocation-local write-attempt allowance; never persisted or reused. */
+export interface RetrievalStepBudget {
+  remaining: number;
+}
+
+export class RetrievalStepBudgetError extends Error {
+  override readonly name = "RetrievalStepBudgetError";
+}
+
+function available(budget: RetrievalStepBudget | undefined): void {
+  if (budget !== undefined && budget.remaining === 0)
+    throw new RetrievalStepBudgetError();
+}
+
 export interface RetrievalRepository {
-  registerCollection(collectionId: string): Promise<void>;
+  registerCollection(
+    collectionId: string,
+    budget?: RetrievalStepBudget,
+  ): Promise<void>;
   readDirectory(): Promise<readonly string[]>;
   readCatalog(collectionId: string): Promise<RetrievalCatalog>;
   /** Every returned page/entry must be charged before query filtering/deduplication. */
@@ -58,10 +75,12 @@ export interface RetrievalRepository {
   ): Promise<RetrievalProjectionState | null>;
   beginArticleProjection(
     input: BeginArticleProjectionInput,
+    budget?: RetrievalStepBudget,
   ): Promise<RetrievalProjectionState>;
   advanceArticleProjection(
     articleId: string,
     expectedGeneration: number,
+    budget?: RetrievalStepBudget,
   ): Promise<{
     readonly state: RetrievalProjectionState;
     readonly complete: boolean;
@@ -72,6 +91,7 @@ export interface RetrievalRepository {
     generation: number,
     reason: RetrievalBlockedReason,
     sourceGeneration?: number,
+    budget?: RetrievalStepBudget,
   ): Promise<RetrievalProjectionState>;
 }
 
@@ -113,6 +133,12 @@ interface PostingPage {
   readonly termHash: string;
   readonly page: number;
   readonly entries: readonly StoredPostingEntry[];
+}
+
+interface LoadedPosting {
+  readonly head: VersionedRecord<RetrievalRecord> | null;
+  readonly pages: VersionedRecord<RetrievalRecord>[];
+  readonly entries: StoredPostingEntry[];
 }
 
 const maximumEpochs = 32;
@@ -373,6 +399,7 @@ export function createRetrievalRepository(
   async function transact(
     partition: string,
     actions: readonly TransactionAction<RetrievalRecord>[],
+    budget?: RetrievalStepBudget,
   ): Promise<boolean> {
     if (actions.length > maximumActions)
       throw new RepositoryCapacityError("index_transaction_actions");
@@ -384,6 +411,8 @@ export function createRetrievalRepository(
           : encodedBytes(encodeRetrievalRecord(action.value)) + 256;
     if (bytes > maximumTransactionBytes)
       throw new RepositoryCapacityError("index_transaction_bytes");
+    available(budget);
+    if (budget !== undefined) budget.remaining -= 1;
     return (await records.transact(partition, actions)).committed;
   }
   const write = (
@@ -394,13 +423,16 @@ export function createRetrievalRepository(
       ? { action: "insert", value }
       : { action: "putIfUnchanged", value, version: before.version };
 
-  async function readState(articleId: string): Promise<{
+  async function readState(
+    articleId: string,
+    preparedPartition?: string,
+  ): Promise<{
     state: RetrievalProjectionState;
     row: VersionedRecord<RetrievalRecord>;
   } | null> {
     requireIdentifier(articleId);
     const before = await get(
-      await articlePartition(articleId),
+      preparedPartition ?? (await articlePartition(articleId)),
       "head",
       "article",
     );
@@ -433,9 +465,13 @@ export function createRetrievalRepository(
       throw new RepositoryIntegrityError();
     }
   }
-  async function registerDirectory(collectionId: string): Promise<void> {
+  async function registerDirectory(
+    collectionId: string,
+    budget?: RetrievalStepBudget,
+  ): Promise<void> {
     requireIdentifier(collectionId, "collectionId");
     for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+      available(budget);
       const before = await get("directory", "head", "directory");
       let ids: readonly string[] = [];
       if (before !== null) {
@@ -449,14 +485,18 @@ export function createRetrievalRepository(
       if (ids.length >= limits.maxDirectoryCollections)
         throw new RepositoryCapacityError("index_directory");
       if (
-        await transact("directory", [
-          write(
-            row("directory", "head", "directory", {
-              collectionIds: [...ids, collectionId].sort(),
-            }),
-            before,
-          ),
-        ])
+        await transact(
+          "directory",
+          [
+            write(
+              row("directory", "head", "directory", {
+                collectionIds: [...ids, collectionId].sort(),
+              }),
+              before,
+            ),
+          ],
+          budget,
+        )
       )
         return;
     }
@@ -484,9 +524,11 @@ export function createRetrievalRepository(
   async function registerCatalog(
     state: RetrievalProjectionState,
     collectionId: string,
+    budget?: RetrievalStepBudget,
   ): Promise<void> {
-    await registerDirectory(collectionId);
+    await registerDirectory(collectionId, budget);
     for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+      available(budget);
       const loaded = await loadCatalog(collectionId);
       const existing = loaded.data.entries.find(
         (entry) => entry.articleId === state.articleId,
@@ -524,41 +566,59 @@ export function createRetrievalRepository(
         entries,
         epochs,
       } satisfies CatalogData);
-      if (await transact(loaded.partition, [write(value, loaded.row)])) return;
+      if (await transact(loaded.partition, [write(value, loaded.row)], budget))
+        return;
     }
     throw new RepositoryConflictError();
   }
 
-  async function loadPosting(
+  async function loadPostings(
     partition: string,
     scope: RetrievalScope,
-    termHash: string,
-  ): Promise<{
-    head: VersionedRecord<RetrievalRecord> | null;
-    pages: readonly VersionedRecord<RetrievalRecord>[];
-    entries: readonly StoredPostingEntry[];
-  }> {
-    const head = await get(partition, "posting:" + termHash, "posting");
-    if (head === null) return { head, pages: [], entries: [] };
-    const data = head.value.data as PostingHead;
-    try {
-      exactObject(data, ["termHash", "pages"]);
-      if (data.termHash !== termHash) throw new RepositoryIntegrityError();
-      requireGeneration(data.pages, 1);
-      if (data.pages > limits.maxPostingPagesPerTerm)
-        throw new RepositoryCapacityError("index_posting_pages");
-    } catch (error) {
-      if (error instanceof RepositoryCapacityError) throw error;
-      throw new RepositoryIntegrityError();
+    termHashes: readonly string[],
+  ): Promise<ReadonlyMap<string, LoadedPosting>> {
+    // Every key is ready before either Store wave. Head-declared page bounds
+    // remain authoritative; no page is dropped to fit a provider budget.
+    const heads = await Promise.all(
+      termHashes.map((termHash) =>
+        get(partition, "posting:" + termHash, "posting"),
+      ),
+    );
+    const requests: { termHash: string; page: number }[] = [];
+    for (const [index, termHash] of termHashes.entries()) {
+      const head = heads[index];
+      if (head === undefined) throw new RepositoryIntegrityError();
+      if (head === null) continue;
+      const data = head.value.data as PostingHead;
+      try {
+        exactObject(data, ["termHash", "pages"]);
+        if (data.termHash !== termHash) throw new RepositoryIntegrityError();
+        requireGeneration(data.pages, 1);
+        if (data.pages > limits.maxPostingPagesPerTerm)
+          throw new RepositoryCapacityError("index_posting_pages");
+      } catch (error) {
+        if (error instanceof RepositoryCapacityError) throw error;
+        throw new RepositoryIntegrityError();
+      }
+      for (let page = 0; page < data.pages; page += 1)
+        requests.push({ termHash, page });
     }
-    const pages: VersionedRecord<RetrievalRecord>[] = [];
-    const entries: StoredPostingEntry[] = [];
-    for (let page = 0; page < data.pages; page += 1) {
-      const loaded = await get(
-        partition,
-        "page:" + termHash + ":" + page,
-        "page",
-      );
+    const loadedPages = await Promise.all(
+      requests.map(({ termHash, page }) =>
+        get(partition, "page:" + termHash + ":" + page, "page"),
+      ),
+    );
+    const result = new Map<string, LoadedPosting>();
+    for (const [index, termHash] of termHashes.entries())
+      result.set(termHash, {
+        head: heads[index] ?? null,
+        pages: [],
+        entries: [],
+      });
+    for (const [index, request] of requests.entries()) {
+      const { termHash, page } = request;
+      const loaded = loadedPages[index];
+      if (loaded === undefined) throw new RepositoryIntegrityError();
       if (loaded === null) throw new RepositoryConflictError();
       try {
         const value = loaded.value.data as PostingPage;
@@ -584,29 +644,38 @@ export function createRetrievalRepository(
         );
         if (members.length > limits.postingPageEntries)
           throw new RepositoryCapacityError("index_posting_entries");
-        entries.push(...members);
+        result.get(termHash)!.entries.push(...members);
       } catch (error) {
         if (error instanceof RepositoryCapacityError) throw error;
         throw new RepositoryIntegrityError();
       }
-      pages.push(loaded);
+      result.get(termHash)!.pages.push(loaded);
     }
-    return { head, pages, entries };
+    return result;
   }
 
   async function applyScopeBatch(
     state: RetrievalProjectionState,
     scope: RetrievalScope,
+    budget?: RetrievalStepBudget,
   ): Promise<boolean> {
-    const partition = await scopePartition(scope);
-    const manifestId = "manifest:" + (await fingerprint(state.articleId));
+    const [partition, articleScope, articleHash] = await Promise.all([
+      scopePartition(scope),
+      articlePartition(state.articleId),
+      fingerprint(state.articleId),
+    ]);
+    const manifestId = "manifest:" + articleHash;
     const desired =
       state.targets.find((target) => sameScope(target.scope, scope)) ?? null;
     for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
-      const global = await readState(state.articleId);
+      available(budget);
+      const [global, headRow, manifestRow] = await Promise.all([
+        readState(state.articleId, articleScope),
+        get(partition, "head", "scope"),
+        get(partition, manifestId, "manifest"),
+      ]);
       if (global === null || global.state.generation !== state.generation)
         throw new RepositoryConflictError();
-      const headRow = await get(partition, "head", "scope");
       let head: ScopeHead | null = null;
       if (headRow !== null) {
         try {
@@ -621,7 +690,6 @@ export function createRetrievalRepository(
         )
           throw new RepositoryCapacityError("index_partition");
       }
-      const manifestRow = await get(partition, manifestId, "manifest");
       let previous: Manifest | null = null;
       if (manifestRow !== null) {
         try {
@@ -681,8 +749,9 @@ export function createRetrievalRepository(
         after: RetrievalRecord | null;
       }[] = [];
       let planningConflict = false;
+      const postings = await loadPostings(partition, scope, work);
       for (const termHash of work) {
-        const loaded = await loadPosting(partition, scope, termHash);
+        const loaded = postings.get(termHash)!;
         const old = actual.get(termHash);
         const found = loaded.entries.filter(
           (entry) => entry.hint.articleId === state.articleId,
@@ -834,7 +903,7 @@ export function createRetrievalRepository(
         throw new RepositoryCapacityError("index_partition_bytes");
       actions.unshift(write(nextHeadRow, headRow));
       // Every posting/manifest mutation changes this head. Its CAS also fences deletes.
-      if (!(await transact(partition, actions))) continue;
+      if (!(await transact(partition, actions, budget))) continue;
       return [...new Set([...actual.keys(), ...desiredTerms])].every(
         (term) => !differs(term),
       );
@@ -860,11 +929,9 @@ export function createRetrievalRepository(
     async readPostingPages(scope, term) {
       requireRetrievalScope(scope);
       const termHash = await retrievalTermHash(term);
-      const loaded = await loadPosting(
-        await scopePartition(scope),
-        scope,
-        termHash,
-      );
+      const loaded = (
+        await loadPostings(await scopePartition(scope), scope, [termHash])
+      ).get(termHash)!;
       return loaded.pages.map((page) => ({
         entries: (page.value.data as PostingPage).entries.map((entry) =>
           snapshotData(entry.hint),
@@ -874,7 +941,7 @@ export function createRetrievalRepository(
     async readArticleProjection(articleId) {
       return (await readState(articleId))?.state ?? null;
     },
-    async beginArticleProjection(input) {
+    async beginArticleProjection(input, budget) {
       const request = snapshotData(input);
       if (
         Object.keys(request).some(
@@ -920,6 +987,7 @@ export function createRetrievalRepository(
       );
       unique(targets.map((target) => scopeIdentity(target.scope)));
       for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+        available(budget);
         const before = await readState(request.articleId);
         const current = before?.state;
         if (
@@ -954,18 +1022,23 @@ export function createRetrievalRepository(
         const { reason: _reason, ...clean } = state;
         const partition = await articlePartition(request.articleId);
         if (
-          await transact(partition, [
-            write(
-              row(partition, "head", "article", clean),
-              before?.row ?? null,
-            ),
-          ])
+          await transact(
+            partition,
+            [
+              write(
+                row(partition, "head", "article", clean),
+                before?.row ?? null,
+              ),
+            ],
+            budget,
+          )
         )
           return clean;
       }
       throw new RepositoryConflictError();
     },
-    async advanceArticleProjection(articleId, expectedGeneration) {
+    async advanceArticleProjection(articleId, expectedGeneration, budget) {
+      available(budget);
       requireGeneration(expectedGeneration, 1);
       const before = await readState(articleId);
       if (before === null || before.state.generation !== expectedGeneration)
@@ -977,11 +1050,13 @@ export function createRetrievalRepository(
         return { state, complete: false, changed: false };
       const scope = state.pendingScopes[0];
       if (scope !== undefined) {
-        await registerCatalog(state, scope.collectionId);
-        if (!(await applyScopeBatch(state, scope)))
+        await registerCatalog(state, scope.collectionId, budget);
+        available(budget);
+        if (!(await applyScopeBatch(state, scope, budget)))
           return { state, complete: false, changed: true };
       }
       for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+        available(budget);
         const latest = await readState(articleId);
         if (latest === null || latest.state.generation !== expectedGeneration)
           throw new RepositoryConflictError();
@@ -1004,9 +1079,11 @@ export function createRetrievalRepository(
         };
         const partition = latest.row.value.partition;
         if (
-          await transact(partition, [
-            write(row(partition, "head", "article", next), latest.row),
-          ])
+          await transact(
+            partition,
+            [write(row(partition, "head", "article", next), latest.row)],
+            budget,
+          )
         )
           return { state: next, complete, changed: true };
       }
@@ -1017,6 +1094,7 @@ export function createRetrievalRepository(
       generation,
       reason,
       sourceGeneration,
+      budget,
     ) {
       requireGeneration(generation, 1);
       if (sourceGeneration !== undefined)
@@ -1024,6 +1102,7 @@ export function createRetrievalRepository(
       if (!["capacity", "source-unavailable", "conflict"].includes(reason))
         throw new TypeError("Expected a projection block reason");
       for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
+        available(budget);
         const before = await readState(articleId);
         if (
           before === null &&
@@ -1048,12 +1127,16 @@ export function createRetrievalRepository(
         const partition =
           before?.row.value.partition ?? (await articlePartition(articleId));
         if (
-          await transact(partition, [
-            write(
-              row(partition, "head", "article", state),
-              before?.row ?? null,
-            ),
-          ])
+          await transact(
+            partition,
+            [
+              write(
+                row(partition, "head", "article", state),
+                before?.row ?? null,
+              ),
+            ],
+            budget,
+          )
         )
           return state;
       }

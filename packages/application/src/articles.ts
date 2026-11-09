@@ -21,7 +21,11 @@ import {
   KnowledgeBasePrerequisiteError,
   requirePermission,
 } from "./errors.js";
-import { loadGovernanceContext } from "./governance.js";
+import {
+  confirmGovernanceObservation,
+  loadGovernanceContext,
+  readGovernanceObservation,
+} from "./governance.js";
 import { maximumRecordNativeBytes, type StoredArticle } from "./records.js";
 import type {
   KnowledgeRepository,
@@ -505,19 +509,11 @@ export function createArticleServices(
           if (typeof verifier?.verify !== "function") {
             throw new KnowledgeBasePrerequisiteError("evidence-verifier");
           }
-          const before = await loadGovernanceContext(
+          const before = await readGovernanceObservation(
             repository,
             stored.article.current.collectionId,
             options.clock.now(),
           );
-          const collection = await repository.readCollectionVersioned(
-            stored.article.current.collectionId,
-          );
-          if (collection?.value.configuration === undefined) {
-            throw new KnowledgeBasePrerequisiteError(
-              "governance-configuration",
-            );
-          }
           let attestation: VerificationEvidence["attestation"] | null;
           try {
             const verified = await verifier.verify({
@@ -525,7 +521,7 @@ export function createArticleServices(
               article: snapshotData(stored.article.current),
               submission: snapshotData(command.evidence),
               receipt: command.receipt,
-              configuration: snapshotData(collection.value.configuration),
+              configuration: snapshotData(before.configuration),
             });
             attestation =
               verified === null || verified === undefined
@@ -537,21 +533,11 @@ export function createArticleServices(
           if (attestation === null || attestation === undefined) {
             throw new KnowledgeBasePrerequisiteError("evidence-verifier");
           }
-          const after = await loadGovernanceContext(
-            repository,
-            stored.article.current.collectionId,
-            options.clock.now(),
-          );
-          if (
-            before.governanceGeneration !== after.governanceGeneration ||
-            before.validationGeneration !== after.validationGeneration ||
-            collection.value.generation !== before.governanceGeneration
-          )
-            throw new RepositoryConflictError();
+          await confirmGovernanceObservation(repository, before);
           const article = await recordEvidence(stored.article, {
             evidence: command.evidence,
             attestation,
-            context: after.context,
+            context: { ...before.context, at: options.clock.now() },
           });
           return { next: { ...withoutPendingReview(stored), article } };
         },

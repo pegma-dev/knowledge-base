@@ -15,8 +15,11 @@ over this API; it supplies no login or token issuer. Real-host acceptance and
 production activation remain separately gated.
 
 Existing versioned documentation links below describe the verified `v0.1.2`
-release. The optional report service is new unpublished `0.1.3` candidate source;
-the new guide uses DEVELOPMENT `main` until its own reviewed release tag exists.
+release. The optional report service shipped in the verified
+[`v0.1.3` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
+Governed authoring-context and report-query additions are unpublished `0.1.4`
+candidate source; their guide uses DEVELOPMENT `main` until their reviewed
+release tag exists.
 Source readers can use the explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
 while preparing a release. The versioned contract references remain tag-pinned;
@@ -130,11 +133,49 @@ proof availability, and revocation remain live checks. Article CAS cannot
 globally fence separate collection/
 validation-policy partitions.
 
-## Human-reviewed evidence reports (`0.1.3` source candidate)
+## Governed authoring reads (new source)
+
+`getAuthoringContext(access, { articleId, includeEvidence?: boolean })`
+returns `{ context, observation }`. The context contains the current draft and
+narrow validation requirements, without hydrating private provenance or an
+unrelated retained publication. It requires `draftRead` and either `draftWrite`
+or `evidenceSubmit`. Explicit `includeEvidence: true` additionally requires
+`evidenceRead` and returns the complete current evidence and revocation DTO at
+the same article generation. Omission excludes that material; it does not mean
+empty accepted evidence or revocation history.
+
+The read confirms exact article, collection and validation-policy head versions.
+`confirmAuthoringContext(access, observation)` checks those heads again under
+the original actor and required permissions. It consumes the instance-bound
+handle before storage, including on failure. Keep it only within the current
+operation: never clone, serialize, persist or send it to a client. It grants
+no permission or evidence/publication authority, and supplies no cross-partition
+lock. Resolve host authority freshly at its existing operation boundaries.
+
+Reports can opt into these methods through the optional paired
+`authoringContext` factory port. Deferred forwarding closures preserve the
+application/verifier construction cycle. The required legacy `readContext`
+port and its two-context behavior remain supported. A report decision using
+the optional pair retains live entry, post-probe prewrite and postcommit staff
+checks; exact replay fingerprints contain no observation.
+
+`reports.query(access, { articleId, status?: { ledgerEpoch, reportId } })`
+combines safe requirements, ledger state and optional owner-only status. It
+requires `draftRead` plus `evidenceSubmit` and returns a body-free target binding,
+never a draft body, report, evidence or provenance. The optional MCP query port
+uses the existing requirements tool and response shape; it adds no scope/tool.
+
+Evidence/revocation keys are prepared before a parallel keyed-read wave, allowing
+a provider's optional batching without a new Store method or private SQL. This
+does not establish a host query/CPU budget: legitimate histories remain bounded
+by the existing component limits, and real host profiles need measured proof.
+
+## Human-reviewed evidence reports (`0.1.3` release)
 
 New source exports `createKnowledgeEvidenceReports` and its public option,
-input, view, acknowledgement and error types. This API is unpublished in the
-synchronized `0.1.3` candidate and is absent from the verified `0.1.2` release.
+input, view, acknowledgement and error types. The factory shipped in verified
+`0.1.3`; the governed context/report-query additions are the unpublished
+synchronized `0.1.4` candidate.
 Its own review, current-head CI, trusted publication, strict consumer
 verification and host acceptance remain pending. The
 [DEVELOPMENT evidence-report guide](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md)
@@ -171,7 +212,7 @@ provider data controls; current publication checks remain mandatory.
 ranked prefix of whole articles within aggregate byte/token budgets with a
 positive local count; reconfirmation is exact and all-or-nothing.
 `retrieval.limits` can only lower fixed component ceilings.
-See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/v0.1.2/docs/RETRIEVAL.md)
+See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
 for the exact API, limits, authority/reference fences, and evaluation boundary.
 
 `repairArticleIndex`, `repairRetrievalPage`, and `getArticleIndexStatus` require
@@ -180,6 +221,34 @@ cursors. Pending/blocked status remains visible until repair converges;
 `ready` with `indexed: false` means a converged withdrawal. Projection cleanup
 may lag retirement/revocation, but current authority checks still reject
 ineligible publications. The host owns scheduling and recovery.
+
+The unpublished `0.1.4` candidate accepts optional `maxBatches` on keyed and
+paged repair. It must be a positive integer within the instance's
+`maxMaintenanceBatches`. Explicit `maxBatches: 1` shares one physical Store
+transaction attempt across the article's prerequisites, posting work and
+completion; failed CAS attempts count, while already-current prerequisites do
+not. Page repair applies the allowance separately to each resource, including
+collection-directory work. Use `limit: 1` as well when scheduling one resource
+per invocation. Omission retains legacy behavior: keyed repair can perform up
+to the instance's advancement allowance (default 32), and page repair gives
+each candidate one advancement with internal prerequisite/retry work.
+
+Committed manifests and pending scopes let later calls resume after partial
+failure or a lost acknowledgement. Budget exhaustion returns conservative
+`pending`; storage or current-source confirmation may still throw. Retain work
+on pending, blocked or error; acknowledge a host ready-key hint only after a
+current `ready` result and an unchanged hint version. Save actual successful
+scan continuations and repeat full cycles, including when individual articles
+remain pending. Existing atomic `article_changed` jobs remain recovery hints.
+No article mutation, Audit, receipt or proof history is discarded or reset.
+
+This bounds derived transaction attempts, not total backend queries, verifier
+I/O, host checkpoints, CPU or elapsed time. Prepared read waves preserve all
+required approved proofs and revocation markers, and final current publication,
+audience, source and head checks. Retained history is unchanged. They add no
+authorization cache and do not establish
+Workers Free quota acceptance. The candidate's own gates, trusted release and
+whole-host measurements remain separate.
 
 ## Storage and limits
 

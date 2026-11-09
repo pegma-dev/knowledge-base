@@ -20,10 +20,11 @@ import {
   KnowledgeBaseNotFoundError,
   KnowledgeBasePrerequisiteError,
 } from "./errors.js";
-import { loadGovernanceContext } from "./governance.js";
+import { readGovernanceObservation } from "./governance.js";
 import type {
   ArticlePublicationState,
   KnowledgeRepository,
+  ResourceVersion,
 } from "./repository.js";
 import {
   canonicalJson,
@@ -82,6 +83,7 @@ interface ConfirmationState {
   readonly revision: ArticleRevision;
   readonly source: SourceSnapshot;
   readonly use?: CollectionUse;
+  readonly versions: readonly ResourceVersion[];
 }
 
 function unavailable(): KnowledgeBaseNotFoundError {
@@ -152,22 +154,12 @@ async function publishedEvidence(
     references.length > knowledgeLimits.evidence
   )
     throw new RepositoryIntegrityError();
-  return Promise.all(
-    references.map(async (reference) => {
-      const [evidence, revoked] = await Promise.all([
-        repository.getEvidenceVersion(
-          current.articleId,
-          published.revision.number,
-          reference.id,
-          reference.version,
-        ),
-        repository.isEvidenceRevoked(current.articleId, reference.hash),
-      ]);
-      if (evidence === null || revoked || evidence.hash !== reference.hash)
-        throw unavailable();
-      return evidence;
-    }),
+  const evidence = await repository.readPublicationEvidence(
+    current.articleId,
+    published,
   );
+  if (evidence === null) throw unavailable();
+  return evidence;
 }
 
 /** One authority path for portal reads, customer bot retrieval, and private indexing. */
@@ -215,23 +207,8 @@ export function createPublicationChecker(
       }
       if (eligible.some((value) => value !== true)) throw unavailable();
     }
-    const [article, collection, validation] = await Promise.all([
-      repository.readResourceGeneration("article", state.binding.articleId),
-      repository.readResourceGeneration(
-        "collection",
-        state.binding.collectionId,
-      ),
-      repository.readResourceGeneration(
-        "validation",
-        state.binding.validationPolicy.id,
-      ),
-    ]);
-    if (
-      article !== state.binding.articleGeneration ||
-      collection !== state.binding.governanceGeneration ||
-      validation !== state.binding.validationGeneration
-    )
-      throw unavailable();
+    await repository.confirmResourceVersions(state.versions);
+    clockTime(options);
     authorize(state.access, state.purpose);
   }
 
@@ -271,7 +248,7 @@ export function createPublicationChecker(
         )
           throw unavailable();
         const at = clockTime(options);
-        const governance = await loadGovernanceContext(
+        const governance = await readGovernanceObservation(
           repository,
           revision.collectionId,
           at,
@@ -345,13 +322,26 @@ export function createPublicationChecker(
           sourceGeneration: source.generation,
           sourceSnapshotHash: source.hash,
         };
-        const state = immutable(
+        const state: ConfirmationState = immutable(
           snapshotData({
             access,
             purpose,
             binding,
             revision,
             source,
+            versions: [
+              { kind: "article", id: articleId, version: loaded!.version },
+              {
+                kind: "collection",
+                id: revision.collectionId,
+                version: governance.collectionVersion,
+              },
+              {
+                kind: "validation",
+                id: revision.validationPolicy.id,
+                version: governance.validationVersion,
+              },
+            ] satisfies readonly ResourceVersion[],
             ...(use === undefined ? {} : { use }),
           }),
         );
