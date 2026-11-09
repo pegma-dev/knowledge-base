@@ -1306,15 +1306,6 @@ export function createKnowledgeEvidenceReports(
         report.value.submittedBy !== access.principalId
       )
         throw new KnowledgeEvidenceReportsError("report_not_found");
-      await current(access, knowledgePermissions.evidenceSubmit);
-      const latestHead = await headVersion(articleId);
-      if (
-        latestHead.value.ledgerEpoch !== head.value.ledgerEpoch ||
-        latestHead.value.status !== head.value.status
-      )
-        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
-      if (latestHead.version !== head.version)
-        throw new KnowledgeEvidenceReportsError("ledger_changed");
       if (observed.observation !== undefined) {
         await confirmContext(access, observed.observation);
       } else {
@@ -1329,16 +1320,22 @@ export function createKnowledgeEvidenceReports(
         )
           throw new KnowledgeEvidenceReportsError("report_changed");
       }
-      // Observe owner status after every other awaited fence. These collections
-      // remain separate authorities; this finite observation is not a lock.
-      const latestReport =
+      // Context confirmation can await a ledger reset without changing the old
+      // report row. Observe both ledger and owner status after that work in one
+      // keyed-read wave; these separate authorities still provide no lock.
+      const [latestHead, latestReport] = await Promise.all([
+        headVersion(articleId),
         lookup === undefined
           ? undefined
-          : await observedReport(
-              articleId,
-              lookup.ledgerEpoch,
-              lookup.reportId,
-            );
+          : observedReport(articleId, lookup.ledgerEpoch, lookup.reportId),
+      ]);
+      if (
+        latestHead.value.ledgerEpoch !== head.value.ledgerEpoch ||
+        latestHead.value.status !== head.value.status
+      )
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (latestHead.version !== head.version)
+        throw new KnowledgeEvidenceReportsError("ledger_changed");
       if (
         report !== undefined &&
         (latestReport === undefined ||
@@ -1352,6 +1349,9 @@ export function createKnowledgeEvidenceReports(
           latestReport.value.reportHash !== report.value.reportHash)
       )
         throw new KnowledgeEvidenceReportsError("report_changed");
+      // Re-resolve only after the awaited resource observations, preserving the
+      // original credential's restricted permissions through final disclosure.
+      await current(access, knowledgePermissions.evidenceSubmit);
       return {
         target: {
           articleId,

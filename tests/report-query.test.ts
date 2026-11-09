@@ -11,11 +11,15 @@ import { storeFactories } from "../test/application-stores.js";
 import {
   confirmationPermission,
   evidenceReportsFixture,
+  reportBarrier,
 } from "../test/evidence-reports-fixtures.js";
 
 async function queryFixture(backing: Store, optimized = true) {
   const f = await evidenceReportsFixture(backing);
-  const hooks: { beforeConfirm?: () => Promise<void> } = {};
+  const hooks: {
+    beforeConfirm?: () => Promise<void>;
+    beforeLegacyContext?: () => Promise<void>;
+  } = {};
   const authoringContext = {
     getAuthoringContext: vi.fn(f.app.getAuthoringContext),
     confirmAuthoringContext: vi.fn(
@@ -28,7 +32,16 @@ async function queryFixture(backing: Store, optimized = true) {
       },
     ),
   };
-  const reports = f.freshReports(optimized ? { authoringContext } : {});
+  const reports = f.freshReports(
+    optimized
+      ? { authoringContext }
+      : {
+          readContext: async (caller, articleId) => {
+            await hooks.beforeLegacyContext?.();
+            return f.readContext(caller, articleId);
+          },
+        },
+  );
   async function packet() {
     const current = await f.current();
     const input = {
@@ -57,6 +70,47 @@ async function queryFixture(backing: Store, optimized = true) {
     packet,
     decision,
   };
+}
+
+/** Pause the real optimized confirmation, or the second real legacy context.
+ * Captured pauses occur after the legacy context's authoritative reads; the
+ * before-read variant lets article changes be observed by those actual reads.
+ * Every hook is one-shot so the concurrent public operation cannot deadlock. */
+function pauseFinalContext(
+  f: Awaited<ReturnType<typeof queryFixture>>,
+  optimized: boolean,
+  beforeLegacyRead = false,
+) {
+  const gate = reportBarrier();
+  if (optimized) {
+    f.queryHooks.beforeConfirm = async () => {
+      delete f.queryHooks.beforeConfirm;
+      await gate.wait();
+    };
+  } else {
+    let contexts = 0;
+    if (beforeLegacyRead) {
+      f.queryHooks.beforeLegacyContext = async () => {
+        if (++contexts !== 2) return;
+        delete f.queryHooks.beforeLegacyContext;
+        await gate.wait();
+      };
+    } else {
+      f.hooks.afterContext = async () => {
+        if (++contexts !== 2) return;
+        delete f.hooks.afterContext;
+        await gate.wait();
+      };
+    }
+  }
+  return gate;
+}
+
+function captureQuery(pending: Promise<unknown>) {
+  return pending.then(
+    (value) => ({ value }),
+    (error: unknown) => ({ error }),
+  );
 }
 
 for (const [backend, createStore] of storeFactories) {
@@ -217,6 +271,277 @@ for (const [backend, createStore] of storeFactories) {
       ).rejects.toMatchObject({ code: "ledger_epoch_changed" });
       expect(await f.rows()).toEqual(before);
     });
+
+    it.each([
+      { optimized: false, drain: false },
+      { optimized: true, drain: false },
+      { optimized: false, drain: true },
+      { optimized: true, drain: true },
+    ])(
+      "withholds the old epoch/receipt after reset during final context (optimized=$optimized, drain=$drain)",
+      async ({ optimized, drain }) => {
+        const f = await queryFixture(await createStore(), optimized);
+        const packet = await f.packet();
+        await f.reports.decide(
+          f.reviewer,
+          await f.decision(packet.ack),
+          "confirmed",
+        );
+        const before = await f.physicalRows();
+        const oldReport = before.find(({ value }) =>
+          value.id.startsWith("report:"),
+        );
+        const oldHead = before.find(({ value }) => value.id === "head");
+        if (oldReport === undefined || oldHead === undefined)
+          throw new Error("Expected real report and ledger head rows.");
+        const gate = pauseFinalContext(f, optimized);
+        const pending = f.reports.query(f.agent, {
+          articleId: f.articleId,
+          status: {
+            ledgerEpoch: packet.ack.ledgerEpoch,
+            reportId: packet.ack.reportId,
+          },
+        });
+        const outcome = captureQuery(pending);
+        try {
+          await gate.reached(pending);
+          let ledger = await f.reports.reset(f.reviewer, {
+            articleId: f.articleId,
+            commandId: "reset-during-final-query-context",
+            expectedLedgerEpoch: packet.ack.ledgerEpoch,
+          });
+          const resetRows = await f.physicalRows();
+          expect(
+            resetRows.find(({ value }) => value.id === oldReport.value.id),
+          ).toEqual(oldReport);
+          expect(
+            resetRows.find(({ value }) => value.id === "head")?.version,
+          ).not.toBe(oldHead.version);
+          if (drain) {
+            for (
+              let page = 0;
+              ledger.status === "resetting" && page < 4;
+              page++
+            )
+              ledger = await f.reports.drain(f.reviewer, {
+                articleId: f.articleId,
+                ledgerEpoch: ledger.ledgerEpoch,
+              });
+            expect(ledger.status).toBe("active");
+            expect(
+              (await f.physicalRows()).some(
+                ({ value }) => value.id === oldReport.value.id,
+              ),
+            ).toBe(false);
+          }
+          const settled = await f.rows();
+          const writes = f.observed.transactions.length;
+          gate.release();
+          await expect(outcome).resolves.toMatchObject({
+            error: {
+              code: drain
+                ? expect.stringMatching(
+                    /^(ledger_epoch_changed|report_not_found)$/u,
+                  )
+                : "ledger_epoch_changed",
+            },
+          });
+          expect(await f.rows()).toEqual(settled);
+          expect(f.observed.transactions).toHaveLength(writes);
+        } finally {
+          gate.release();
+          await outcome;
+        }
+      },
+    );
+
+    it.each([
+      { optimized: false, change: "suspend" },
+      { optimized: true, change: "suspend" },
+      { optimized: false, change: "revoke" },
+      { optimized: true, change: "revoke" },
+    ] as const)(
+      "re-resolves restricted authority after final context (optimized=$optimized, change=$change)",
+      async ({ optimized, change }) => {
+        const f = await queryFixture(await createStore(), optimized);
+        await f.packet();
+        const before = await f.rows();
+        const resolutions = f.resolvePrincipal.mock.calls.filter(
+          ([id]) => id === f.agent.principalId,
+        ).length;
+        const gate = pauseFinalContext(f, optimized);
+        const pending = f.reports.query(f.agent, { articleId: f.articleId });
+        const outcome = captureQuery(pending);
+        try {
+          await gate.reached(pending);
+          if (change === "suspend") f.principals.delete(f.agent.principalId);
+          else
+            f.principals.set(
+              f.agent.principalId,
+              access(
+                f.agent.principalId,
+                f.owner.permissions.filter(
+                  (permission) =>
+                    permission !== knowledgePermissions.evidenceSubmit,
+                ),
+              ),
+            );
+          gate.release();
+          await expect(outcome).resolves.toMatchObject({
+            error: { code: "forbidden" },
+          });
+          expect(
+            f.resolvePrincipal.mock.calls.filter(
+              ([id]) => id === f.agent.principalId,
+            ),
+          ).toHaveLength(resolutions + 2);
+          expect(await f.rows()).toEqual(before);
+          const projected = optimized
+            ? f.authoringContext.getAuthoringContext.mock.calls.at(-1)?.[0]
+            : f.readContext.mock.calls.at(-1)?.[0];
+          expect(projected?.permissions).toEqual(f.agent.permissions);
+          expect(f.agent.permissions).toHaveLength(3);
+        } finally {
+          gate.release();
+          await outcome;
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "refuses a head-only report claim during final context (optimized=%s)",
+      async (optimized) => {
+        const f = await queryFixture(await createStore(), optimized);
+        const packet = await f.packet();
+        const before = await f.physicalRows();
+        const report = before.find(({ value }) =>
+          value.id.startsWith("report:"),
+        );
+        const head = before.find(({ value }) => value.id === "head");
+        if (report === undefined || head === undefined)
+          throw new Error("Expected real query rows.");
+        const gate = pauseFinalContext(f, optimized);
+        const pending = f.reports.query(f.agent, {
+          articleId: f.articleId,
+          status: {
+            ledgerEpoch: packet.ack.ledgerEpoch,
+            reportId: packet.ack.reportId,
+          },
+        });
+        const outcome = captureQuery(pending);
+        try {
+          await gate.reached(pending);
+          const next = await f.packet();
+          expect(next.ack.reportId).not.toBe(packet.ack.reportId);
+          expect(next.ack.ledgerEpoch).toBe(packet.ack.ledgerEpoch);
+          const settled = await f.physicalRows();
+          expect(
+            settled.find(({ value }) => value.id === report.value.id),
+          ).toEqual(report);
+          expect(
+            settled.find(({ value }) => value.id === "head")?.version,
+          ).not.toBe(head.version);
+          const writes = f.observed.transactions.length;
+          gate.release();
+          await expect(outcome).resolves.toMatchObject({
+            error: { code: "ledger_changed" },
+          });
+          expect(await f.physicalRows()).toEqual(settled);
+          expect(f.observed.transactions).toHaveLength(writes);
+        } finally {
+          gate.release();
+          await outcome;
+        }
+      },
+    );
+
+    it.each([false, true])(
+      "retains the exact report mutation fence after final context (optimized=%s)",
+      async (optimized) => {
+        const f = await queryFixture(await createStore(), optimized);
+        const packet = await f.packet();
+        const command = await f.decision(packet.ack);
+        const old = (await f.physicalRows()).find(({ value }) =>
+          value.id.startsWith("report:"),
+        );
+        if (old === undefined) throw new Error("Expected the real report row.");
+        const gate = pauseFinalContext(f, optimized);
+        const pending = f.reports.query(f.agent, {
+          articleId: f.articleId,
+          status: {
+            ledgerEpoch: packet.ack.ledgerEpoch,
+            reportId: packet.ack.reportId,
+          },
+        });
+        const outcome = captureQuery(pending);
+        try {
+          await gate.reached(pending);
+          await f.reports.decide(f.reviewer, command, "confirmed");
+          const settled = await f.physicalRows();
+          expect(
+            settled.find(({ value }) => value.id === old.value.id)?.version,
+          ).not.toBe(old.version);
+          const writes = f.observed.transactions.length;
+          gate.release();
+          await expect(outcome).resolves.toMatchObject({
+            error: {
+              code: expect.stringMatching(/^(ledger_changed|report_changed)$/u),
+            },
+          });
+          expect(await f.physicalRows()).toEqual(settled);
+          expect(f.observed.transactions).toHaveLength(writes);
+        } finally {
+          gate.release();
+          await outcome;
+        }
+      },
+    );
+
+    it.each([
+      { optimized: false, change: "edit" },
+      { optimized: true, change: "edit" },
+      { optimized: false, change: "retire" },
+      { optimized: true, change: "retire" },
+    ] as const)(
+      "retains real article mutation/retirement fences after initial reads (optimized=$optimized, change=$change)",
+      async ({ optimized, change }) => {
+        const f = await queryFixture(await createStore(), optimized);
+        const packet = await f.packet();
+        const current = await f.current();
+        const before = await f.rows();
+        const gate = pauseFinalContext(f, optimized, true);
+        const pending = f.reports.query(f.agent, {
+          articleId: f.articleId,
+          status: {
+            ledgerEpoch: packet.ack.ledgerEpoch,
+            reportId: packet.ack.reportId,
+          },
+        });
+        const outcome = captureQuery(pending);
+        try {
+          await gate.reached(pending);
+          if (change === "edit") await f.updateDraft();
+          else
+            await f.app.retireArticle(f.reviewer, {
+              ...f.command("retire-during-query-context", current.generation),
+              articleId: f.articleId,
+            });
+          const changed = await f.current();
+          expect(changed.generation).toBeGreaterThan(current.generation);
+          if (change === "retire") expect(changed.state).toBe("retired");
+          const writes = f.observed.transactions.length;
+          gate.release();
+          await expect(outcome).resolves.toMatchObject({
+            error: { code: "report_changed" },
+          });
+          expect(await f.rows()).toEqual(before);
+          expect(f.observed.transactions).toHaveLength(writes);
+        } finally {
+          gate.release();
+          await outcome;
+        }
+      },
+    );
 
     it.each(["confirmed", "pending"] as const)(
       "refuses a %s decision/reassessment between the first and final report observations",

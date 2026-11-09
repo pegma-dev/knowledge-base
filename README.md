@@ -5,7 +5,7 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status as of 2026-11-08: KB-01 through KB-03 provide contracts, pure domain
+> Development status as of 2026-11-09: KB-01 through KB-03 provide contracts, pure domain
 > transitions, authorized application/persistence, and bounded retrieval/repair.
 > [Merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) adds
 > the optional five-operation HTTP/MCP adapter and authenticated protocol proof.
@@ -17,7 +17,7 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > OIDC provenance. All four `0.1.1` packages subsequently completed
 > [verified trusted publication](docs/BOOTSTRAP.md#historical-verified-011-release).
 > All four `0.1.2` packages have since completed
-> [verified trusted publication](docs/BOOTSTRAP.md#verified-knowledge-base-release)
+> [verified trusted publication](docs/BOOTSTRAP.md#historical-verified-012-release)
 > for SD-03 atomic draft/source authoring. All four `0.1.3` packages completed
 > [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3)
 > for optional human-reviewed [evidence reports](docs/EVIDENCE_REPORTS.md).

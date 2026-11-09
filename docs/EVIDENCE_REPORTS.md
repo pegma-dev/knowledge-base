@@ -51,10 +51,17 @@ The optional agent dispatcher's `reports` port can expose `report`, `ledger`
 and owner-only `status` through modes of its existing requirements/evidence
 tools, letting native clients submit and poll through the same MCP connection.
 The [agent wire contract](AGENT_API.md#optional-native-client-report-mode) defines
-those shapes; omitted-port legacy schemas stay unchanged. Host wrappers must
-revalidate the same authenticated request/grant before and after every awaited
-report-port call, preserving the restricted effective context. The ledger's
-current-principal resolver is not a host credential/grant verifier.
+those shapes; omitted-port legacy schemas stay unchanged. Keep initial request
+authentication and bind all work to the same original request, credential,
+principal, grant, client and resource. For pure report-port reads, hosts may
+revalidate before and after each awaited call or use the
+[request-local read-group boundary](AGENT_API.md#optional-native-client-report-mode):
+refresh full credential authority before the first read and after the completed
+actual dispatcher invocation, enforcing every required scope/permission clause
+before disclosure. The final MCP check belongs inside its awaited tool callback.
+Every write retains fresh before/after guards. Never reuse a read group across
+invocations or replace the restricted effective context with owner/Admin authority.
+The ledger's current-principal resolver is not a host credential/grant verifier.
 
 ## Optional governed context and query (`0.1.4` candidate)
 

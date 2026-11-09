@@ -112,8 +112,9 @@ authority. Ledger principal resolution is not a host credential verifier.
 The optional application context/read-confirm pair is trusted composition only.
 Its opaque observation is instance- and caller-bound, single-use read
 bookkeeping; it is neither authority nor an attestation and never reaches the
-agent or durable records. Fewer repeated reads do not establish a D1 Free50,
-CPU, physical-row or latency guarantee; actual host profiles remain unproven.
+agent or durable records. Fewer repeated reads do not prove that a complete host
+invocation fits the Workers Free limit of 50 D1 queries per invocation, or establish
+a CPU, physical-row or latency guarantee; actual host profiles remain unproven.
 
 Read the verified `0.1.3` [wire contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/AGENT_API.md#optional-native-client-report-mode),
 [native-client workflow](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/AGENT_WORKFLOW.md#submit-a-report-and-poll-through-the-same-mcp-connection)

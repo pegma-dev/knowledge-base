@@ -14,8 +14,8 @@ repair. The optional `@pegma/knowledge-base-mcp` package adds HTTP/MCP adapters
 over this API; it supplies no login or token issuer. Real-host acceptance and
 production activation remain separately gated.
 
-Existing versioned documentation links below describe the verified `v0.1.2`
-release. The optional report service shipped in the verified
+Links pinned to `v0.1.2` below retain that historical verified release contract.
+The optional report service shipped in the verified
 [`v0.1.3` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
 Governed authoring-context and report-query additions are unpublished `0.1.4`
 candidate source; their guide uses DEVELOPMENT `main` until their reviewed
@@ -212,8 +212,9 @@ provider data controls; current publication checks remain mandatory.
 ranked prefix of whole articles within aggregate byte/token budgets with a
 positive local count; reconfirmation is exact and all-or-nothing.
 `retrieval.limits` can only lower fixed component ceilings.
-See [retrieval](https://github.com/pegma-dev/knowledge-base/blob/main/docs/RETRIEVAL.md)
-for the exact API, limits, authority/reference fences, and evaluation boundary.
+See the verified `v0.1.3`
+[retrieval contract](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/RETRIEVAL.md)
+for its exact API, limits, authority/reference fences, and evaluation boundary.
 
 `repairArticleIndex`, `repairRetrievalPage`, and `getArticleIndexStatus` require
 `indexManage`. Only maintenance performs bounded physical scans with opaque

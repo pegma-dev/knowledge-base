@@ -79,7 +79,7 @@ async function converge(
     if (result.status !== "pending") return result;
   }
   throw new Error(
-    "Bounded synthetic article repair made no convergence within48 steps",
+    "Bounded synthetic article repair made no convergence within 48 steps",
   );
 }
 
@@ -96,7 +96,7 @@ async function reached(
       }),
       new Promise<never>((_resolve, reject) => {
         timer = setTimeout(
-          () => reject(new Error("Repair barrier exceeded10seconds")),
+          () => reject(new Error("Repair barrier exceeded 10 seconds")),
           10_000,
         );
       }),
