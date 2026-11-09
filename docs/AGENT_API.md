@@ -5,10 +5,11 @@ an MCP adapter, and a Web Request/Response adapter. Both transports invoke the
 existing `KnowledgeBaseApplication`; neither introduces
 an authorization engine or another article lifecycle. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
-have since completed verified trusted publication. The current verified KB
-release is [`0.1.2`](BOOTSTRAP.md#current-verified-012-release).
-Optional report mode is new unpublished `0.1.3` candidate source, with its own
-review, gates and verified trusted release pending.
+have since completed verified trusted publication. All four KB packages are now
+verified published at [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3),
+including optional human-reviewed report mode. The synchronized `0.1.4` source
+candidate adds the governed authoring-context pair and optional aggregate report
+query. Its own review, gates, publication and strict verification remain open.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
 [release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
 synthetic transport tests does not establish live host login, protected staging
@@ -100,7 +101,7 @@ artifact URL and executes no guide step.
 
 ## Optional native-client report mode
 
-The unpublished `0.1.3` source adds an optional `reports` port:
+The verified `0.1.3` release includes an optional `reports` port:
 `Pick<KnowledgeEvidenceReports, "report" | "ledger" | "status">`. A host can
 compose the shared [human-report factory](EVIDENCE_REPORTS.md) behind this port.
 It adds no tool or scope. The same MCP connection advertises extended strict
@@ -108,6 +109,24 @@ input schemas/descriptions for the existing requirements and evidence tools;
 HTTP accepts the same versioned envelopes. Clients cannot enable the mode
 through a request flag. When `reports` is omitted, legacy tool schemas,
 accepted inputs and result shapes remain unchanged; extension fields reject.
+
+The unpublished `0.1.4` candidate additionally accepts optional `reports.query`,
+extending that trio with `Partial<Pick<KnowledgeEvidenceReports, "query">>`.
+The trusted method is `query(access, { articleId, status?: { ledgerEpoch,
+reportId } })`. Its body-free result contains `target: { articleId, generation,
+collectionId, kind }`, `requirements`, `ledger`, and optional owner-only `status`.
+The dispatcher makes one query call for report-aware requirements and projects
+only the existing requirements/reportLedger/reportStatus fields. Internal target
+metadata and ledger capacity are not new wire fields. This is a producer port,
+not an additional tool, scope, client flag or client-supplied authority.
+
+Supplying only the original trio retains its existing observation sequence.
+Legacy requirements without `articleId` do not invoke query. A configured query's
+failure or malformed output never falls back to a potentially different read;
+missing or unsolicited status and inconsistent target/status identities refuse.
+Collection/kind and epoch conflicts retain their existing safe errors. The
+native query owns its current target, governance, ledger and final owner-status
+observations; these do not form a cross-collection transaction.
 
 The public types are `KnowledgeAgentReportRequirementsInput`,
 `KnowledgeAgentReportRequirementsResult`, `KnowledgeAgentReportSubmissionInput`,
@@ -161,13 +180,24 @@ Explicit reassessment rotates the receipt cycle; poll for its current receipt
 and obtain a new human confirmation before submitting it.
 
 The optional port is trusted host composition, not a credential verifier. Bind
-each `report`, `ledger` and `status` call to the same authenticated request/grant
-and recheck that grant's identity, scope/resource restrictions and revocation
-before and after awaited work. Preserve the dispatcher-supplied restricted
-context; a freshly resolved owner/Admin context must not replace it. The host
-must fence current grant changes during these awaits as well as authenticate
-the initial transport request. The shared ledger's current-principal checks
-do not independently authenticate a host grant.
+all report/query work to the same original authenticated request, credential,
+principal, grant, client and resource. Authenticate the initial transport request.
+For pure reads, a host may retain per-port checks or use a request-local read
+group: refresh full credential authority before its first read, enforce every
+required permission clause on its restricted context, then refresh full current
+authority after the completed actual `dispatcher.dispatch` invocation and before
+any result is disclosed. Recheck the original header and all used scope and
+permission requirements; never reuse the group across dispatches. MCP's actual
+awaited tool callback is the boundary, not an outer Response that might precede
+asynchronous tool work. Preserve fresh before/after guards on every write.
+
+Preserve the dispatcher-supplied restricted context; a freshly resolved
+owner/Admin context must not replace it. The shared ledger's current-principal
+checks do not independently authenticate a host grant. The `0.1.4` application
+context/confirmation pair can reduce repeated governed reads, but its opaque,
+single-use observation is instance- and caller-bound read bookkeeping, not a
+credential, evidence attestation or permission. It is never serialized, stored
+or supplied by the agent. See [report composition](EVIDENCE_REPORTS.md).
 
 Report writes and article reads/commits are separate. A later fence failure
 can withhold a response after a report was queued; conflict or unavailability
@@ -191,6 +221,9 @@ decision, reset/drain, private-evidence read or publication tool is added.
 The [public types](../packages/mcp/src/types.ts) and
 [source protocol cases](../tests/agent-reports.test.ts) cover this optional mode;
 actual native-client/host acceptance remains separate.
+Reducing public-port calls does not establish a D1 query, CPU, physical-row or
+wall-clock allowance. Actual supported host profiles still require measurement;
+this candidate makes no universal Free-tier acceptance claim.
 
 ## HTTP composition
 

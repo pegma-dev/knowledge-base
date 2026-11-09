@@ -14,7 +14,10 @@ import {
   type ArticleRevision,
 } from "@pegma/knowledge-base-contracts";
 import { defineCollection, type EntityKey } from "@pegma/storage-core";
-import type { EvidenceVerifier } from "./types.js";
+import type {
+  EvidenceVerifier,
+  KnowledgeAuthoringContextObservation,
+} from "./types.js";
 import type {
   KnowledgeTestReport,
   KnowledgeReportAcknowledgement,
@@ -35,7 +38,7 @@ import {
   KnowledgeBaseAuthorizationError,
   KnowledgeBaseNotFoundError,
 } from "./errors.js";
-import { snapshotData } from "./storage-helpers.js";
+import { RepositoryConflictError, snapshotData } from "./storage-helpers.js";
 
 const MAX_REPORTS = 16;
 const MAX_ROWS = 160;
@@ -679,10 +682,28 @@ export function createKnowledgeEvidenceReports(
     ].some((permission) => permission === confirmationPermission) ||
     typeof options.resolvePrincipal !== "function" ||
     typeof options.readContext !== "function" ||
+    (options.authoringContext !== undefined &&
+      (options.authoringContext === null ||
+        typeof options.authoringContext.getAuthoringContext !== "function" ||
+        typeof options.authoringContext.confirmAuthoringContext !==
+          "function")) ||
     typeof options.store?.collection !== "function" ||
     typeof options.clock?.now !== "function"
   )
     throw new KnowledgeEvidenceReportsError("invalid_configuration");
+  const authoringContext =
+    options.authoringContext === undefined
+      ? undefined
+      : {
+          getAuthoringContext:
+            options.authoringContext.getAuthoringContext.bind(
+              options.authoringContext,
+            ),
+          confirmAuthoringContext:
+            options.authoringContext.confirmAuthoringContext.bind(
+              options.authoringContext,
+            ),
+        };
   function storageKey(articleId: string, id: string): EntityKey {
     if (storageLayout === "legacy-raw-v1") return { partition: articleId, id };
     const partition = encodedKey("a-", articleId);
@@ -810,13 +831,56 @@ export function createKnowledgeEvidenceReports(
       throw new KnowledgeEvidenceReportsUnavailableError("report_identity");
     return report;
   }
-  async function context(
+  async function observedReport(
+    articleId: string,
+    epoch: number,
+    reportId: string,
+  ) {
+    const saved = await ledgerIo("report_read", () =>
+      records.getVersioned(storageKey(articleId, reportKey(epoch, reportId))),
+    );
+    if (saved === null)
+      throw new KnowledgeEvidenceReportsError("report_not_found");
+    const report = decodeReport(saved.value.payload);
+    if (
+      saved.value.articleId !== articleId ||
+      saved.value.id !== reportKey(epoch, reportId) ||
+      report.articleId !== articleId ||
+      report.reportId !== reportId ||
+      report.ledgerEpoch !== epoch
+    )
+      throw new KnowledgeEvidenceReportsUnavailableError("report_identity");
+    return { value: report, version: saved.version };
+  }
+  async function observeContext(
     access: AccessContext,
     articleId: string,
-  ): Promise<KnowledgeEvidenceContext> {
+    includeEvidence: boolean,
+  ): Promise<{
+    readonly value: KnowledgeEvidenceContext;
+    readonly observation?: KnowledgeAuthoringContextObservation;
+  }> {
     try {
+      const observed =
+        authoringContext === undefined
+          ? undefined
+          : await authoringContext.getAuthoringContext(callerContext(access), {
+              articleId,
+              includeEvidence,
+            });
+      if (
+        authoringContext !== undefined &&
+        (observed === undefined ||
+          observed.observation === null ||
+          typeof observed.observation !== "object")
+      )
+        throw new KnowledgeEvidenceReportsUnavailableError("context_read");
+      // Only detach JSON context. The instance-bound observation must never be
+      // cloned, persisted, hashed into report identity, or exposed in a DTO.
       const value = snapshotData(
-        await options.readContext(callerContext(access), articleId),
+        observed === undefined
+          ? await options.readContext(callerContext(access), articleId)
+          : observed.context,
       );
       if (
         value.draft.articleId !== articleId ||
@@ -853,13 +917,52 @@ export function createKnowledgeEvidenceReports(
           }
         });
       }
-      return value;
+      if (
+        authoringContext !== undefined &&
+        includeEvidence &&
+        value.evidence === undefined
+      )
+        throw new KnowledgeEvidenceReportsUnavailableError("context_read");
+      return {
+        value,
+        ...(observed === undefined
+          ? {}
+          : { observation: observed.observation }),
+      };
     } catch (error) {
       if (error instanceof KnowledgeEvidenceReportsError) throw error;
       if (error instanceof KnowledgeBaseAuthorizationError)
         throw new KnowledgeEvidenceReportsError("forbidden");
       if (error instanceof KnowledgeBaseNotFoundError)
         throw new KnowledgeEvidenceReportsError("report_target_unavailable");
+      throw new KnowledgeEvidenceReportsUnavailableError("context_read");
+    }
+  }
+  async function context(
+    access: AccessContext,
+    articleId: string,
+    includeEvidence = hasPermission(access, knowledgePermissions.evidenceRead),
+  ): Promise<KnowledgeEvidenceContext> {
+    return (await observeContext(access, articleId, includeEvidence)).value;
+  }
+  async function confirmContext(
+    access: AccessContext,
+    observation: KnowledgeAuthoringContextObservation,
+  ): Promise<void> {
+    try {
+      if (authoringContext === undefined)
+        throw new KnowledgeEvidenceReportsUnavailableError("context_read");
+      await authoringContext.confirmAuthoringContext(
+        callerContext(access),
+        observation,
+      );
+    } catch (error) {
+      if (error instanceof KnowledgeEvidenceReportsUnavailableError)
+        throw error;
+      if (error instanceof RepositoryConflictError)
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      if (error instanceof KnowledgeBaseAuthorizationError)
+        throw new KnowledgeEvidenceReportsError("forbidden");
       throw new KnowledgeEvidenceReportsUnavailableError("context_read");
     }
   }
@@ -1011,12 +1114,9 @@ export function createKnowledgeEvidenceReports(
         receiptGeneration: report.receiptGeneration,
       },
     });
-    await current(
-      access,
-      previousVersion === undefined
-        ? knowledgePermissions.evidenceSubmit
-        : confirmationPermission,
-    );
+    if (previousVersion === undefined)
+      await current(access, knowledgePermissions.evidenceSubmit);
+    else await staff(access);
     const headRow = row(report.articleId, "head", {
       ...head.value,
       reports,
@@ -1086,8 +1186,10 @@ export function createKnowledgeEvidenceReports(
         const epoch = positive(Number(receipt[1]));
         const cycle = positive(Number(receipt[2]));
         const reportId = scalar(receipt[3]);
-        await active(request.article.articleId, epoch);
-        const report = await load(request.article.articleId, epoch, reportId);
+        const [, report] = await Promise.all([
+          active(request.article.articleId, epoch),
+          load(request.article.articleId, epoch, reportId),
+        ]);
         if (
           report.receiptGeneration !== cycle ||
           report.status !== "confirmed" ||
@@ -1165,6 +1267,110 @@ export function createKnowledgeEvidenceReports(
   };
   return Object.freeze({
     verifier,
+    async query(access, input) {
+      input = requestData(input);
+      access = await current(access, knowledgePermissions.evidenceSubmit);
+      if (!hasPermission(access, knowledgePermissions.draftRead))
+        throw new KnowledgeEvidenceReportsError("forbidden");
+      const request = optionalKeysObject(input, ["articleId"], ["status"]);
+      const articleId = scalar(request.articleId);
+      const statusInput = Object.hasOwn(request, "status")
+        ? exactObject(request.status, ["ledgerEpoch", "reportId"])
+        : undefined;
+      const lookup =
+        statusInput === undefined
+          ? undefined
+          : {
+              ledgerEpoch: positive(statusInput.ledgerEpoch),
+              reportId: scalar(statusInput.reportId),
+            };
+      const observed = await observeContext(access, articleId, false);
+      const first = observed.value;
+      const head = await headVersion(articleId);
+      if (lookup !== undefined) {
+        if (head.value.ledgerEpoch !== lookup.ledgerEpoch)
+          throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+        if (head.value.status !== "active")
+          throw new KnowledgeEvidenceReportsError("ledger_resetting");
+      }
+      const report =
+        lookup === undefined
+          ? undefined
+          : await observedReport(
+              articleId,
+              lookup.ledgerEpoch,
+              lookup.reportId,
+            );
+      if (
+        report !== undefined &&
+        report.value.submittedBy !== access.principalId
+      )
+        throw new KnowledgeEvidenceReportsError("report_not_found");
+      if (observed.observation !== undefined) {
+        await confirmContext(access, observed.observation);
+      } else {
+        const latest = await context(access, articleId, false);
+        if (
+          latest.draft.generation !== first.draft.generation ||
+          latest.draft.revision.collectionId !==
+            first.draft.revision.collectionId ||
+          latest.draft.revision.kind !== first.draft.revision.kind ||
+          (await knowledgeDigest(latest.requirements)) !==
+            (await knowledgeDigest(first.requirements))
+        )
+          throw new KnowledgeEvidenceReportsError("report_changed");
+      }
+      // Context confirmation can await a ledger reset without changing the old
+      // report row. Observe both ledger and owner status after that work in one
+      // keyed-read wave; these separate authorities still provide no lock.
+      const [latestHead, latestReport] = await Promise.all([
+        headVersion(articleId),
+        lookup === undefined
+          ? undefined
+          : observedReport(articleId, lookup.ledgerEpoch, lookup.reportId),
+      ]);
+      if (
+        latestHead.value.ledgerEpoch !== head.value.ledgerEpoch ||
+        latestHead.value.status !== head.value.status
+      )
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (latestHead.version !== head.version)
+        throw new KnowledgeEvidenceReportsError("ledger_changed");
+      if (
+        report !== undefined &&
+        (latestReport === undefined ||
+          latestReport.version !== report.version ||
+          latestReport.value.submittedBy !== access.principalId ||
+          latestReport.value.reportGeneration !==
+            report.value.reportGeneration ||
+          latestReport.value.receiptGeneration !==
+            report.value.receiptGeneration ||
+          latestReport.value.status !== report.value.status ||
+          latestReport.value.reportHash !== report.value.reportHash)
+      )
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      // Re-resolve only after the awaited resource observations, preserving the
+      // original credential's restricted permissions through final disclosure.
+      await current(access, knowledgePermissions.evidenceSubmit);
+      return {
+        target: {
+          articleId,
+          generation: first.draft.generation,
+          collectionId: first.draft.revision.collectionId,
+          kind: first.draft.revision.kind,
+        },
+        requirements: first.requirements,
+        ledger: state(articleId, latestHead.value),
+        ...(latestReport === undefined
+          ? {}
+          : {
+              status: {
+                ...acknowledgement(latestReport.value),
+                status: latestReport.value.status,
+              },
+            }),
+      };
+    },
     async ledger(access, input) {
       input = requestData(input);
       access = await current(access, knowledgePermissions.evidenceSubmit);
@@ -1221,7 +1427,7 @@ export function createKnowledgeEvidenceReports(
       }
       if (!validSubmissionSyntax(evidence))
         throw new KnowledgeEvidenceReportsError("invalid_request");
-      const valueContext = await context(access, articleId);
+      const valueContext = await context(access, articleId, false);
       if (
         expectedArticleGeneration !== undefined &&
         valueContext.draft.generation !== expectedArticleGeneration
@@ -1331,7 +1537,7 @@ export function createKnowledgeEvidenceReports(
       const epoch = positive(input.ledgerEpoch);
       await active(articleId, epoch);
       const report = await load(articleId, epoch, scalar(input.reportId));
-      const valueContext = await context(access, articleId);
+      const valueContext = await context(access, articleId, true);
       const reviewBindingHash = await knowledgeDigest({
         report,
         context: valueContext,
@@ -1411,7 +1617,8 @@ export function createKnowledgeEvidenceReports(
           : report.status !== "pending")
       )
         throw new KnowledgeEvidenceReportsError("report_changed");
-      const valueContext = await context(access, articleId);
+      const observed = await observeContext(access, articleId, true);
+      const valueContext = observed.value;
       if (
         (await knowledgeDigest({ report, context: valueContext })) !== binding
       )
@@ -1442,12 +1649,19 @@ export function createKnowledgeEvidenceReports(
         !(await valid(next, valueContext.draft.revision, valueContext, at))
       )
         throw new KnowledgeEvidenceReportsError("report_not_verifiable");
-      const latestContext = await context(await staff(access), articleId);
-      if (
-        (await knowledgeDigest(valueContext)) !==
-        (await knowledgeDigest(latestContext))
-      )
-        throw new KnowledgeEvidenceReportsError("report_changed");
+      if (observed.observation !== undefined) {
+        // This probe releases no DTO or side effect. write() resolves the
+        // original caller's complete live staff authority after the probe and
+        // its head read, immediately before CAS, then again after commit.
+        await confirmContext(access, observed.observation);
+      } else {
+        const latestContext = await context(await staff(access), articleId);
+        if (
+          (await knowledgeDigest(valueContext)) !==
+          (await knowledgeDigest(latestContext))
+        )
+          throw new KnowledgeEvidenceReportsError("report_changed");
+      }
       return write(access, commandId, fingerprint, next, saved.version);
     },
     async reset(access, value) {

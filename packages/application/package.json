@@ -1,6 +1,6 @@
 {
   "name": "@pegma/knowledge-base-application",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Authorized knowledge authoring, evidence, review, and publication over Pegma storage.",
   "license": "MIT",
   "type": "module",
@@ -31,8 +31,8 @@
   "dependencies": {
     "@pegma/audit": "0.2.0",
     "@pegma/authorization-core": "0.4.0",
-    "@pegma/knowledge-base-contracts": "0.1.3",
-    "@pegma/knowledge-base-core": "0.1.3",
+    "@pegma/knowledge-base-contracts": "0.1.4",
+    "@pegma/knowledge-base-core": "0.1.4",
     "@pegma/spine": "0.1.2",
     "@pegma/storage-core": "0.4.0"
   },

@@ -9,13 +9,17 @@ KB-03 extends the existing application package; it creates no new package,
 database, model integration, or authentication system. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
 completed [historical verified trusted publication](BOOTSTRAP.md#historical-verified-011-release),
-followed by the current
-[verified `0.1.2` release](BOOTSTRAP.md#current-verified-012-release).
-Source `0.1.3` is the unpublished human-report candidate. Source tests and
+followed by the [historical `0.1.2` release](BOOTSTRAP.md#historical-verified-012-release)
+and current [verified `0.1.3` release](BOOTSTRAP.md#current-verified-013-release).
+Source `0.1.4` is the unpublished governed authoring-context/report-query candidate. Source tests and
 repository gates, not this document, determine completion. KB-04's optional HTTP/MCP adapter source
 is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The candidate's
 verified trusted release, real-host acceptance, and production activation retain
 their own gates.
+
+The optional bounded repair mode described below is also unpublished `0.1.4`
+candidate behavior. It requires the candidate's own validation and release;
+this guide does not establish a passing host quota or CPU profile.
 
 Read [declared collections](COLLECTIONS.md) for the authoritative record
 layout and [host composition](HOST_COMPOSITION.md) for trusted access,
@@ -110,22 +114,22 @@ These are component work/admission ceilings, not measured production capacity
 or retrieval-quality certification. Hosts may configure lower values only.
 Each independent bound still applies when another bound has remaining space.
 
-| Scope                 | Ceiling                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| Directory             | 64 collections per instance                                                                      |
-| Catalog               | 256 articles per collection                                                                      |
-| Terms                 | 256 indexed terms per article                                                                    |
-| Posting               | 16 entries per page; 16 pages per term                                                           |
-| Projection partition  | 8,192 physical rows and 16 MiB encoded-record estimate                                           |
-| Query                 | 256 UTF-16 code units and 8 distinct normalized terms                                            |
-| Bot query scope       | 4 collections                                                                                    |
-| Request index work    | 128 keyed index reads and 2,048 posting entries                                                  |
-| Request article work  | 64 head probes and 8 full authoritative confirmations                                            |
-| Returned sources      | 5 whole articles and 64 KiB of content                                                           |
-| Model source budget   | 8,192 tokens in the complete serialized source set                                               |
-| Request physical work | 768 total physical keyed reads                                                                   |
-| Maintenance scan      | Configured row ceiling 100; actual page also bounded by requested limit and shared batch ceiling |
-| Maintenance batches   | 32 shared per maintenance call; at most 32 physical scan rows with defaults                      |
+| Scope                 | Ceiling                                                                                                                             |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Directory             | 64 collections per instance                                                                                                         |
+| Catalog               | 256 articles per collection                                                                                                         |
+| Terms                 | 256 indexed terms per article                                                                                                       |
+| Posting               | 16 entries per page; 16 pages per term                                                                                              |
+| Projection partition  | 8,192 physical rows and 16 MiB encoded-record estimate                                                                              |
+| Query                 | 256 UTF-16 code units and 8 distinct normalized terms                                                                               |
+| Bot query scope       | 4 collections                                                                                                                       |
+| Request index work    | 128 keyed index reads and 2,048 posting entries                                                                                     |
+| Request article work  | 64 head probes and 8 full authoritative confirmations                                                                               |
+| Returned sources      | 5 whole articles and 64 KiB of content                                                                                              |
+| Model source budget   | 8,192 tokens in the complete serialized source set                                                                                  |
+| Request physical work | 768 total physical keyed reads                                                                                                      |
+| Maintenance scan      | Configured row ceiling 100; actual page also bounded by requested limit and shared batch ceiling                                    |
+| Maintenance batches   | Legacy advancement allowance 32; optional transaction-attempt budget at most 32 per resource; default physical scan at most 32 rows |
 
 Count physical work before filtering and deduplication. A query cannot bypass
 work limits by retrieving many unauthorized, duplicate, or stale entries.
@@ -184,14 +188,60 @@ confirms collection labels and portal access.
 `repairRetrievalPage` scans at most the minimum of its requested limit,
 `maxRepairScanRows`, and `maxMaintenanceBatches`. Defaults therefore scan at
 most 32 physical rows, even though the configurable scan ceiling is 100.
-Each unique resource gets at most one collection registration or article
-advancement batch on that page;
-`repairArticleIndex` can use the full shared batch allowance for its one
-article. A completed scan page or cycle is not proof all pending projections
+When `maxBatches` is omitted, each unique resource gets at most one collection
+registration or article advancement batch on that page;
+`repairArticleIndex` can use the full instance advancement allowance for its one
+article, default 32. These legacy allowances include internal prerequisite work
+and bounded conflict retries; they are not a count of physical Store transactions.
+A completed scan page or cycle is not proof all pending projections
 are finished. Hosts persist the actual backend `nextCursor` and repeat full
 cycles to revisit pending heads/jobs without starving later resources. Repair
 does not mutate or acknowledge authoritative causal jobs; they remain
 replay-safe hints.
+
+Both repair methods accept optional `maxBatches`, a positive integer no greater
+than the instance's `maxMaintenanceBatches`. Explicit presence selects a shared
+physical Store transaction-attempt budget: `repairArticleIndex` shares it across
+that article's projection setup, directory/catalog registration, posting rewrites,
+completion and blocked-state writes. A failed CAS consumes an attempt too;
+nested retries cannot reset the budget. Already-current prerequisites consume
+no attempt, so repeated one-attempt calls can reach later phases rather than
+repeating the first completed write. `repairRetrievalPage` gives each unique
+resource its own budget, including collection-directory work. The page's
+physical scan limit remains independent; `maxBatches: 1` does not mean one
+transaction across a multi-resource page.
+
+A host can call `repairArticleIndex(access, { articleId, maxBatches: 1 })` in a
+dedicated worker invocation. For one-resource scan recovery, use
+`repairRetrievalPage(access, { limit: 1, maxBatches: 1, cursor })`, omitting
+`cursor` at a cycle's start. Publication and withdrawal commands already persist
+their causal `article_changed` jobs atomically with the article change, Audit
+and replay receipt. Hosts may schedule derived work separately from the mutation
+response; a second enqueue is not required to establish that durable recovery
+source. Jobs remain hints: every repair plans from current authoritative facts.
+
+Per-article manifests and pending scopes retain committed progress. After a
+lost write acknowledgement, the next invocation re-reads actual state and
+resumes the same plan without resetting completed terms or generation floors.
+Budget exhaustion or a bounded CAS conflict returns conservative `pending` with
+`indexed: false`. Storage or current-source confirmation can still throw after
+a partial derived write. Keep the work pending and retry the original scan
+cursor on an exception. After a successful bounded page, save its actual
+`nextCursor` even if an article remains pending, then revisit it on later full
+cycles; pinning the global cursor to one unfinished article can starve others.
+Capacity holds remain visible and need available capacity or changed inputs
+before convergence.
+
+The attempt budget bounds derived transaction attempts, not all keyed reads,
+backend statements, schema initialization, host checkpoint/OCC work, external
+source-verifier I/O, CPU or elapsed time. A Store adapter may issue several
+queries per operation. Hosts must measure the entire invocation on their actual
+composition; neither page size one nor a transaction budget of one certifies a
+Workers Free quota or a latency/capacity SLA. No retained proof or revocation
+history is discarded. Prepared keyed-read waves preserve every required approved
+proof and its current revocation marker, and final current
+article/collection/validation-head and source
+confirmation; they introduce no authorization cache or provider-specific SQL.
 
 Derived writes and cleanup must be generation-fenced and idempotent so a
 delayed job cannot restore obsolete content. Persist bounded per-article
@@ -221,6 +271,11 @@ withdrawal is `ready` with `indexed: false`; ready does not necessarily mean
 there is a usable indexed publication. Terms, postings, hashes, and private
 sources are absent. Repair-page diagnostic counts and `nextCursor` are
 staff-only and never become customer search totals.
+Only a current call returning `ready` establishes completion of that repair
+plan. A host's ready-key hint may be acknowledged only against its unchanged
+version after that result; `pending`, `blocked`, exceptions and an older ready
+observation are not completion acknowledgements. This does not turn the result
+into publication or customer-read authority.
 Staff maintenance is not a customer no-result path: unexpected configuration,
 adapter, or storage errors remain visible exceptions. Supported admission and
 source-hold conditions retain their named status/withdrawal behavior.

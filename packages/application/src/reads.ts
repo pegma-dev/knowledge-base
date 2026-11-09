@@ -6,14 +6,18 @@ import {
 } from "@pegma/knowledge-base-contracts";
 
 import {
+  KnowledgeBaseAuthorizationError,
   KnowledgeBaseNotFoundError,
   KnowledgeBasePrerequisiteError,
   requirePermission,
 } from "./errors.js";
-import { loadGovernanceContext } from "./governance.js";
+import {
+  loadGovernanceContext,
+  readGovernanceObservation,
+} from "./governance.js";
 import { createPublicationChecker } from "./publication.js";
 import type { StoredArticle } from "./records.js";
-import type { KnowledgeRepository } from "./repository.js";
+import type { KnowledgeRepository, ResourceVersion } from "./repository.js";
 import {
   canonicalJson,
   RepositoryConflictError,
@@ -24,6 +28,7 @@ import {
 import type {
   KnowledgeBaseApplication,
   KnowledgeBaseServiceOptions,
+  KnowledgeAuthoringContextObservation,
   PrivateSourceReference,
   SourceSnapshot,
 } from "./types.js";
@@ -86,6 +91,8 @@ export function createReadServices(
   | "getValidationPolicy"
   | "getGovernanceConfiguration"
   | "getValidationRequirements"
+  | "getAuthoringContext"
+  | "confirmAuthoringContext"
   | "getDraft"
   | "getEvidence"
   | "getProvenance"
@@ -93,7 +100,131 @@ export function createReadServices(
   | "getPublishedArticle"
 > {
   const publications = createPublicationChecker(repository, options);
+  const observations = new WeakMap<
+    KnowledgeAuthoringContextObservation,
+    {
+      readonly actorId: string;
+      readonly includeEvidence: boolean;
+      readonly resources: readonly ResourceVersion[];
+    }
+  >();
+  function authoringPermission(
+    access: Parameters<KnowledgeBaseApplication["getAuthoringContext"]>[0],
+    includeEvidence: boolean,
+  ): void {
+    requireIdentifier(access.principalId, "principalId");
+    requirePermission(access, knowledgePermissions.draftRead);
+    if (!hasPermission(access, knowledgePermissions.evidenceSubmit))
+      requirePermission(access, knowledgePermissions.draftWrite);
+    if (includeEvidence)
+      requirePermission(access, knowledgePermissions.evidenceRead);
+  }
   return {
+    async getAuthoringContext(access, request) {
+      access = snapshotData(access);
+      const input = readInput(request, "articleId", ["includeEvidence"]);
+      if (
+        Object.hasOwn(input, "includeEvidence") &&
+        typeof input.includeEvidence !== "boolean"
+      )
+        throw new TypeError("includeEvidence must be a boolean");
+      const includeEvidence = input.includeEvidence === true;
+      authoringPermission(access, includeEvidence);
+      const article = await repository.readArticleAuthoringVersioned(
+        input.articleId,
+        includeEvidence,
+      );
+      if (article === null) throw new KnowledgeBaseNotFoundError("article");
+      const current = article.value;
+      const governance = await readGovernanceObservation(
+        repository,
+        current.current.collectionId,
+        clockTime(options),
+      );
+      const resources: readonly ResourceVersion[] = [
+        { kind: "article", id: input.articleId, version: article.version },
+        {
+          kind: "collection",
+          id: current.current.collectionId,
+          version: governance.collectionVersion,
+        },
+        {
+          kind: "validation",
+          id: governance.context.validationPolicy.id,
+          version: governance.validationVersion,
+        },
+      ];
+      await repository.confirmResourceVersions(resources);
+      authoringPermission(access, includeEvidence);
+      const context = snapshotData({
+        draft: {
+          articleId: current.articleId,
+          generation: current.generation,
+          state: current.state,
+          revision: current.current,
+          hasPendingReview: current.hasPendingReview,
+          hasPublication: current.hasPublication,
+          publicationHeld: current.publicationHeld,
+        },
+        requirements: {
+          collectionId: current.current.collectionId,
+          governanceGeneration: governance.governanceGeneration,
+          validationPolicy: {
+            id: governance.context.validationPolicy.id,
+            version: governance.context.validationPolicy.version,
+          },
+          expectedStagingBuildId: governance.context.expectedStagingBuildId,
+          checks: governance.context.validationPolicy.requirements
+            .filter((check) => check.kind === current.current.kind)
+            .map((check) => ({
+              id: check.id,
+              testKind: check.testKind,
+              maxAgeMilliseconds: check.maxAgeMilliseconds,
+            })),
+        },
+        ...(includeEvidence
+          ? {
+              evidence: {
+                articleId: current.articleId,
+                generation: current.generation,
+                evidence: current.evidence!,
+                revokedEvidence: current.revokedEvidence!,
+              },
+            }
+          : {}),
+      });
+      const observation = Object.freeze(
+        {},
+      ) as KnowledgeAuthoringContextObservation;
+      observations.set(observation, {
+        actorId: access.principalId,
+        includeEvidence,
+        resources,
+      });
+      return { context, observation };
+    },
+
+    async confirmAuthoringContext(access, observation) {
+      access = snapshotData(access);
+      const captured =
+        observation !== null && typeof observation === "object"
+          ? observations.get(observation)
+          : undefined;
+      if (captured === undefined)
+        throw new TypeError(
+          "Authoring observation is invalid or already consumed",
+        );
+      authoringPermission(access, captured.includeEvidence);
+      if (access.principalId !== captured.actorId)
+        throw new KnowledgeBaseAuthorizationError(
+          knowledgePermissions.draftRead,
+        );
+      // Consume before storage so concurrent callers cannot reuse the handle.
+      observations.delete(observation);
+      await repository.confirmResourceVersions(captured.resources);
+      authoringPermission(access, captured.includeEvidence);
+    },
+
     async getCollection(access, request) {
       access = snapshotData(access);
       requirePermission(access, knowledgePermissions.collectionRead);

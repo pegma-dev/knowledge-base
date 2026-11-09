@@ -182,13 +182,18 @@ export interface CurrentGovernanceContext {
   readonly governanceGeneration: number;
   readonly validationGeneration: number;
 }
+export interface GovernanceObservation extends CurrentGovernanceContext {
+  readonly collectionVersion: string;
+  readonly validationVersion: string;
+  readonly configuration: GovernanceConfiguration;
+}
 
-/** Load authoritative application facts; author input cannot supply this context. */
-export async function loadGovernanceContext(
+/** Initial authoritative facts; the caller must subsequently fence the heads. */
+export async function readGovernanceObservation(
   repository: KnowledgeRepository,
   collectionId: string,
   at: IsoTimestamp,
-): Promise<CurrentGovernanceContext> {
+): Promise<GovernanceObservation> {
   requireIdentifier(collectionId, "collectionId");
   const collection = await repository.readCollectionVersioned(collectionId);
   if (collection === null) throw new KnowledgeBaseNotFoundError("collection");
@@ -208,18 +213,6 @@ export async function loadGovernanceContext(
     throw new KnowledgeBasePrerequisiteError("current_validation_policy");
   }
   validateValidationPolicy(validation.value.policy);
-  const [current, currentValidation] = await Promise.all([
-    repository.readCollectionVersioned(collectionId),
-    repository.readValidationPolicyVersioned(configuration.validationPolicy.id),
-  ]);
-  if (
-    current === null ||
-    current.value.generation !== collection.value.generation ||
-    currentValidation === null ||
-    currentValidation.value.generation !== validation.value.generation
-  ) {
-    throw new RepositoryConflictError();
-  }
   return snapshotData({
     context: {
       collection: collection.value.collection,
@@ -230,7 +223,60 @@ export async function loadGovernanceContext(
     },
     governanceGeneration: collection.value.generation,
     validationGeneration: validation.value.generation,
+    collectionVersion: collection.version,
+    validationVersion: validation.version,
+    configuration,
   });
+}
+
+/** Recheck current authority heads after all verifier/fact awaits. */
+export async function confirmGovernanceObservation(
+  repository: KnowledgeRepository,
+  observed: GovernanceObservation,
+): Promise<void> {
+  await repository.confirmGovernanceVersions([
+    {
+      kind: "collection",
+      id: observed.context.collection.id,
+      version: observed.collectionVersion,
+    },
+    {
+      kind: "validation",
+      id: observed.context.validationPolicy.id,
+      version: observed.validationVersion,
+    },
+  ]);
+}
+
+/** Load authoritative application facts; author input cannot supply this context. */
+export async function loadGovernanceContext(
+  repository: KnowledgeRepository,
+  collectionId: string,
+  at: IsoTimestamp,
+): Promise<CurrentGovernanceContext> {
+  const observed = await readGovernanceObservation(
+    repository,
+    collectionId,
+    at,
+  );
+  const [current, currentValidation] = await Promise.all([
+    repository.readCollectionVersioned(collectionId),
+    repository.readValidationPolicyVersioned(
+      observed.context.validationPolicy.id,
+    ),
+  ]);
+  if (
+    current === null ||
+    current.value.generation !== observed.governanceGeneration ||
+    currentValidation === null ||
+    currentValidation.value.generation !== observed.validationGeneration
+  )
+    throw new RepositoryConflictError();
+  return {
+    context: observed.context,
+    governanceGeneration: observed.governanceGeneration,
+    validationGeneration: observed.validationGeneration,
+  };
 }
 
 export function createGovernanceServices(

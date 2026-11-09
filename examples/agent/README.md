@@ -20,6 +20,11 @@ not establish any of the four target client applications, a deployed host,
 real browser login, real staging execution, verified KB publication, or host activation.
 Real host/client acceptance and activation remain open.
 
+The four packed KB artifacts in this working tree are unpublished `0.1.4`
+candidates. The separate [verified `0.1.3` release](../../docs/BOOTSTRAP.md#current-verified-013-release)
+does not validate changed context/query source; `0.1.4` retains its own review,
+current-head gates, trusted publication and strict consumer verification.
+
 ## Artifact boundary
 
 The [orchestrator](../../scripts/agent-protocol-proof.mjs):

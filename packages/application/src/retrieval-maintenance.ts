@@ -15,12 +15,17 @@ import type {
   RetrievalProjectionState,
   RetrievalProjectionTarget,
 } from "./retrieval-records.js";
-import type { createRetrievalRepository } from "./retrieval-repository.js";
+import {
+  RetrievalStepBudgetError,
+  type RetrievalStepBudget,
+  type createRetrievalRepository,
+} from "./retrieval-repository.js";
 import type {
   ArticleIndexInput,
   ArticleIndexStatusDto,
   KnowledgeRetrievalApplication,
   KnowledgeRetrievalLimits,
+  RepairArticleIndexInput,
   RepairRetrievalPageInput,
 } from "./retrieval-types.js";
 import {
@@ -48,6 +53,7 @@ interface MaintenanceOptions {
 
 interface BatchBudget {
   remaining: number;
+  readonly step?: RetrievalStepBudget;
 }
 
 interface DesiredProjection {
@@ -96,6 +102,32 @@ export function createRetrievalMaintenanceServices(
       throw new TypeError("Maintenance bounds exceed their supported ceiling");
   }
   const records = options.store.collection(knowledgeRecords);
+
+  function maxBatches(value: number | undefined): number | undefined {
+    if (
+      value !== undefined &&
+      (!Number.isSafeInteger(value) ||
+        value < 1 ||
+        value > limits.maxMaintenanceBatches)
+    )
+      throw new TypeError("Repair attempts exceed the maintenance bound");
+    return value;
+  }
+
+  async function pendingStep(articleId: string, plan?: DesiredProjection) {
+    // Exhausting a write allowance never skips the original post-write source
+    // and A/C/V confirmation. Its failure stays visible to the host worker.
+    if (plan !== undefined) await recheckDesired(articleId, plan);
+    const current = await retrieval.readArticleProjection(articleId);
+    return status(
+      articleId,
+      plan?.articleGeneration ?? null,
+      current,
+      "pending",
+      false,
+      "conflict",
+    );
+  }
 
   function caller(access: AccessContext): AccessContext {
     const current = snapshotData(access);
@@ -317,6 +349,7 @@ export function createRetrievalMaintenanceServices(
     state: RetrievalProjectionState | null,
     reason: RetrievalBlockedReason,
     sourceGeneration?: number,
+    budget?: RetrievalStepBudget,
   ): Promise<RetrievalProjectionState | null> {
     if (state === null && sourceGeneration === undefined) return null;
     try {
@@ -325,6 +358,7 @@ export function createRetrievalMaintenanceServices(
         state?.generation ?? 1,
         reason,
         state === null ? sourceGeneration : undefined,
+        budget,
       );
     } catch (error) {
       if (!(error instanceof RepositoryConflictError)) throw error;
@@ -343,6 +377,7 @@ export function createRetrievalMaintenanceServices(
       attempt < repository.limits.maxConflictAttempts;
       attempt += 1
     ) {
+      if (budget.step?.remaining === 0) return pendingStep(articleId);
       if (budget.remaining === 0) return currentStatus(access, articleId);
       let state = await retrieval.readArticleProjection(articleId);
       let plan: DesiredProjection | undefined;
@@ -353,26 +388,38 @@ export function createRetrievalMaintenanceServices(
         await recheckDesired(articleId, plan);
         const generation = (state?.generation ?? 0) + 1;
         requireGeneration(generation, 1);
-        state = await retrieval.beginArticleProjection({
-          articleId,
-          generation,
-          sourceGeneration: plan.articleGeneration ?? state!.sourceGeneration,
-          targets: plan.targets,
-        });
+        state = await retrieval.beginArticleProjection(
+          {
+            articleId,
+            generation,
+            sourceGeneration: plan.articleGeneration ?? state!.sourceGeneration,
+            targets: plan.targets,
+          },
+          budget.step,
+        );
         await recheckDesired(articleId, plan);
+        if (budget.step?.remaining === 0) return pendingStep(articleId, plan);
         while (state.status === "pending" && budget.remaining > 0) {
           await recheckDesired(articleId, plan);
           budget.remaining -= 1;
           const advanced = await retrieval.advanceArticleProjection(
             articleId,
             state.generation,
+            budget.step,
           );
           state = advanced.state;
           await recheckDesired(articleId, plan);
           if (advanced.complete) break;
+          if (budget.step?.remaining === 0) return pendingStep(articleId, plan);
         }
         if (plan.capacity) {
-          state = await markBlocked(articleId, state, "capacity");
+          state = await markBlocked(
+            articleId,
+            state,
+            "capacity",
+            undefined,
+            budget.step,
+          );
           return status(
             articleId,
             plan.articleGeneration,
@@ -391,13 +438,22 @@ export function createRetrievalMaintenanceServices(
           state.status === "blocked" ? state.reason : undefined,
         );
       } catch (error) {
+        if (error instanceof RetrievalStepBudgetError)
+          return pendingStep(articleId, plan);
         if (error instanceof RepositoryCapacityError) {
-          state = await markBlocked(
-            articleId,
-            state,
-            "capacity",
-            plan?.articleGeneration ?? undefined,
-          );
+          try {
+            state = await markBlocked(
+              articleId,
+              state,
+              "capacity",
+              plan?.articleGeneration ?? undefined,
+              budget.step,
+            );
+          } catch (failure) {
+            if (failure instanceof RetrievalStepBudgetError)
+              return pendingStep(articleId, plan);
+            throw failure;
+          }
           return status(
             articleId,
             plan?.articleGeneration ?? null,
@@ -408,12 +464,25 @@ export function createRetrievalMaintenanceServices(
           );
         }
         if (error instanceof RepositoryConflictError) {
+          if (budget.step !== undefined) return pendingStep(articleId, plan);
           // Contention is not a durable hold. A same-plan winner may still be
           // advancing this exact generation; blocking it would stall recovery.
           continue;
         }
         if (error instanceof KnowledgeBaseNotFoundError) {
-          await markBlocked(articleId, state, "source-unavailable");
+          try {
+            await markBlocked(
+              articleId,
+              state,
+              "source-unavailable",
+              undefined,
+              budget.step,
+            );
+          } catch (failure) {
+            if (failure instanceof RetrievalStepBudgetError)
+              return pendingStep(articleId, plan);
+            throw failure;
+          }
           continue;
         }
         throw error;
@@ -424,23 +493,26 @@ export function createRetrievalMaintenanceServices(
 
   async function repairCollectionDirectory(
     collectionId: string,
+    budget?: RetrievalStepBudget,
   ): Promise<ArticleIndexStatusDto["status"]> {
     for (
       let attempt = 0;
       attempt < repository.limits.maxConflictAttempts;
       attempt += 1
     ) {
+      if (budget?.remaining === 0) return "pending";
       try {
         const current = await repository.readCollectionVersioned(collectionId);
         if (current === null) return "ready";
         // Only the opaque ID is derived. Request readers re-authorize policy.
-        await retrieval.registerCollection(collectionId);
+        await retrieval.registerCollection(collectionId, budget);
         const latest = await repository.readResourceGeneration(
           "collection",
           collectionId,
         );
         if (latest === current.value.generation) return "ready";
       } catch (error) {
+        if (error instanceof RetrievalStepBudgetError) return "pending";
         if (error instanceof RepositoryCapacityError) return "blocked";
         if (!(error instanceof RepositoryConflictError)) throw error;
       }
@@ -451,9 +523,15 @@ export function createRetrievalMaintenanceServices(
   return {
     async repairArticleIndex(access, request) {
       access = caller(access);
-      const input = articleInput(request);
+      const input: RepairArticleIndexInput = objectInput(request, [
+        "articleId",
+        "maxBatches",
+      ]);
+      requireIdentifier(input.articleId, "articleId");
+      const attempts = maxBatches(input.maxBatches);
       const result = await repair(access, input.articleId, {
-        remaining: limits.maxMaintenanceBatches,
+        remaining: attempts ?? limits.maxMaintenanceBatches,
+        ...(attempts === undefined ? {} : { step: { remaining: attempts } }),
       });
       requirePermission(access, knowledgePermissions.indexManage);
       return result;
@@ -472,7 +550,9 @@ export function createRetrievalMaintenanceServices(
       const input: RepairRetrievalPageInput = objectInput(request, [
         "cursor",
         "limit",
+        "maxBatches",
       ]);
+      const attempts = maxBatches(input.maxBatches);
       const requestedLimit = input.limit ?? limits.maxRepairScanRows;
       if (
         !Number.isSafeInteger(requestedLimit) ||
@@ -546,8 +626,18 @@ export function createRetrievalMaintenanceServices(
       for (const candidate of candidates.values()) {
         const state =
           candidate.kind === "article"
-            ? (await repair(access, candidate.id, { remaining: 1 })).status
-            : await repairCollectionDirectory(candidate.id);
+            ? (
+                await repair(access, candidate.id, {
+                  remaining: 1,
+                  ...(attempts === undefined
+                    ? {}
+                    : { step: { remaining: attempts } }),
+                })
+              ).status
+            : await repairCollectionDirectory(
+                candidate.id,
+                attempts === undefined ? undefined : { remaining: attempts },
+              );
         if (state === "ready") repaired += 1;
         else if (state === "blocked") blocked += 1;
         else pending += 1;

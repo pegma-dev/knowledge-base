@@ -21,6 +21,7 @@ import type {
   EvidenceSubmission,
 } from "@pegma/knowledge-base-core";
 import type { Store } from "@pegma/storage-core";
+import type { KnowledgeEvidenceContext } from "./evidence-reports-types.js";
 
 import type { KnowledgeRepositoryLimits } from "./repository.js";
 import type {
@@ -330,6 +331,22 @@ export interface ArticleReadInput {
   readonly articleId: string;
 }
 
+export interface AuthoringContextReadInput extends ArticleReadInput {
+  /** Omission excludes private accepted evidence and revocation history. */
+  readonly includeEvidence?: boolean;
+}
+
+declare const authoringObservationBrand: unique symbol;
+/** Instance-bound, single-use observation; never serialize or persist it. */
+export interface KnowledgeAuthoringContextObservation {
+  readonly [authoringObservationBrand]: true;
+}
+
+export interface KnowledgeAuthoringContextRead {
+  readonly context: KnowledgeEvidenceContext;
+  readonly observation: KnowledgeAuthoringContextObservation;
+}
+
 export interface KnowledgeBaseApplication extends KnowledgeRetrievalApplication {
   createCollection(
     access: AccessContext,
@@ -403,6 +420,15 @@ export interface KnowledgeBaseApplication extends KnowledgeRetrievalApplication 
     access: AccessContext,
     input: ValidationRequirementsReadInput,
   ): Promise<ValidationRequirementsDto>;
+  getAuthoringContext(
+    access: AccessContext,
+    input: AuthoringContextReadInput,
+  ): Promise<KnowledgeAuthoringContextRead>;
+  /** Rechecks current heads and permissions, consuming this instance's handle. */
+  confirmAuthoringContext(
+    access: AccessContext,
+    observation: KnowledgeAuthoringContextObservation,
+  ): Promise<void>;
   getDraft(
     access: AccessContext,
     input: ArticleReadInput,

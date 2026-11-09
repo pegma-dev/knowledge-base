@@ -212,12 +212,13 @@ export interface KnowledgeAgentDispatcherOptions {
   readonly resource: string;
   /** Trusted optional human-report service. Always receives the restricted
    * delegated context, never a substituted current human/Admin context. Hosts
-   * revalidate the same authenticated request/grant before and after awaited
-   * report/ledger/status calls, just as for the five application operations. */
+   * fence the same authenticated request/grant around the completed actual
+   * read dispatch, and retain fresh before/after guards on writes. */
   readonly reports?: Pick<
     KnowledgeEvidenceReports,
     "report" | "ledger" | "status"
-  >;
+  > &
+    Partial<Pick<KnowledgeEvidenceReports, "query">>;
   /**
    * Positive safe integers may only reduce the fixed component ceilings.
    * maxResponseBytes must reserve at least 2,048 bytes for acknowledgements.

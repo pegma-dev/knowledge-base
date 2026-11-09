@@ -174,6 +174,15 @@ export interface ArticleIndexInput {
   readonly articleId: string;
 }
 
+export interface RepairArticleIndexInput extends ArticleIndexInput {
+  /**
+   * Optional bounded mode: at most this many derived transaction attempts,
+   * including conflicts. Already-current prerequisites consume no attempt.
+   * Omission retains the instance's legacy advancement allowance.
+   */
+  readonly maxBatches?: number;
+}
+
 export type ArticleIndexState = "pending" | "ready" | "blocked";
 
 export type ArticleIndexBlockReason =
@@ -194,6 +203,8 @@ export interface RepairRetrievalPageInput {
   readonly cursor?: string;
   /** Physical scan rows, counted before filtering or candidate deduplication. */
   readonly limit?: number;
+  /** Optional transaction-attempt allowance for each resource on this page. */
+  readonly maxBatches?: number;
 }
 
 /** Staff maintenance diagnostics; these counts never enter search/customer DTOs. */
@@ -225,7 +236,7 @@ export interface KnowledgeRetrievalApplication {
   ): Promise<AnswerSourcesResult>;
   repairArticleIndex(
     staffAccess: AccessContext,
-    input: ArticleIndexInput,
+    input: RepairArticleIndexInput,
   ): Promise<ArticleIndexStatusDto>;
   repairRetrievalPage(
     staffAccess: AccessContext,
