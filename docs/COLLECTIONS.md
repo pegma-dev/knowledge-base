@@ -14,8 +14,9 @@ and its P-00 capacity/privacy requirements. KB-04's optional HTTP/MCP adapter
 source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The
 [verified `0.1.3` release](BOOTSTRAP.md#current-verified-013-release) is complete,
 as is the later [`0.1.4` trusted release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
-The synchronized `0.1.5` internal read-batching candidate is unpublished; its own
-release, real-host acceptance, and production readiness retain their gates. The earlier
+The synchronized `0.1.5` answering read-batching release has completed verified
+trusted publication; see its [current receipt](BOOTSTRAP.md#current-verified-015-release).
+Changed-source gates, real-host acceptance, and production readiness remain separate. The earlier
 `0.1.1` release has a separate
 [historical receipt](BOOTSTRAP.md#historical-verified-011-release), as does
 [`0.1.2`](BOOTSTRAP.md#historical-verified-012-release).

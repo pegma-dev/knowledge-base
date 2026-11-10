@@ -120,8 +120,45 @@ and [verification summary](https://github.com/pegma-dev/knowledge-base/releases/
 are public release assets. Local public snapshots retain the same
 [manifest bytes](releases/v0.1.5/package-manifest.json), the
 [original artifact binding](releases/v0.1.5/prepared-artifact.json) and the
-[final verification job](releases/v0.1.5/verification-job.json). The summary and
+[final verification job projection](releases/v0.1.5/verification-job.json).
+The manifest is retained byte-for-byte: **15,260 bytes**, with the independently
+retained SHA-256 above. The offline
+[release-receipt regression](../tests/release-receipts.test.ts) checks both
+against fixed expectations, independently of the adjacent receipt JSON.
+Formatting is excluded for that immutable manifest alone. The summary and
 snapshots record evidence; they do not replace cryptographic verification.
+
+The artifact binding's `archiveBytes: 197991` measures the downloaded original
+ZIP container, including ZIP metadata, rather than its expanded payload.
+`regularOuterFiles: 5` counts non-directory root entries: `manifest.json` and
+the four `.tgz` artifacts. Directory entries are excluded. Its `inspection`
+object records those names and meanings. These are reproducible inspection
+summary fields, not additions to the canonical schema-2 manifest, which still
+contains only `schemaVersion`, `identity` and `artifacts`. To repeat inspection,
+download the linked original ZIP without repacking, measure its file length,
+and list the non-directory ZIP entries. For example, in PowerShell:
+
+```powershell
+$archive = 'knowledge-base-v0.1.5-original-artifact-13767614004.zip'
+(Get-Item -LiteralPath $archive).Length
+$zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $archive).Path)
+try {
+  $zip.Entries | Where-Object { $_.Name -ne '' } | Select-Object FullName, Length
+} finally {
+  $zip.Dispose()
+}
+```
+
+The verification-job file is a selected-field projection of the authoritative
+[GitHub Jobs API record](https://api.github.com/repos/pegma-dev/knowledge-base/actions/jobs/129895026059),
+with its returned step records preserved. The API returns the nine step
+numbers `1,2,3,4,5,6,11,12,13`; these identifiers are retained exactly rather
+than reconstructed from workflow YAML. Their gaps do not authorize inventing
+steps `7` through `10` or renumbering the returned post steps. Consult the
+[actual job and its logs](https://github.com/pegma-dev/knowledge-base/actions/runs/42821672972/job/129895026059)
+or the [job-log endpoint](https://api.github.com/repos/pegma-dev/knowledge-base/actions/jobs/129895026059/logs)
+for the execution record. The offline regression preserves this exact API
+projection; it performs no network check or inference of sequential numbering.
 
 Authenticated source provenance binds each package to its original writer.
 All four earlier publisher jobs remain failed records; an accepted write is
@@ -140,11 +177,27 @@ Recovery preserved the original source, signed tag, manifest and tarballs;
 it did not repack or replace a version. No cause for the earlier failures is
 inferred from registry availability.
 
-The independent postflight checked exact original registry and installed
-bytes/dependencies, genuine signatures and authenticated source/writer bindings,
-then imported all four public roots and checked report-factory/MCP metadata.
-Its controlled Memory composition admitted no actual host report and established
-no durable host or requested-client run. At this checkpoint, all four KB
+The successful GitHub strict verification job checked registry/installed
+bytes and dependencies, signatures and authenticated provenance. Its registry
+consumer then performed runtime `typeof` checks on four imported root exports:
+`knowledgePermissions`, `createArticle`, `createKnowledgeBaseApplication` and
+`createKnowledgeAgentDispatcher`. It did not construct a Memory store or
+exercise report-factory construction or MCP metadata. The broader packed
+consumer used during preparation is a separate check.
+
+A separately retained independent postflight checked exact original registry
+and installed bytes/dependencies, genuine signatures and authenticated
+source/writer bindings, then imported the four roots and checked the report
+factory and MCP metadata in a controlled Memory composition. The public
+[verification summary](https://github.com/pegma-dev/knowledge-base/releases/download/v0.1.5/registry-verification.json)
+records this distinct `independentPostflight` on Node `24.18.0` and npm
+`11.18.0`, with result SHA-256
+`7d23957d576a49e4f637e983054b81a574952cc321450092e0443e73248542dd`
+and independent peer SHA-256
+`530d18fdb620fdf0c930913bd3493fd84b7e6fd12ae1b7157c791e7994590e58`.
+Those checks are not attributed to the GitHub verification job. The controlled
+composition admitted no actual host report and established no durable host or
+requested-client run. At this checkpoint, all four KB
 packages had `latest: 0.1.5` and `bootstrap: 0.1.0`; dist-tags remain mutable
 observations.
 
@@ -153,6 +206,10 @@ publication, approved-evidence and configured work checks. Host dependency
 adoption, existing-login/Admin consent, actual client/model runs, provider/privacy
 controls, Workers Free query/CPU measurements, full workflows and pilots remain
 separate open acceptance gates.
+
+The source package READMEs are corrected after publication to reflect this
+status for future releases. The original `0.1.5` tarballs, their bundled README
+bytes, the signed source, and the byte-exact manifest above remain immutable.
 
 <a id="current-verified-014-release"></a>
 

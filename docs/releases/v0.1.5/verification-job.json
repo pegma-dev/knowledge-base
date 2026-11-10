@@ -8,6 +8,13 @@
   "started_at": "2026-11-10T14:32:20Z",
   "completed_at": "2026-11-10T14:32:38Z",
   "html_url": "https://github.com/pegma-dev/knowledge-base/actions/runs/42821672972/job/129895026059",
+  "snapshot": {
+    "kind": "github-actions-jobs-api-field-projection",
+    "sourceUrl": "https://api.github.com/repos/pegma-dev/knowledge-base/actions/jobs/129895026059",
+    "logsUrl": "https://api.github.com/repos/pegma-dev/knowledge-base/actions/jobs/129895026059/logs",
+    "stepNumbers": "Preserved exactly as returned by the Jobs API: 1,2,3,4,5,6,11,12,13. They are source identifiers, not a sequence inferred from workflow YAML; no steps 7 through 10 are invented or renumbered.",
+    "scope": "Selected job identity, status, timing and complete returned step records; not the complete Jobs API response."
+  },
   "steps": [
     {
       "name": "Set up job",

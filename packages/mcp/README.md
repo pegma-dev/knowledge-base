@@ -6,11 +6,12 @@ Context Protocol. Hosts compose it with their protected Knowledge Base
 endpoints; the package does not supply a hosted service.
 
 All four Knowledge Base packages are verified published at
-[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4), including
-the optional aggregate query over the existing report workflow. Source here
-prepares the synchronized **unpublished `0.1.5` patch candidate** for answering
-read batching; its own review, gates, trusted publication and strict verification
-remain open. Host and actual client acceptance are separate.
+[`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), including
+answering read batching and the aggregate report query introduced in `0.1.4`.
+Changed source requires its own review and current-head gates. Host and actual
+client acceptance remain separate. These source README corrections apply to a
+future release. Published `0.1.5` tarballs, including their bundled README bytes,
+remain unchanged.
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent
@@ -123,8 +124,8 @@ and [report lifecycle](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/d
 for the published report trio. The aggregate query and context/read-confirm pair
 shipped in verified `0.1.4`; see its
 [versioned guide](https://github.com/pegma-dev/knowledge-base/blob/v0.1.4/docs/EVIDENCE_REPORTS.md).
-The new `0.1.5` candidate still requires its own verified publication. Actual
-client/host acceptance remains open.
+The answering read-batching `0.1.5` release is also verified. Actual client/host
+acceptance remains open.
 
 ## Local verification and release
 
@@ -156,8 +157,9 @@ exact internal dependency pins. Publishing, release tags, trusted-publisher conf
 host activation are separate maintainer operations in the
 [release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/RELEASING.md).
 The report-trio contract links above retain verified `v0.1.3`; aggregate query
-and context-pair support shipped in verified `v0.1.4`. The `0.1.5` candidate
-retains its separate release gates.
+and context-pair support shipped in verified `v0.1.4`. The answering
+read-batching `0.1.5` release has its own verified receipt; changed source
+requires its own review and current-head gates.
 Source readers can use the
 explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)

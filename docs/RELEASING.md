@@ -38,6 +38,8 @@ signatures, source provenance and public-consumer verification. The public
 release retains the original preparation archive and verification summary,
 including the original writer attempts and final recovery. It ships governed
 authoring-context reads, report queries and bounded resumable repair.
+The [historical local receipt](BOOTSTRAP.md#current-verified-014-release) retains
+that release's separate publication boundary under its preserved anchor.
 
 The current verified release is
 [`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), the

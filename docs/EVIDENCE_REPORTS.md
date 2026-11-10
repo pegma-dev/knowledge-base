@@ -4,11 +4,11 @@
 [`0.1.3` packages](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
 The optional governed context pair and body-free `query` described below shipped
 in the qualified [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
-Synchronized `0.1.5` is an **unpublished internal read-batching candidate** with
-its own review, current-head CI, trusted publication and strict consumer
-verification pending. Hosts must wait for exact verified publication before adopting new APIs;
-source tests and local adapter fixtures do not establish host activation,
-actual client acceptance, or a real staging test.
+Synchronized `0.1.5` has completed verified trusted publication for answering
+read batching; see the [current release receipt](BOOTSTRAP.md#current-verified-015-release).
+Changed source still requires its own review and current-head gates. Source
+tests and local adapter fixtures do not establish host activation, actual
+client acceptance, or a real staging test.
 
 The factory stores bounded test reports for authorized human review and supplies
 an `EvidenceVerifier` to the existing KB application. It adds no login, roles,

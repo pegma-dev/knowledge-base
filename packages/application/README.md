@@ -20,10 +20,13 @@ The optional report service shipped in the verified
 Governed authoring contexts, report queries and bounded resumable repair shipped
 in the verified
 [`v0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
-Source here prepares the synchronized **unpublished `0.1.5` candidate** for
-answering read batching. Its own review, current-head gates, trusted publication
-and strict registry verification remain required. Backend query and CPU budgets
-require actual host measurements.
+The synchronized answering read-batching `0.1.5` release has completed verified
+trusted publication; see its
+[release receipt](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5).
+Changed source still requires its own review and current-head gates. Backend
+query and CPU budgets require actual host measurements. These source README
+corrections apply to a future release. Published `0.1.5` tarballs, including
+their bundled README bytes, remain unchanged.
 Source readers can use the explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
 while preparing a release. The versioned contract references remain tag-pinned;
@@ -179,9 +182,8 @@ by the existing component limits, and real host profiles need measured proof.
 The application exports `createKnowledgeEvidenceReports` and its public option,
 input, view, acknowledgement and error types. The factory shipped in verified
 `0.1.3`; governed authoring-context and report-query support shipped in verified
-`0.1.4`. The new `0.1.5` performance candidate requires its own review,
-current-head CI, trusted publication and strict consumer verification. Host
-acceptance remains separate. The
+`0.1.4`. The answering read-batching `0.1.5` release is also verified. Changed
+source requires its own review and current-head gates. Host acceptance remains separate. The
 [versioned evidence-report guide](https://github.com/pegma-dev/knowledge-base/blob/v0.1.4/docs/EVIDENCE_REPORTS.md)
 describes explicit Store namespace/current-authority ports, human confirmation
 before actual KB qualification, bounded epochs/retention, and the separate
@@ -252,8 +254,8 @@ I/O, host checkpoints, CPU or elapsed time. Prepared read waves preserve all
 required approved proofs and revocation markers, and final current publication,
 audience, source and head checks. Retained history is unchanged. They add no
 authorization cache and do not establish
-Workers Free quota acceptance. The `0.1.5` candidate's own gates, trusted
-release and whole-host measurements remain separate.
+Workers Free quota acceptance. The `0.1.5` trusted release is complete;
+changed-source gates and whole-host measurements remain separate.
 
 ## Storage and limits
 

@@ -57,15 +57,16 @@ The optional human-report `0.1.3` release is now
 [verified](BOOTSTRAP.md#current-verified-013-release). The governed context/query
 features subsequently shipped in the qualified
 [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
-Synchronized `0.1.5` is the unpublished internal read-batching candidate with its
-own review, current-head gates, trusted publication and strict verification required.
+Synchronized `0.1.5` has completed verified trusted publication for answering
+read batching; see its [current receipt](BOOTSTRAP.md#current-verified-015-release).
+Changed source still requires its own review and current-head gates.
 
-| Evidence area    | This source slice                                                                   | Separate remaining proof                                                                                                         |
-| ---------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1            | Production Azure/Workers configuration, operations, and host acceptance                                                          |
-| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow                | Real host identity, staging verification, existing-login/client acceptance, and UI                                               |
-| Artifacts        | Four-package checks, schema-2 preparation, and manual `0.1.0` exact-byte postflight | Verified `0.1.1`/`0.1.2`/`0.1.3` receipts remain separate; `0.1.4` is qualified and `0.1.5` still needs its own verified release |
-| Task readiness   | Current-head repository gates establish source readiness                            | Verified trusted releases and two-host/client acceptance remain separately recorded                                              |
+| Evidence area    | This source slice                                                                   | Separate remaining proof                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Storage consumer | Shared public KB suites on memory, local Azurite, and local Miniflare D1            | Production Azure/Workers configuration, operations, and host acceptance                                               |
+| Composition      | Runnable fictional author/evidence/review/publication/retrieval flow                | Real host identity, staging verification, existing-login/client acceptance, and UI                                    |
+| Artifacts        | Four-package checks, schema-2 preparation, and manual `0.1.0` exact-byte postflight | Verified `0.1.1` through `0.1.5` receipts remain separate; changed source and host acceptance require their own gates |
+| Task readiness   | Current-head repository gates establish source readiness                            | Verified trusted releases and two-host/client acceptance remain separately recorded                                   |
 
 The merged-source results above do not certify this working tree. Record verified
 current-head gate results before treating changed source as validated.
@@ -305,9 +306,9 @@ in [release operations](RELEASING.md) for the actual trusted release.
 The KB `0.1.3` trusted release completed complete-set registry
 integrity/signature/provenance verification and released-consumer proof; its
 [receipt](BOOTSTRAP.md#current-verified-013-release) is separate from these
-historical source records. The later `0.1.4` release is also qualified. The
-unpublished `0.1.5` internal read-batching candidate retains its own review,
-current-head gates, trusted publication, strict verification and released-consumer proof.
+historical source records. The later `0.1.4` and answering read-batching `0.1.5`
+releases are also qualified; see the [current receipt](BOOTSTRAP.md#current-verified-015-release).
+Changed source retains its own review and current-head gates.
 Manual bootstrap is not OIDC provenance.
 Agent Access has its own publication history:
 [Agent Access release preparation](https://github.com/pegma-dev/agent-access/pull/2)
@@ -328,9 +329,8 @@ closed the public producer prerequisite; see the
 [exact receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). The original
 source-producer proof remains historical evidence, while the changed registry
 composition requires its own current-head gates.
-The verified KB `0.1.3` receipt remains historical; KB `0.1.4` and Agent Access
-`0.1.1` producer release prerequisites are closed. The new `0.1.5` internal
-read-batching candidate needs its own verified release before host adoption. Both hosts still require exact verified trusted
+The verified KB `0.1.3` and `0.1.4` receipts remain historical; KB `0.1.5` and
+Agent Access `0.1.1` producer release prerequisites are closed. Both hosts still require exact verified trusted
 dependencies and their retained acceptance before activation.
 Hosts must wait for exact released artifacts rather than adopting branches,
 copied source, local paths, or unpublished production tarballs.
