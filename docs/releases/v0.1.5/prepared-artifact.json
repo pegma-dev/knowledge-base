@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "repository": "pegma-dev/knowledge-base",
+  "tag": "v0.1.5",
+  "sourceCommit": "6dae20df8dace50ad961d9c5fe8d28c90bf4918f",
+  "runId": 42821672972,
+  "originalPreparedAttempt": 1,
+  "artifactId": 13767614004,
+  "archiveBytes": 197991,
+  "archiveSha256": "b87b16c0b6badb38dface2eb7e2c60a84eca6c0c0c70f83fb4b9432ee9546e41",
+  "manifestSha256": "61739de9c3f1d65a481ec96a297cab63f6576787fdd4e01fbd4cea627b12d22d",
+  "manifestBytes": 15260,
+  "regularOuterFiles": 5,
+  "inspection": {
+    "kind": "original-zip-inspection-projection",
+    "archiveBytes": "Length in bytes of the downloaded original ZIP container, including its ZIP metadata; not expanded payload bytes.",
+    "regularOuterFiles": "Count non-directory entries at the ZIP root: manifest.json plus four package tarballs. Directory entries are excluded.",
+    "regularOuterFileNames": [
+      "manifest.json",
+      "pegma-knowledge-base-application-0.1.5.tgz",
+      "pegma-knowledge-base-contracts-0.1.5.tgz",
+      "pegma-knowledge-base-core-0.1.5.tgz",
+      "pegma-knowledge-base-mcp-0.1.5.tgz"
+    ],
+    "reproduce": "Download archiveUrl without repacking, measure the downloaded file length, and list its non-directory root ZIP entries. These are inspection-summary fields, not fields of the canonical schema-2 package manifest."
+  },
+  "archiveUrl": "https://github.com/pegma-dev/knowledge-base/releases/download/v0.1.5/knowledge-base-v0.1.5-original-artifact-13767614004.zip",
+  "manifestUrl": "https://github.com/pegma-dev/knowledge-base/releases/download/v0.1.5/manifest.json",
+  "verificationSummaryUrl": "https://github.com/pegma-dev/knowledge-base/releases/download/v0.1.5/registry-verification.json",
+  "verificationSummarySha256": "300801d35942113bf36b9faea0366fe840d80d9554a2e1949312f850ed621577",
+  "scope": "Public artifact identity snapshot; not a cryptographic verification result or a host-acceptance receipt."
+}

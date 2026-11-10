@@ -13,12 +13,14 @@ followed by the [historical `0.1.2` release](BOOTSTRAP.md#historical-verified-01
 and [verified `0.1.3` release](BOOTSTRAP.md#current-verified-013-release). The later
 qualified [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
 includes governed authoring contexts, optional report queries and the bounded
-repair mode described below. Synchronized `0.1.5` is an unpublished internal
-answering read-batching candidate. Source tests and repository gates, not this
-document, determine changed-source completion. KB-04's optional HTTP/MCP adapter
-source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The candidate's
-verified trusted release, real-host acceptance, and production activation retain
-their own gates. This guide does not establish a passing host quota or CPU profile.
+repair mode described below. Synchronized `0.1.5` has completed verified trusted
+publication for answering read batching; see its
+[current receipt](BOOTSTRAP.md#current-verified-015-release). Source tests and
+repository gates, not this document, determine changed-source completion.
+KB-04's optional HTTP/MCP adapter source is
+[merged](https://github.com/pegma-dev/knowledge-base/pull/5). Real-host acceptance
+and production activation retain their own gates. This guide does not establish
+a passing host quota or CPU profile.
 
 Read [declared collections](COLLECTIONS.md) for the authoritative record
 layout and [host composition](HOST_COMPOSITION.md) for trusted access,

@@ -31,21 +31,29 @@ the [receipt](BOOTSTRAP.md#current-verified-013-release) distinguishes original
 writer attempts 1–4 from the final successful attempt 5 and binds the unchanged
 original prepared artifact.
 
-The current verified release is
-[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4). All four
+The historical verified `0.1.4` release is
+[retained separately](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4). All four
 packages were qualified against their signed-source preparation, with registry
 signatures, source provenance and public-consumer verification. The public
 release retains the original preparation archive and verification summary,
 including the original writer attempts and final recovery. It ships governed
 authoring-context reads, report queries and bounded resumable repair.
+The [historical local receipt](BOOTSTRAP.md#current-verified-014-release) retains
+that release's separate publication boundary under its preserved anchor.
 
-Source `0.1.5` is the synchronized **unpublished** patch candidate for answering
-read batching. Its own review, current-head CI, signed tag, trusted publication
-and strict consumer verification remain pending. Existing links to `v0.1.2`
-and the released `0.1.3` report factory remain historical contracts; do not
-relabel their source or artifact receipts as the new candidate. Grouped reads
-establish no universal backend query or CPU budget, and host acceptance remains
-separate.
+The current verified release is
+[`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), the
+synchronized answering read-batching patch at signed source
+`6dae20df8dace50ad961d9c5fe8d28c90bf4918f`. All four registry packages completed
+exact-byte, signature/source-provenance and public-consumer qualification. The
+[final attempt-5 verification job](https://github.com/pegma-dev/knowledge-base/actions/runs/42821672972/job/129895026059)
+and [current receipt](BOOTSTRAP.md#current-verified-015-release) bind the unchanged
+original artifact and manifest. Original writer attempts 1 through 4 remain
+failed records; the final publisher uploaded zero packages and skipped four
+identical versions. The earlier gates/preparation were carried, not rerun in
+attempt 5. Existing release receipts remain historical contracts; do not relabel
+their source or artifacts as `0.1.5`. Grouped reads establish no universal backend
+query or CPU budget. Host dependency adoption and acceptance remain separate.
 [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 and [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
 are merged. The separate earlier [partial KB-05 source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
@@ -58,7 +66,7 @@ Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
 packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
 manual commands/stdout, exact identities, preparation runs/artifacts, and
-independently retained digests. The qualified release versions are KB `0.1.4`
+independently retained digests. The qualified release versions are KB `0.1.5`
 and Agent Access `0.1.1`. The manual `0.1.0` bootstraps and their dated dist-tag
 observations remain historical integrity receipts without OIDC provenance.
 
@@ -71,10 +79,11 @@ retains its exact artifact/digest, successful attempt-2 workflow, and unprivileg
 verification job. That public producer prerequisite is closed.
 The active `agent:proof` installs exact registry `@pegma/agent-access@0.1.1`
 with four packed KB artifacts and official MCP SDK `1.32.2` in a fresh consumer.
-The KB `0.1.5` candidate still needs its own current-head gates, review, PR, publication,
-and strict verification; historical source-proof results do not validate this
-changed composition. Production hosts require verified trusted versions of
-both components and their separately retained acceptance.
+The KB `0.1.5` release has completed its own current-head gates, review, trusted
+publication and strict verification. Future changed source and proof code require
+their own current-head gates; historical results do not validate changed
+composition. Production hosts require verified trusted versions of both
+components and their separately retained acceptance.
 
 ## Repository and development artifact gates
 

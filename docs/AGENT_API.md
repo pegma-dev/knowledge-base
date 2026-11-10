@@ -7,11 +7,12 @@ an authorization engine or another article lifecycle. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
 have since completed verified trusted publication. Optional human-reviewed
 report mode shipped in [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
-All four KB packages are now verified published at
-[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4), including
-the governed authoring-context pair and optional aggregate report query. The
-synchronized `0.1.5` internal read-batching candidate remains unpublished; its
-own review, gates, publication and strict verification remain open.
+The governed authoring-context pair and optional aggregate report query shipped
+in [`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
+All four synchronized `0.1.5` packages have completed verified trusted
+publication for answering read batching; see the
+[current receipt](BOOTSTRAP.md#current-verified-015-release). Changed source
+requires its own review and current-head gates.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
 [release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
 synthetic transport tests does not establish live host login, protected staging
@@ -225,7 +226,7 @@ The [public types](../packages/mcp/src/types.ts) and
 actual native-client/host acceptance remains separate.
 Reducing public-port calls does not establish a D1 query, CPU, physical-row or
 wall-clock allowance. Actual supported host profiles still require measurement;
-neither the release nor the `0.1.5` candidate makes a universal Free-tier acceptance claim.
+neither release makes a universal Free-tier acceptance claim.
 
 ## HTTP composition
 

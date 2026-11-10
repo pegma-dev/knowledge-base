@@ -5,10 +5,11 @@ transitions. It requires no Support
 Desk, GitHub, model, framework, database, or provider SDK.
 
 The current verified synchronized release is
-[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4). Source
-here prepares the unpublished `0.1.5` patch candidate alongside the application
-answering read-batching work. Its own review, current-head gates, trusted
-publication and strict registry verification remain required.
+[`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), including
+the application answering read-batching patch. Changed source still requires
+its own review and current-head gates; host acceptance remains separate.
+These source README corrections apply to a future release. Published `0.1.5`
+tarballs, including their bundled README bytes, remain unchanged.
 
 Core owns domain invariants. The application service checks current named
 permissions, loads authoritative records, uses host-verified evidence facts,

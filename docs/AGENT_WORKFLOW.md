@@ -6,12 +6,13 @@ application. [KB-05 release-preparation source](https://github.com/pegma-dev/kno
 is also merged. All four KB `0.1.0` packages completed manual bootstrap and
 exact-byte postflight without OIDC provenance. All four `0.1.1` packages have
 since completed verified trusted publication. Optional human-report mode shipped
-in [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3). All four
-packages are now verified published at
-[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4), including
-governed context reads and an optional aggregate report query. The synchronized
-`0.1.5` internal read-batching candidate remains unpublished, with its own review,
-gates, publication and strict verification open. This document
+in [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
+Governed context reads and an optional aggregate report query shipped in
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
+All four synchronized `0.1.5` packages have completed verified trusted
+publication for answering read batching; see the
+[current receipt](BOOTSTRAP.md#current-verified-015-release). Changed source
+requires its own review and current-head gates. This document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -214,9 +215,9 @@ trusted `0.1.1` release closed the public producer prerequisite at
 **2026-11-07T22:32:42Z**. The
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
 identities, the successful attempt-2 workflow, and strict verification stdout.
-KB `0.1.4` has since completed verified trusted publication. The `0.1.5` internal
-read-batching candidate retains its own gates, PR, and verified trusted release
-pending. Both verified trusted dependencies precede production host
+KB `0.1.4` and the answering read-batching `0.1.5` release have since completed
+verified trusted publication; see the [current KB receipt](BOOTSTRAP.md#current-verified-015-release).
+Changed source still requires its own gates. Both verified trusted dependencies precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.
 
@@ -253,4 +254,4 @@ full human-workflow acceptance remain prerequisites before activation, A-01,
 and either supervised pilot. Synthetic SDK success waives none of them.
 Fewer repeated reads do not prove a Free-tier D1 budget, CPU allowance or bounded
 physical-row cost. Measure the actual supported host invocation profiles before
-claiming readiness; this candidate closes no such acceptance gate.
+claiming readiness; the `0.1.5` release closes no such acceptance gate.
