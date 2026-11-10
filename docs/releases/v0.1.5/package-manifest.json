@@ -1,0 +1,666 @@
+{
+  "schemaVersion": 2,
+  "identity": {
+    "repository": "pegma-dev/knowledge-base",
+    "tag": "v0.1.5",
+    "commit": "6dae20df8dace50ad961d9c5fe8d28c90bf4918f",
+    "version": "0.1.5"
+  },
+  "artifacts": [
+    {
+      "name": "@pegma/knowledge-base-contracts",
+      "version": "0.1.5",
+      "filename": "pegma-knowledge-base-contracts-0.1.5.tgz",
+      "size": 5471,
+      "shasum": "b229f9a866833cbb3ff9fefbe2013e1bd7cef821",
+      "integrity": "sha512-TgK0HNLlBJ6a3EYS0aBmF+UO9v2ykK0xVYPo51Cmcn1ET15Fj90w3dpyzBX7dRomi1aGBAW3FX4X+djrayqbzg==",
+      "dependencies": {
+        "@pegma/spine": "0.1.2"
+      },
+      "files": [
+        {
+          "path": "dist/index.d.ts",
+          "size": 7069
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "size": 5443
+        },
+        {
+          "path": "dist/index.js",
+          "size": 1181
+        },
+        {
+          "path": "dist/index.js.map",
+          "size": 663
+        },
+        {
+          "path": "LICENSE",
+          "size": 1062
+        },
+        {
+          "path": "package.json",
+          "size": 888
+        },
+        {
+          "path": "README.md",
+          "size": 2579
+        }
+      ]
+    },
+    {
+      "name": "@pegma/knowledge-base-core",
+      "version": "0.1.5",
+      "filename": "pegma-knowledge-base-core-0.1.5.tgz",
+      "size": 21875,
+      "shasum": "3d1a968a9dd8bd8c536321de759ef6fbb6845625",
+      "integrity": "sha512-ZuaXkuuyuMN+n1xGfPcXvInvwdNsCQpjo8m9GhFmc0fu1reisj0oeVzF4i9DvYbhHqMA6QoZgIUBUCVijLd9ug==",
+      "dependencies": {
+        "@pegma/knowledge-base-contracts": "0.1.5"
+      },
+      "files": [
+        {
+          "path": "dist/articles.d.ts",
+          "size": 2916
+        },
+        {
+          "path": "dist/articles.d.ts.map",
+          "size": 2316
+        },
+        {
+          "path": "dist/articles.js",
+          "size": 17017
+        },
+        {
+          "path": "dist/articles.js.map",
+          "size": 15562
+        },
+        {
+          "path": "dist/collections.d.ts",
+          "size": 1685
+        },
+        {
+          "path": "dist/collections.d.ts.map",
+          "size": 1185
+        },
+        {
+          "path": "dist/collections.js",
+          "size": 6775
+        },
+        {
+          "path": "dist/collections.js.map",
+          "size": 6281
+        },
+        {
+          "path": "dist/index.d.ts",
+          "size": 571
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "size": 472
+        },
+        {
+          "path": "dist/index.js",
+          "size": 456
+        },
+        {
+          "path": "dist/index.js.map",
+          "size": 387
+        },
+        {
+          "path": "dist/validation.d.ts",
+          "size": 2400
+        },
+        {
+          "path": "dist/validation.d.ts.map",
+          "size": 1997
+        },
+        {
+          "path": "dist/validation.js",
+          "size": 10550
+        },
+        {
+          "path": "dist/validation.js.map",
+          "size": 9985
+        },
+        {
+          "path": "LICENSE",
+          "size": 1062
+        },
+        {
+          "path": "package.json",
+          "size": 875
+        },
+        {
+          "path": "README.md",
+          "size": 7687
+        }
+      ]
+    },
+    {
+      "name": "@pegma/knowledge-base-application",
+      "version": "0.1.5",
+      "filename": "pegma-knowledge-base-application-0.1.5.tgz",
+      "size": 126736,
+      "shasum": "946ce468d490d991a214f12d7ff6bcfdc06b334b",
+      "integrity": "sha512-tH9Hw+BSVmLzQPzdyhK9YaiAthWEwgYuG0Ef2kxT7FohMqYq4iaW/vDOHQdGa/gIMAlULqS/p0vCOPr7rPQfdA==",
+      "dependencies": {
+        "@pegma/audit": "0.2.0",
+        "@pegma/authorization-core": "0.4.0",
+        "@pegma/knowledge-base-contracts": "0.1.5",
+        "@pegma/knowledge-base-core": "0.1.5",
+        "@pegma/spine": "0.1.2",
+        "@pegma/storage-core": "0.4.0"
+      },
+      "files": [
+        {
+          "path": "dist/articles.d.ts",
+          "size": 698
+        },
+        {
+          "path": "dist/articles.d.ts.map",
+          "size": 471
+        },
+        {
+          "path": "dist/articles.js",
+          "size": 23462
+        },
+        {
+          "path": "dist/articles.js.map",
+          "size": 18811
+        },
+        {
+          "path": "dist/errors.d.ts",
+          "size": 846
+        },
+        {
+          "path": "dist/errors.d.ts.map",
+          "size": 561
+        },
+        {
+          "path": "dist/errors.js",
+          "size": 1317
+        },
+        {
+          "path": "dist/errors.js.map",
+          "size": 862
+        },
+        {
+          "path": "dist/evidence-reports-errors.d.ts",
+          "size": 1565
+        },
+        {
+          "path": "dist/evidence-reports-errors.d.ts.map",
+          "size": 939
+        },
+        {
+          "path": "dist/evidence-reports-errors.js",
+          "size": 750
+        },
+        {
+          "path": "dist/evidence-reports-errors.js.map",
+          "size": 501
+        },
+        {
+          "path": "dist/evidence-reports-types.d.ts",
+          "size": 7278
+        },
+        {
+          "path": "dist/evidence-reports-types.d.ts.map",
+          "size": 4998
+        },
+        {
+          "path": "dist/evidence-reports-types.js",
+          "size": 61
+        },
+        {
+          "path": "dist/evidence-reports-types.js.map",
+          "size": 136
+        },
+        {
+          "path": "dist/evidence-reports.d.ts",
+          "size": 689
+        },
+        {
+          "path": "dist/evidence-reports.d.ts.map",
+          "size": 270
+        },
+        {
+          "path": "dist/evidence-reports.js",
+          "size": 68337
+        },
+        {
+          "path": "dist/evidence-reports.js.map",
+          "size": 54967
+        },
+        {
+          "path": "dist/governance.d.ts",
+          "size": 2320
+        },
+        {
+          "path": "dist/governance.d.ts.map",
+          "size": 1537
+        },
+        {
+          "path": "dist/governance.js",
+          "size": 18912
+        },
+        {
+          "path": "dist/governance.js.map",
+          "size": 14586
+        },
+        {
+          "path": "dist/index.d.ts",
+          "size": 1327
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "size": 847
+        },
+        {
+          "path": "dist/index.js",
+          "size": 2656
+        },
+        {
+          "path": "dist/index.js.map",
+          "size": 2069
+        },
+        {
+          "path": "dist/lexical.d.ts",
+          "size": 804
+        },
+        {
+          "path": "dist/lexical.d.ts.map",
+          "size": 516
+        },
+        {
+          "path": "dist/lexical.js",
+          "size": 3278
+        },
+        {
+          "path": "dist/lexical.js.map",
+          "size": 3079
+        },
+        {
+          "path": "dist/publication.d.ts",
+          "size": 2482
+        },
+        {
+          "path": "dist/publication.d.ts.map",
+          "size": 1826
+        },
+        {
+          "path": "dist/publication.js",
+          "size": 12643
+        },
+        {
+          "path": "dist/publication.js.map",
+          "size": 9630
+        },
+        {
+          "path": "dist/reads.d.ts",
+          "size": 650
+        },
+        {
+          "path": "dist/reads.d.ts.map",
+          "size": 459
+        },
+        {
+          "path": "dist/reads.js",
+          "size": 15991
+        },
+        {
+          "path": "dist/reads.js.map",
+          "size": 12513
+        },
+        {
+          "path": "dist/records.d.ts",
+          "size": 1947
+        },
+        {
+          "path": "dist/records.d.ts.map",
+          "size": 1643
+        },
+        {
+          "path": "dist/records.js",
+          "size": 4586
+        },
+        {
+          "path": "dist/records.js.map",
+          "size": 4502
+        },
+        {
+          "path": "dist/repository.d.ts",
+          "size": 5386
+        },
+        {
+          "path": "dist/repository.d.ts.map",
+          "size": 4806
+        },
+        {
+          "path": "dist/repository.js",
+          "size": 49910
+        },
+        {
+          "path": "dist/repository.js.map",
+          "size": 42922
+        },
+        {
+          "path": "dist/retrieval-budget.d.ts",
+          "size": 1538
+        },
+        {
+          "path": "dist/retrieval-budget.d.ts.map",
+          "size": 1087
+        },
+        {
+          "path": "dist/retrieval-budget.js",
+          "size": 4551
+        },
+        {
+          "path": "dist/retrieval-budget.js.map",
+          "size": 3290
+        },
+        {
+          "path": "dist/retrieval-limits.d.ts",
+          "size": 321
+        },
+        {
+          "path": "dist/retrieval-limits.d.ts.map",
+          "size": 266
+        },
+        {
+          "path": "dist/retrieval-limits.js",
+          "size": 1058
+        },
+        {
+          "path": "dist/retrieval-limits.js.map",
+          "size": 945
+        },
+        {
+          "path": "dist/retrieval-maintenance.d.ts",
+          "size": 1178
+        },
+        {
+          "path": "dist/retrieval-maintenance.d.ts.map",
+          "size": 839
+        },
+        {
+          "path": "dist/retrieval-maintenance.js",
+          "size": 20088
+        },
+        {
+          "path": "dist/retrieval-maintenance.js.map",
+          "size": 15989
+        },
+        {
+          "path": "dist/retrieval-records.d.ts",
+          "size": 2375
+        },
+        {
+          "path": "dist/retrieval-records.d.ts.map",
+          "size": 1981
+        },
+        {
+          "path": "dist/retrieval-records.js",
+          "size": 5339
+        },
+        {
+          "path": "dist/retrieval-records.js.map",
+          "size": 5278
+        },
+        {
+          "path": "dist/retrieval-repository.d.ts",
+          "size": 2434
+        },
+        {
+          "path": "dist/retrieval-repository.d.ts.map",
+          "size": 1961
+        },
+        {
+          "path": "dist/retrieval-repository.js",
+          "size": 38618
+        },
+        {
+          "path": "dist/retrieval-repository.js.map",
+          "size": 35468
+        },
+        {
+          "path": "dist/retrieval-types.d.ts",
+          "size": 8466
+        },
+        {
+          "path": "dist/retrieval-types.d.ts.map",
+          "size": 5253
+        },
+        {
+          "path": "dist/retrieval-types.js",
+          "size": 777
+        },
+        {
+          "path": "dist/retrieval-types.js.map",
+          "size": 681
+        },
+        {
+          "path": "dist/retrieval.d.ts",
+          "size": 715
+        },
+        {
+          "path": "dist/retrieval.d.ts.map",
+          "size": 566
+        },
+        {
+          "path": "dist/retrieval.js",
+          "size": 26199
+        },
+        {
+          "path": "dist/retrieval.js.map",
+          "size": 20204
+        },
+        {
+          "path": "dist/storage-helpers.d.ts",
+          "size": 1096
+        },
+        {
+          "path": "dist/storage-helpers.d.ts.map",
+          "size": 854
+        },
+        {
+          "path": "dist/storage-helpers.js",
+          "size": 5524
+        },
+        {
+          "path": "dist/storage-helpers.js.map",
+          "size": 5299
+        },
+        {
+          "path": "dist/types.d.ts",
+          "size": 13802
+        },
+        {
+          "path": "dist/types.d.ts.map",
+          "size": 10394
+        },
+        {
+          "path": "dist/types.js",
+          "size": 44
+        },
+        {
+          "path": "dist/types.js.map",
+          "size": 102
+        },
+        {
+          "path": "LICENSE",
+          "size": 1062
+        },
+        {
+          "path": "package.json",
+          "size": 1089
+        },
+        {
+          "path": "README.md",
+          "size": 16844
+        }
+      ]
+    },
+    {
+      "name": "@pegma/knowledge-base-mcp",
+      "version": "0.1.5",
+      "filename": "pegma-knowledge-base-mcp-0.1.5.tgz",
+      "size": 40905,
+      "shasum": "58b7fb150f378e1c3fe5704dedfe2facfa39046a",
+      "integrity": "sha512-IBdsjzxVhGeMGViJpWLwzKTXGr2iOLeVylaBRnT9Bn+oSeAKxe1yMez+/eg7Nu19Ru/bweIrmUb0JuqIxem0Nw==",
+      "dependencies": {
+        "@cfworker/json-schema": "4.1.6",
+        "@modelcontextprotocol/sdk": "1.32.2",
+        "@pegma/authorization-core": "0.4.0",
+        "@pegma/knowledge-base-application": "0.1.5",
+        "@pegma/knowledge-base-contracts": "0.1.5",
+        "@pegma/knowledge-base-core": "0.1.5",
+        "zod": "4.6.7"
+      },
+      "files": [
+        {
+          "path": "dist/dispatcher.d.ts",
+          "size": 434
+        },
+        {
+          "path": "dist/dispatcher.d.ts.map",
+          "size": 256
+        },
+        {
+          "path": "dist/dispatcher.js",
+          "size": 21126
+        },
+        {
+          "path": "dist/dispatcher.js.map",
+          "size": 14463
+        },
+        {
+          "path": "dist/errors.d.ts",
+          "size": 724
+        },
+        {
+          "path": "dist/errors.d.ts.map",
+          "size": 472
+        },
+        {
+          "path": "dist/errors.js",
+          "size": 2753
+        },
+        {
+          "path": "dist/errors.js.map",
+          "size": 2086
+        },
+        {
+          "path": "dist/http.d.ts",
+          "size": 769
+        },
+        {
+          "path": "dist/http.d.ts.map",
+          "size": 513
+        },
+        {
+          "path": "dist/http.js",
+          "size": 1702
+        },
+        {
+          "path": "dist/http.js.map",
+          "size": 1288
+        },
+        {
+          "path": "dist/index.d.ts",
+          "size": 567
+        },
+        {
+          "path": "dist/index.d.ts.map",
+          "size": 457
+        },
+        {
+          "path": "dist/index.js",
+          "size": 337
+        },
+        {
+          "path": "dist/index.js.map",
+          "size": 314
+        },
+        {
+          "path": "dist/mcp.d.ts",
+          "size": 844
+        },
+        {
+          "path": "dist/mcp.d.ts.map",
+          "size": 514
+        },
+        {
+          "path": "dist/mcp.js",
+          "size": 13779
+        },
+        {
+          "path": "dist/mcp.js.map",
+          "size": 11635
+        },
+        {
+          "path": "dist/schemas.d.ts",
+          "size": 30919
+        },
+        {
+          "path": "dist/schemas.d.ts.map",
+          "size": 1543
+        },
+        {
+          "path": "dist/schemas.js",
+          "size": 17556
+        },
+        {
+          "path": "dist/schemas.js.map",
+          "size": 15973
+        },
+        {
+          "path": "dist/transport-common.d.ts",
+          "size": 4068
+        },
+        {
+          "path": "dist/transport-common.d.ts.map",
+          "size": 2390
+        },
+        {
+          "path": "dist/transport-common.js",
+          "size": 16128
+        },
+        {
+          "path": "dist/transport-common.js.map",
+          "size": 14452
+        },
+        {
+          "path": "dist/types.d.ts",
+          "size": 6857
+        },
+        {
+          "path": "dist/types.d.ts.map",
+          "size": 4341
+        },
+        {
+          "path": "dist/types.js",
+          "size": 2170
+        },
+        {
+          "path": "dist/types.js.map",
+          "size": 1270
+        },
+        {
+          "path": "LICENSE",
+          "size": 1062
+        },
+        {
+          "path": "package.json",
+          "size": 1124
+        },
+        {
+          "path": "README.md",
+          "size": 9766
+        }
+      ]
+    }
+  ]
+}

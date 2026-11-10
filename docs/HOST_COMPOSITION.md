@@ -18,12 +18,13 @@ human-reviewed report packages subsequently completed
 [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
 The governed authoring-context/report-query features shipped in the qualified
 [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
-Synchronized `0.1.5` is an unpublished internal answering read-batching candidate;
-its own review, current-head gates, trusted release and strict registry/provenance
-verification remain open. Internal read-wave changes preserve the public ports
-and do not establish a universal Workers Free call/CPU allowance or live-host
-acceptance. Supported invocation profiles require their own measurements.
-Host acceptance remains separate.
+All four answering read-batching `0.1.5` packages have completed
+[qualified trusted publication](BOOTSTRAP.md#current-verified-015-release), including
+strict registry/provenance and public-consumer verification. Internal read-wave
+changes preserve the public ports and do not establish a universal Workers Free
+call/CPU allowance or live-host acceptance. Publication does not update either
+host's installed dependency pins. Host adoption, supported invocation-profile
+measurements and acceptance remain separate.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
 layout, CAS, admission, and replay design.
@@ -49,8 +50,8 @@ provenance. Its trusted `0.1.1` release and strict registry verification have
 since closed the public producer prerequisite. Actual existing-login/client
 acceptance on both hosts remains open. See the
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) for the exact
-Agent Access receipt. The changed registry proof still needs current-head
-execution; historical source-producer evidence does not validate it.
+Agent Access receipt. Each changed registry proof needs current-head execution;
+historical source-producer evidence does not validate changed proof code.
 
 The host owns identity verification, scoped local-agent credentials, current
 authorization resolution, browser/transport protections, store construction,

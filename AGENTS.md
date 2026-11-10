@@ -30,10 +30,10 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   All four `0.1.4` packages completed verified trusted publication for governed
   authoring contexts, report queries and bounded resumable repair; retain the
   [public release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
-  Synchronized `0.1.5` is the unpublished answering read-batching candidate and
-  requires its own review, current-head gates, trusted publication and strict
-  verification. Grouped reads establish no universal query or CPU budget.
-  Real-host acceptance remains separate.
+  All four `0.1.5` packages completed verified trusted publication for answering
+  read batching; retain the [current release receipt](docs/BOOTSTRAP.md#current-verified-015-release).
+  Grouped reads establish no universal query or CPU budget. Host dependency
+  adoption and real-host acceptance remain separate.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
   corresponding Pegma package in the owning later task.
@@ -143,8 +143,9 @@ packed KB candidate artifacts and the official SDK in a fresh temporary consumer
 with lifecycle scripts disabled. It accepts no source-producer fallback.
 Historical source-fixture evidence is not evidence for changed proof code;
 current-head Node 22/24 gates must execute the registry composition. The KB
-`0.1.5` candidate's own review, trusted publication, and strict registry
-verification remain open. Host acceptance remains open before activation.
+`0.1.5` release has completed its own review, current-head gates, trusted
+publication and strict registry verification. Changed source requires its own
+gates and release. Host acceptance remains open before activation.
 Keep actual existing-login/Admin-consent and every requested client/mode proof
 open in P-00 and PG-01/RG-01 until both hosts record them before activation.
 

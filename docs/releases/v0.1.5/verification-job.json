@@ -1,0 +1,86 @@
+{
+  "id": 129895026059,
+  "run_id": 42821672972,
+  "run_attempt": 5,
+  "name": "Verify registry release and consumer",
+  "status": "completed",
+  "conclusion": "success",
+  "started_at": "2026-11-10T14:32:20Z",
+  "completed_at": "2026-11-10T14:32:38Z",
+  "html_url": "https://github.com/pegma-dev/knowledge-base/actions/runs/42821672972/job/129895026059",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 1,
+      "started_at": "2026-11-10T14:32:21Z",
+      "completed_at": "2026-11-10T14:32:22Z"
+    },
+    {
+      "name": "Check out the exact verified release source",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 2,
+      "started_at": "2026-11-10T14:32:22Z",
+      "completed_at": "2026-11-10T14:32:23Z"
+    },
+    {
+      "name": "Set up Node.js",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 3,
+      "started_at": "2026-11-10T14:32:23Z",
+      "completed_at": "2026-11-10T14:32:27Z"
+    },
+    {
+      "name": "Use the reviewed npm release",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 4,
+      "started_at": "2026-11-10T14:32:27Z",
+      "completed_at": "2026-11-10T14:32:27Z"
+    },
+    {
+      "name": "Download the exact immutable prepared artifact",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 5,
+      "started_at": "2026-11-10T14:32:27Z",
+      "completed_at": "2026-11-10T14:32:28Z"
+    },
+    {
+      "name": "Verify registry bytes, provenance, and the public consumer",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 6,
+      "started_at": "2026-11-10T14:32:28Z",
+      "completed_at": "2026-11-10T14:32:36Z"
+    },
+    {
+      "name": "Post Set up Node.js",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 11,
+      "started_at": "2026-11-10T14:32:36Z",
+      "completed_at": "2026-11-10T14:32:36Z"
+    },
+    {
+      "name": "Post Check out the exact verified release source",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 12,
+      "started_at": "2026-11-10T14:32:36Z",
+      "completed_at": "2026-11-10T14:32:36Z"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 13,
+      "started_at": "2026-11-10T14:32:36Z",
+      "completed_at": "2026-11-10T14:32:36Z"
+    }
+  ],
+  "head_sha": "6dae20df8dace50ad961d9c5fe8d28c90bf4918f"
+}

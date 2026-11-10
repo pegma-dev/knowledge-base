@@ -2,3 +2,4 @@ dist/
 coverage/
 artifacts/
 pnpm-lock.yaml
+/docs/releases/v0.1.5/package-manifest.json

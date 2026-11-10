@@ -24,9 +24,10 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > All four `0.1.4` packages completed
 > [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
 > for governed authoring-context reads, report queries and bounded resumable repair.
-> Synchronized `0.1.5` is the **unpublished patch candidate** for answering read
-> batching; its own review, current-head CI, trusted publication and strict
-> consumer verification remain pending.
+> All four `0.1.5` packages completed
+> [verified trusted publication](docs/BOOTSTRAP.md#current-verified-015-release)
+> for answering read batching, including strict registry/provenance and public-consumer
+> verification. Host dependency adoption remains separate.
 > Actual two-host existing-login/client acceptance remains open.
 > Host activation remains separately gated; this repository supplies no hosted KB.
 
@@ -163,12 +164,13 @@ Merging source does not publish a package. The
 `0.1.0` uploads and exact-byte postflight. All five KB/Agent Access trusted
 publishers are configured through the CLI. Agent Access's verified trusted
 `0.1.1` release and the four-package KB trusted
-[`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
-are complete; prior exact receipts remain historical evidence. All four KB
-packages currently have `latest: 0.1.4`; Agent Access has `latest: 0.1.1`; all
-retain historical `bootstrap: 0.1.0`. Synchronized source `0.1.5` remains
-unpublished and needs its own review, current-head CI, trusted release and strict
-consumer verification. Read batching establishes no universal backend query or
+[`0.1.5` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5)
+are complete; prior exact receipts remain historical evidence. At the `0.1.5`
+release checkpoint, all four KB packages had `latest: 0.1.5`; Agent Access
+remained at `latest: 0.1.1`; all retained `bootstrap: 0.1.0`. Dist-tags are mutable
+observations. The [current receipt](docs/BOOTSTRAP.md#current-verified-015-release)
+binds the original artifact, exact manifest, authenticated original writers and
+strict verification. Read batching establishes no universal backend query or
 CPU budget. Neither registry publication nor synthetic proof satisfies real
 host acceptance or approves activation.
 
