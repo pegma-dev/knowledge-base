@@ -24,19 +24,28 @@ at **2026-11-08T03:39:55Z**; the
 [historical receipt](BOOTSTRAP.md#historical-verified-012-release) retains its
 source/tag and original prepared artifact bindings.
 
-The current verified release is [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3)
+The historical verified release is [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3)
 at signed source `8b4c25aa6a40f0c56be97f07e3b7b5ac6136a99b`. All four exact
 registry packages passed signature/provenance and public-consumer qualification;
 the [receipt](BOOTSTRAP.md#current-verified-013-release) distinguishes original
 writer attempts 1–4 from the final successful attempt 5 and binds the unchanged
 original prepared artifact.
 
-Source `0.1.4` is the synchronized **unpublished** candidate for governed
-authoring-context reads and optional report queries. Its own review, current-head CI,
-signed tag, trusted publication and strict consumer verification remain pending.
-Existing package links to `v0.1.2` describe that verified release; the new
-[report guide](EVIDENCE_REPORTS.md) distinguishes the released `0.1.3` factory
-from the `0.1.4` candidate additions. No `v0.1.4` publication is claimed here.
+The current verified release is
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4). All four
+packages were qualified against their signed-source preparation, with registry
+signatures, source provenance and public-consumer verification. The public
+release retains the original preparation archive and verification summary,
+including the original writer attempts and final recovery. It ships governed
+authoring-context reads, report queries and bounded resumable repair.
+
+Source `0.1.5` is the synchronized **unpublished** patch candidate for answering
+read batching. Its own review, current-head CI, signed tag, trusted publication
+and strict consumer verification remain pending. Existing links to `v0.1.2`
+and the released `0.1.3` report factory remain historical contracts; do not
+relabel their source or artifact receipts as the new candidate. Grouped reads
+establish no universal backend query or CPU budget, and host acceptance remains
+separate.
 [KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 and [KB-05 release preparation](https://github.com/pegma-dev/knowledge-base/pull/6)
 are merged. The separate earlier [partial KB-05 source slice](https://github.com/pegma-dev/knowledge-base/pull/4)
@@ -49,7 +58,7 @@ Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
 packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
 manual commands/stdout, exact identities, preparation runs/artifacts, and
-independently retained digests. The qualified release versions are KB `0.1.3`
+independently retained digests. The qualified release versions are KB `0.1.4`
 and Agent Access `0.1.1`. The manual `0.1.0` bootstraps and their dated dist-tag
 observations remain historical integrity receipts without OIDC provenance.
 
@@ -62,7 +71,7 @@ retains its exact artifact/digest, successful attempt-2 workflow, and unprivileg
 verification job. That public producer prerequisite is closed.
 The active `agent:proof` installs exact registry `@pegma/agent-access@0.1.1`
 with four packed KB artifacts and official MCP SDK `1.32.2` in a fresh consumer.
-The KB `0.1.4` candidate still needs its own current-head gates, review, PR, publication,
+The KB `0.1.5` candidate still needs its own current-head gates, review, PR, publication,
 and strict verification; historical source-proof results do not validate this
 changed composition. Production hosts require verified trusted versions of
 both components and their separately retained acceptance.

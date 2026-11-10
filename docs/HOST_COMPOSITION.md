@@ -16,9 +16,13 @@ The four-package `0.1.2` atomic draft/source release is
 [verified](BOOTSTRAP.md#current-verified-012-release). All four `0.1.3`
 human-reviewed report packages subsequently completed
 [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
-Synchronized `0.1.4` is the unpublished governed authoring-context/report-query
-candidate; its own review, current-head gates, trusted release and strict
-registry/provenance verification remain open.
+The governed authoring-context/report-query features shipped in the qualified
+[`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
+Synchronized `0.1.5` is an unpublished internal answering read-batching candidate;
+its own review, current-head gates, trusted release and strict registry/provenance
+verification remain open. Internal read-wave changes preserve the public ports
+and do not establish a universal Workers Free call/CPU allowance or live-host
+acceptance. Supported invocation profiles require their own measurements.
 Host acceptance remains separate.
 No package becomes an identity system or an operational hosted endpoint.
 See [declared collections](COLLECTIONS.md) for the required
@@ -27,9 +31,9 @@ layout, CAS, admission, and replay design.
 The earlier merged [partial KB-05 source](https://github.com/pegma-dev/knowledge-base/pull/4),
 documented in [source preparation](SOURCE_PREPARATION.md), adds
 shared memory/Azurite/local-D1 conformance and a
-[public synthetic composition](../examples/composition/README.md). The D1
+[public synthetic composition](../examples/composition/README.md). The current D1
 fixture passes a real Miniflare binding directly to the released
-`@pegma/storage-cloudflare-d1@0.4.1` adapter with isolated per-factory cleanup.
+`@pegma/storage-cloudflare-d1@0.4.6` adapter with isolated per-factory cleanup.
 It is local consumer evidence, not a deployed Workers binding or production
 acceptance. The example's resolved contexts and receipt registry stand in for
 trusted host facts; they authenticate no real browser, agent, or staging run.
@@ -121,19 +125,19 @@ clock, current scoped access, and verified external facts. The application
 does not take an actor, role list, timestamp, or permission grant from an
 untrusted command body as proof of authority.
 
-| Operation family                       | Service methods                                                                                          | Required named permission                                                                                                 |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Collection policy                      | `createCollection`, `previewCollectionPolicy`, `updateCollectionPolicy`                                  | `collectionManage`; anonymous portal or bot use additionally needs `publicCollectionApprove` and explicit `approvePublic` |
-| Validation/governance                  | `putValidationPolicy`, `putGovernanceConfiguration`, `getValidationPolicy`, `getGovernanceConfiguration` | `validationManage`                                                                                                        |
-| Collection staff view                  | `getCollection`                                                                                          | `collectionRead`                                                                                                          |
-| Author requirements                    | `getValidationRequirements`                                                                              | `draftWrite` or `evidenceSubmit`                                                                                          |
-| Governed authoring (`0.1.4` candidate) | `getAuthoringContext`, `confirmAuthoringContext`                                                         | `draftRead` and (`draftWrite` or `evidenceSubmit`); private evidence additionally needs `evidenceRead`                    |
-| Drafts                                 | `createDraft`, `updateDraft`; `getDraft`                                                                 | `draftWrite`; `draftRead` respectively                                                                                    |
-| Evidence                               | `submitEvidence`; `getEvidence`; `revokeEvidence`                                                        | `evidenceSubmit`; `evidenceRead`; `evidenceRevoke` respectively                                                           |
-| Private provenance                     | `setProvenance`; `getProvenance`                                                                         | `provenanceWrite`; `provenanceRead`, plus source-resource checks                                                          |
-| Review                                 | `submitForReview`; `getReview`, `rejectReview`                                                           | `reviewSubmit`; `review` respectively                                                                                     |
-| Publication                            | `publishArticle`; `retireArticle`                                                                        | `publish`; `retire` respectively                                                                                          |
-| Portal-safe keyed read                 | `getPublishedArticle`                                                                                    | `articleRead` and the published collection's current portal audience                                                      |
+| Operation family                     | Service methods                                                                                          | Required named permission                                                                                                 |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Collection policy                    | `createCollection`, `previewCollectionPolicy`, `updateCollectionPolicy`                                  | `collectionManage`; anonymous portal or bot use additionally needs `publicCollectionApprove` and explicit `approvePublic` |
+| Validation/governance                | `putValidationPolicy`, `putGovernanceConfiguration`, `getValidationPolicy`, `getGovernanceConfiguration` | `validationManage`                                                                                                        |
+| Collection staff view                | `getCollection`                                                                                          | `collectionRead`                                                                                                          |
+| Author requirements                  | `getValidationRequirements`                                                                              | `draftWrite` or `evidenceSubmit`                                                                                          |
+| Governed authoring (`0.1.4` release) | `getAuthoringContext`, `confirmAuthoringContext`                                                         | `draftRead` and (`draftWrite` or `evidenceSubmit`); private evidence additionally needs `evidenceRead`                    |
+| Drafts                               | `createDraft`, `updateDraft`; `getDraft`                                                                 | `draftWrite`; `draftRead` respectively                                                                                    |
+| Evidence                             | `submitEvidence`; `getEvidence`; `revokeEvidence`                                                        | `evidenceSubmit`; `evidenceRead`; `evidenceRevoke` respectively                                                           |
+| Private provenance                   | `setProvenance`; `getProvenance`                                                                         | `provenanceWrite`; `provenanceRead`, plus source-resource checks                                                          |
+| Review                               | `submitForReview`; `getReview`, `rejectReview`                                                           | `reviewSubmit`; `review` respectively                                                                                     |
+| Publication                          | `publishArticle`; `retireArticle`                                                                        | `publish`; `retire` respectively                                                                                          |
+| Portal-safe keyed read               | `getPublishedArticle`                                                                                    | `articleRead` and the published collection's current portal audience                                                      |
 
 Names in this table are members of the contracts package's
 `knowledgePermissions`; they are permission identifiers, not roles. Resource
@@ -176,7 +180,7 @@ validation-policy reference, governance generation, and expected staging
 build for authorized authors. It omits trusted attester IDs; full governance
 configuration remains an administrative read.
 
-### Governed authoring context (`0.1.4` candidate)
+### Governed authoring context (`0.1.4` release)
 
 `getAuthoringContext(access, { articleId, includeEvidence?: boolean })` returns
 `{ context, observation }`. The context combines current `draft` and narrow
@@ -204,7 +208,7 @@ metadata-probe-adjacent resolution. No DTO or side effect is released before the
 fresh prewrite check. A postcommit denial can withhold an accepted ACK, so preserve
 the exact original command for recovery.
 
-The candidate `reports.query` returns body-free target metadata, requirements,
+The released `reports.query` returns body-free target metadata, requirements,
 ledger state and optional owner-only status under `draftRead` plus
 `evidenceSubmit`. The optional agent report port can use it through the existing
 requirements operation; legacy report trios retain their fallback. It returns

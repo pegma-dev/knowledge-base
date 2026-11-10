@@ -68,8 +68,13 @@ export interface RetrievalRepository {
   /** Every returned page/entry must be charged before query filtering/deduplication. */
   readPostingPages(
     scope: RetrievalScope,
-    term: string,
-  ): Promise<readonly RetrievalPostingPage[]>;
+    terms: readonly string[],
+  ): Promise<
+    readonly {
+      readonly term: string;
+      readonly pages: readonly RetrievalPostingPage[];
+    }[]
+  >;
   readArticleProjection(
     articleId: string,
   ): Promise<RetrievalProjectionState | null>;
@@ -926,17 +931,32 @@ export function createRetrievalRepository(
         scopes: scopesUnion(active.flatMap((entry) => entry.scopes)),
       };
     },
-    async readPostingPages(scope, term) {
+    async readPostingPages(scope, terms) {
       requireRetrievalScope(scope);
-      const termHash = await retrievalTermHash(term);
-      const loaded = (
-        await loadPostings(await scopePartition(scope), scope, [termHash])
-      ).get(termHash)!;
-      return loaded.pages.map((page) => ({
-        entries: (page.value.data as PostingPage).entries.map((entry) =>
-          snapshotData(entry.hint),
-        ),
-      }));
+      if (!Array.isArray(terms) || terms.length > limits.maxQueryTerms)
+        throw new TypeError("Expected bounded normalized lexical terms");
+      const selected = [...terms];
+      // Reject duplicate normalized terms rather than silently deduplicating.
+      unique(selected);
+      // No Store read starts until the complete scope and term-key set is ready.
+      // loadPostings validates all heads before issuing its complete page wave.
+      const [partition, hashes] = await Promise.all([
+        scopePartition(scope),
+        Promise.all(selected.map(retrievalTermHash)),
+      ]);
+      const loaded = await loadPostings(partition, scope, hashes);
+      return selected.map((term, index) => {
+        const posting = loaded.get(hashes[index]!);
+        if (posting === undefined) throw new RepositoryIntegrityError();
+        return {
+          term,
+          pages: posting.pages.map((page) => ({
+            entries: (page.value.data as PostingPage).entries.map((entry) =>
+              snapshotData(entry.hint),
+            ),
+          })),
+        };
+      });
     },
     async readArticleProjection(articleId) {
       return (await readState(articleId))?.state ?? null;

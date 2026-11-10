@@ -5,7 +5,7 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status as of 2026-11-09: KB-01 through KB-03 provide contracts, pure domain
+> Development status as of 2026-11-10: KB-01 through KB-03 provide contracts, pure domain
 > transitions, authorized application/persistence, and bounded retrieval/repair.
 > [Merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) adds
 > the optional five-operation HTTP/MCP adapter and authenticated protocol proof.
@@ -21,9 +21,12 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > for SD-03 atomic draft/source authoring. All four `0.1.3` packages completed
 > [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3)
 > for optional human-reviewed [evidence reports](docs/EVIDENCE_REPORTS.md).
-> Synchronized `0.1.4` is the **unpublished source candidate** for governed
-> authoring-context reads and report queries; its review, current-head CI,
-> trusted publication and strict consumer verification remain pending.
+> All four `0.1.4` packages completed
+> [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
+> for governed authoring-context reads, report queries and bounded resumable repair.
+> Synchronized `0.1.5` is the **unpublished patch candidate** for answering read
+> batching; its own review, current-head CI, trusted publication and strict
+> consumer verification remain pending.
 > Actual two-host existing-login/client acceptance remains open.
 > Host activation remains separately gated; this repository supplies no hosted KB.
 
@@ -47,7 +50,7 @@ and review reads have separate DTOs. The keyed published read returns
 portal-safe content only. The three base packages remain independent of HTTP,
 MCP, and provider SDKs.
 
-The `0.1.4` candidate adds `getAuthoringContext` to read current draft and narrow
+The `0.1.4` release provides `getAuthoringContext` to read current draft and narrow
 requirements together. It requires draft-read plus draft-write or evidence-submit;
 requesting complete private evidence also requires evidence-read. Its opaque,
 single-use `confirmAuthoringContext` observation is local to the same operation
@@ -159,11 +162,14 @@ Merging source does not publish a package. The
 [maintainer bootstrap ledger](docs/BOOTSTRAP.md) records the completed manual
 `0.1.0` uploads and exact-byte postflight. All five KB/Agent Access trusted
 publishers are configured through the CLI. Agent Access's verified trusted
-`0.1.1` release and the four-package KB trusted `0.1.3` release are complete;
-their exact receipts remain in the ledger. All four KB packages have
-`latest: 0.1.3`; Agent Access has `latest: 0.1.1`; all retain historical
-`bootstrap: 0.1.0`. Synchronized source `0.1.4` remains unpublished and needs its own review,
-current-head CI, trusted release and strict consumer verification. Neither registry publication nor
-synthetic proof satisfies real host acceptance or approves activation.
+`0.1.1` release and the four-package KB trusted
+[`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
+are complete; prior exact receipts remain historical evidence. All four KB
+packages currently have `latest: 0.1.4`; Agent Access has `latest: 0.1.1`; all
+retain historical `bootstrap: 0.1.0`. Synchronized source `0.1.5` remains
+unpublished and needs its own review, current-head CI, trusted release and strict
+consumer verification. Read batching establishes no universal backend query or
+CPU budget. Neither registry publication nor synthetic proof satisfies real
+host acceptance or approves activation.
 
 Built in the open by RetireGolden, LLC.

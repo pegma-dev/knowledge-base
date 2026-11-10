@@ -27,9 +27,12 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   for SD-03 atomic draft/source authoring. All four `0.1.3` packages completed
   verified trusted publication for optional human-reviewed evidence reports;
   retain the [public release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
-  Synchronized `0.1.4` is the unpublished governed authoring-context/report-query
-  candidate and requires its own review, current-head gates, trusted publication
-  and strict verification.
+  All four `0.1.4` packages completed verified trusted publication for governed
+  authoring contexts, report queries and bounded resumable repair; retain the
+  [public release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
+  Synchronized `0.1.5` is the unpublished answering read-batching candidate and
+  requires its own review, current-head gates, trusted publication and strict
+  verification. Grouped reads establish no universal query or CPU budget.
   Real-host acceptance remains separate.
 - Never implement a database, authorization role model, identity/session/token
   system, audit log, request limiter, or durable scheduler here. Compose the
@@ -140,7 +143,7 @@ packed KB candidate artifacts and the official SDK in a fresh temporary consumer
 with lifecycle scripts disabled. It accepts no source-producer fallback.
 Historical source-fixture evidence is not evidence for changed proof code;
 current-head Node 22/24 gates must execute the registry composition. The KB
-`0.1.4` candidate's own review, trusted publication, and strict registry
+`0.1.5` candidate's own review, trusted publication, and strict registry
 verification remain open. Host acceptance remains open before activation.
 Keep actual existing-login/Admin-consent and every requested client/mode proof
 open in P-00 and PG-01/RG-01 until both hosts record them before activation.

@@ -5,11 +5,13 @@ adds optional authoring transports over the existing Knowledge Base
 application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
 is also merged. All four KB `0.1.0` packages completed manual bootstrap and
 exact-byte postflight without OIDC provenance. All four `0.1.1` packages have
-since completed verified trusted publication. All four packages are now verified
-published at [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3),
-including optional human-report mode. The synchronized unpublished `0.1.4`
-candidate adds governed context reads and an optional aggregate report query;
-its own review, gates, publication and strict verification remain open. This document
+since completed verified trusted publication. Optional human-report mode shipped
+in [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3). All four
+packages are now verified published at
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4), including
+governed context reads and an optional aggregate report query. The synchronized
+`0.1.5` internal read-batching candidate remains unpublished, with its own review,
+gates, publication and strict verification open. This document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
 [AGENT_API.md](AGENT_API.md).
@@ -110,7 +112,7 @@ staff tool. Without that port, their legacy schemas and behavior remain exact.
 The [wire contract](AGENT_API.md#optional-native-client-report-mode) defines
 the public DTOs. Both variants need effective `draftRead` and `evidenceSubmit`.
 
-The `0.1.4` source candidate can compose optional `reports.query` behind that
+The verified `0.1.4` release can compose optional `reports.query` behind that
 same requirements tool. It consolidates the current target/requirements,
 ledger and optional owner-status observations without changing the client
 request, result schema, five tools or three scopes. The original three report
@@ -212,8 +214,9 @@ trusted `0.1.1` release closed the public producer prerequisite at
 **2026-11-07T22:32:42Z**. The
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
 identities, the successful attempt-2 workflow, and strict verification stdout.
-The KB `0.1.4` context/query candidate retains its own gates, PR, and verified
-trusted release pending. Both verified trusted dependencies precede production host
+KB `0.1.4` has since completed verified trusted publication. The `0.1.5` internal
+read-batching candidate retains its own gates, PR, and verified trusted release
+pending. Both verified trusted dependencies precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.
 

@@ -24,19 +24,19 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/knowledge-base-application':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:packages/application
       '@pegma/knowledge-base-application-previous':
         specifier: npm:@pegma/knowledge-base-application@0.1.1
         version: '@pegma/knowledge-base-application@0.1.1'
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:packages/contracts
       '@pegma/knowledge-base-core':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:packages/core
       '@pegma/knowledge-base-mcp':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:packages/mcp
       '@pegma/spine':
         specifier: 0.1.2
@@ -45,8 +45,8 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/storage-cloudflare-d1':
-        specifier: 0.4.1
-        version: 0.4.1
+        specifier: 0.4.6
+        version: 0.4.6
       '@pegma/storage-core':
         specifier: 0.4.0
         version: 0.4.0
@@ -81,10 +81,10 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:../contracts
       '@pegma/knowledge-base-core':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:../core
       '@pegma/spine':
         specifier: 0.1.2
@@ -102,7 +102,7 @@ importers:
   packages/core:
     dependencies:
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:../contracts
 
   packages/mcp:
@@ -117,13 +117,13 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/knowledge-base-application':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:../application
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:../contracts
       '@pegma/knowledge-base-core':
-        specifier: 0.1.4
+        specifier: 0.1.5
         version: link:../core
       zod:
         specifier: 4.6.7
@@ -846,8 +846,8 @@ packages:
     resolution: {integrity: sha512-cHVrLyQRf8qu2d83fgO7spPxKxAZlOOfvEi/t38S6l3SD2678khJvUMcvAHm/rAQ8BlReDWd6WSnIZuQiI3A1Q==}
     engines: {node: '>=22'}
 
-  '@pegma/storage-cloudflare-d1@0.4.1':
-    resolution: {integrity: sha512-nVH+ppAWi3QwyEX8QVkPOLXNjtblO0jDnnGqCHpbZZzPvFQAVyd/1Bhxg8JdsuOD/UWGktJ26asAKzpNjRol0w==}
+  '@pegma/storage-cloudflare-d1@0.4.6':
+    resolution: {integrity: sha512-DjBRoRq5C6sWgL2KWdWOcW0F3N7HHuRu1i7Gr8SM4Aeh4FpEh1hQwIdMvkXpPHCd48CMqLJz8M5HYYR+/sRUgw==}
     engines: {node: '>=22'}
 
   '@pegma/storage-core@0.4.0':
@@ -3428,7 +3428,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@pegma/storage-cloudflare-d1@0.4.1':
+  '@pegma/storage-cloudflare-d1@0.4.6':
     dependencies:
       '@pegma/storage-core': 0.4.0
 

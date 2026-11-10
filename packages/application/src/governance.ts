@@ -20,7 +20,12 @@ import {
   KnowledgeBasePrerequisiteError,
   requirePermission,
 } from "./errors.js";
-import type { KnowledgeRepository, RepositoryCommand } from "./repository.js";
+import type {
+  KnowledgeRepository,
+  RepositoryCommand,
+  VersionedState,
+} from "./repository.js";
+import type { StoredCollection, StoredValidationPolicy } from "./records.js";
 import {
   canonicalJson,
   commandFingerprint,
@@ -188,23 +193,26 @@ export interface GovernanceObservation extends CurrentGovernanceContext {
   readonly configuration: GovernanceConfiguration;
 }
 
-/** Initial authoritative facts; the caller must subsequently fence the heads. */
-export async function readGovernanceObservation(
-  repository: KnowledgeRepository,
-  collectionId: string,
-  at: IsoTimestamp,
-): Promise<GovernanceObservation> {
-  requireIdentifier(collectionId, "collectionId");
-  const collection = await repository.readCollectionVersioned(collectionId);
+/** Validate the captured C before preparing any dependent resource read. */
+export function governanceConfigurationFrom(
+  collection: VersionedState<StoredCollection> | null,
+): GovernanceConfiguration {
   if (collection === null) throw new KnowledgeBaseNotFoundError("collection");
   const configuration = collection.value.configuration;
   if (configuration === undefined) {
     throw new KnowledgeBasePrerequisiteError("collection_configuration");
   }
   validateConfiguration(configuration);
-  const validation = await repository.readValidationPolicyVersioned(
-    configuration.validationPolicy.id,
-  );
+  return configuration;
+}
+
+/** The same validation for ordinary and internally prepared observations. */
+export function governanceObservationFrom(
+  collection: VersionedState<StoredCollection>,
+  validation: VersionedState<StoredValidationPolicy> | null,
+  at: IsoTimestamp,
+): GovernanceObservation {
+  const configuration = governanceConfigurationFrom(collection);
   if (
     validation === null ||
     validation.value.policy.id !== configuration.validationPolicy.id ||
@@ -227,6 +235,23 @@ export async function readGovernanceObservation(
     validationVersion: validation.version,
     configuration,
   });
+}
+
+/** Initial authoritative facts; the caller must subsequently fence the heads. */
+export async function readGovernanceObservation(
+  repository: KnowledgeRepository,
+  collectionId: string,
+  at: IsoTimestamp,
+): Promise<GovernanceObservation> {
+  requireIdentifier(collectionId, "collectionId");
+  const collection = await repository.readCollectionVersioned(collectionId);
+  if (collection === null) throw new KnowledgeBaseNotFoundError("collection");
+  const configuration = governanceConfigurationFrom(collection);
+  // Preserve configuration refusal before dispatching the dependent V read.
+  const validation = await repository.readValidationPolicyVersioned(
+    configuration.validationPolicy.id,
+  );
+  return governanceObservationFrom(collection, validation, at);
 }
 
 /** Recheck current authority heads after all verifier/fact awaits. */

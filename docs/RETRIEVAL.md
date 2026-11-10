@@ -10,16 +10,15 @@ database, model integration, or authentication system. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
 completed [historical verified trusted publication](BOOTSTRAP.md#historical-verified-011-release),
 followed by the [historical `0.1.2` release](BOOTSTRAP.md#historical-verified-012-release)
-and current [verified `0.1.3` release](BOOTSTRAP.md#current-verified-013-release).
-Source `0.1.4` is the unpublished governed authoring-context/report-query candidate. Source tests and
-repository gates, not this document, determine completion. KB-04's optional HTTP/MCP adapter source
-is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The candidate's
+and [verified `0.1.3` release](BOOTSTRAP.md#current-verified-013-release). The later
+qualified [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
+includes governed authoring contexts, optional report queries and the bounded
+repair mode described below. Synchronized `0.1.5` is an unpublished internal
+answering read-batching candidate. Source tests and repository gates, not this
+document, determine changed-source completion. KB-04's optional HTTP/MCP adapter
+source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The candidate's
 verified trusted release, real-host acceptance, and production activation retain
-their own gates.
-
-The optional bounded repair mode described below is also unpublished `0.1.4`
-candidate behavior. It requires the candidate's own validation and release;
-this guide does not establish a passing host quota or CPU profile.
+their own gates. This guide does not establish a passing host quota or CPU profile.
 
 Read [declared collections](COLLECTIONS.md) for the authoritative record
 layout and [host composition](HOST_COMPOSITION.md) for trusted access,

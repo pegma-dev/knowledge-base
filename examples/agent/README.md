@@ -20,10 +20,14 @@ not establish any of the four target client applications, a deployed host,
 real browser login, real staging execution, verified KB publication, or host activation.
 Real host/client acceptance and activation remain open.
 
-The four packed KB artifacts in this working tree are unpublished `0.1.4`
-candidates. The separate [verified `0.1.3` release](../../docs/BOOTSTRAP.md#current-verified-013-release)
-does not validate changed context/query source; `0.1.4` retains its own review,
-current-head gates, trusted publication and strict consumer verification.
+The four packed KB artifacts in this working tree are unpublished `0.1.5`
+answering read-batching candidates. The separate
+[qualified `0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
+shipped the governed context/query features; its verification does not validate
+changed `0.1.5` source. The candidate requires its own review, current-head gates,
+trusted publication and strict consumer verification. The
+[verified `0.1.3` receipt](../../docs/BOOTSTRAP.md#current-verified-013-release)
+remains historical.
 
 ## Artifact boundary
 

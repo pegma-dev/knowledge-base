@@ -6,12 +6,14 @@ The maintainer owns npm publication and external configuration. All four KB
 `0.1.0` uploads were accepted through manual bootstrap, and their exact-byte
 postflight passed at **2026-11-07T21:56:24Z**. Agent Access `0.1.0` also completed
 manual bootstrap and postflight. Neither bootstrap has OIDC provenance.
-KB's current verified trusted release is `0.1.3`; Agent Access remains verified
-at `0.1.1`. Their receipts close public producer release prerequisites only.
-The dated trusted KB `0.1.1` and `0.1.2` receipts remain below as history. Synchronized
-KB `0.1.4` is the unpublished governed authoring-context/report-query candidate;
-its own review, current-head CI, trusted publication, strict consumer
-verification and host acceptance remain pending.
+KB's current verified trusted release is
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4); Agent Access
+remains verified at `0.1.1`. Their receipts close public producer release
+prerequisites only. The dated trusted KB `0.1.1`, `0.1.2` and `0.1.3` receipts
+remain below as history. Synchronized KB `0.1.5` is the unpublished internal
+answering read-batching candidate; its own review, current-head CI, trusted
+publication and strict consumer verification remain pending. Host acceptance
+remains separate.
 
 The five KB/Agent Access trusted-publisher entries have been configured through
 the CLI. An actual trusted release still requires the reviewed source and
@@ -84,7 +86,19 @@ the approved dependency set or establishes real-host acceptance.
 
 ## Verified Knowledge Base release
 
-### Current verified `0.1.3` release
+### Current verified `0.1.4` release
+
+All four synchronized KB packages completed qualified trusted publication at
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4). This release
+provides governed operation-local authoring contexts, optional body-free report
+queries, prepared read waves and bounded resumable repair. Its public release
+retains the original artifact and verification summary, including qualification
+limits. Publication does not establish durable-host or actual-client acceptance.
+The earlier receipt below remains as history under its preserved anchor.
+
+<a id="current-verified-013-release"></a>
+
+### Historical verified `0.1.3` release
 
 All four KB `0.1.3` packages completed exact-registry-byte, cryptographic
 signature/Sigstore, authenticated source-provenance and public-consumer
@@ -134,11 +148,12 @@ imported all four public package roots and constructed the report factory with
 both storage layouts and legacy optional modes. It did not perform report
 admission or establish a durable host or actual client/staging acceptance.
 
-This release provides optional human-reviewed evidence reports. Synchronized
-`0.1.4` source adds governed authoring contexts and optional report queries and
-still requires its own review, current-head gates, trusted publication and
-strict verification. Neither producer release closes Workers Free call/CPU
-acceptance, host activation or pilot gates.
+This release provides optional human-reviewed evidence reports. The later
+verified `0.1.4` release adds governed authoring contexts and optional report
+queries. Synchronized `0.1.5` is an unpublished internal read-batching candidate
+with its own review, current-head gates, trusted publication and strict
+verification still required. Producer releases do not close Workers Free
+call/CPU acceptance, host activation or pilot gates.
 
 <a id="current-verified-012-release"></a>
 
@@ -211,8 +226,8 @@ bootstrap receipts remain distinct and have no OIDC provenance.
 
 This dated receipt closed the KB `0.1.1` producer release prerequisite. The
 later `0.1.2` and `0.1.3` releases have their own receipts above; none completes
-host/client, privacy, activation or pilot acceptance or verifies changed
-`0.1.4` source.
+host/client, privacy, activation or pilot acceptance or verifies later changed
+source. The verified `0.1.4` release has its separate public release record above.
 
 ## Verified Agent Access prerequisite
 
@@ -257,8 +272,9 @@ verification; no package version or artifact was replaced.
 This closes the verified public Agent Access `0.1.1` prerequisite. The KB
 protocol proof now composes that exact registry producer with four packed KB
 candidate artifacts in a fresh consumer. KB `0.1.3` has its separate verified
-receipt above; source `0.1.4` retains its own current-head gates, PR, trusted
-release, and strict verification. Existing-login, current-Admin consent, every requested
+receipt above; the later `0.1.4` release is also verified. Source `0.1.5` retains
+its own current-head gates, PR, trusted release, and strict verification.
+Existing-login, current-Admin consent, every requested
 client/mode, and both real hosts remain separately unproven.
 
 ## Historical initial preparation procedure (`0.1.0`)
@@ -336,10 +352,10 @@ must name this repository's exact `publish.yml` workflow and environment and
 explicitly permit direct publishing. Time new configurations to the prepared
 trusted release so their first-use expiry does not strand the release.
 
-The synchronized KB source candidate is `0.1.4` with exact internal dependency
+The synchronized KB source candidate is `0.1.5` with exact internal dependency
 pins. It still needs review and all current-head gates before release. The
-historical first advertised trusted release is `0.1.1`; the current verified
-release is `0.1.3`, recorded separately above.
+historical first advertised trusted release is `0.1.1`; the `0.1.3` receipt
+remains above, followed by the current verified `0.1.4` release record.
 A previously manually published version cannot be
 republished through OIDC to add provenance. Run the full review/Node 22/24 gate
 for the newly reviewed commit, create its approved signed annotated version tag
@@ -354,7 +370,8 @@ signatures, and matching source/workflow/tag/commit provenance. Preserve those
 results with the release identity and independent manifest digest. The active
 KB protocol proof uses the verified registry producer
 `@pegma/agent-access@0.1.1`; historical source-producer evidence remains in
-[source preparation](SOURCE_PREPARATION.md). The verified KB `0.1.3` and Agent
-Access `0.1.1` public producer release prerequisites are closed. This candidate
+[source preparation](SOURCE_PREPARATION.md). The verified KB `0.1.3` receipt
+remains historical; KB `0.1.4` and Agent Access `0.1.1` public producer release
+prerequisites are closed. This candidate
 requires its own verified release, and both hosts still require their retained
 actual login/Admin-consent/client/staging acceptance.

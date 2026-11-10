@@ -25,10 +25,13 @@ four-package `0.1.1` trusted release has a
 [historical receipt](../../docs/BOOTSTRAP.md#historical-verified-011-release).
 The four-package `0.1.2` release has a
 [historical verified receipt](../../docs/BOOTSTRAP.md#historical-verified-012-release).
-The current four-package `0.1.3` release is
-[verified](../../docs/BOOTSTRAP.md#current-verified-013-release). Source `0.1.4`
-is the unpublished governed context/query candidate requiring its own reviewed, verified
-trusted release.
+The four-package `0.1.3` release has a
+[historical verified receipt](../../docs/BOOTSTRAP.md#current-verified-013-release).
+All four packages subsequently completed qualified trusted publication at
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4) for the
+governed context/query features. Source `0.1.5` is the unpublished internal
+answering read-batching candidate requiring its own reviewed, verified trusted
+release.
 Production hosts retain their separate acceptance gates.
 
 The flow creates a fictional workshop collection with portal use disabled and a

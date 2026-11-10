@@ -12,7 +12,11 @@ import {
   createPublicationChecker,
   type CheckedPublication,
 } from "./publication.js";
-import { createKnowledgeRepository } from "./repository.js";
+import {
+  createKnowledgeRepository,
+  type VersionedState,
+} from "./repository.js";
+import type { StoredCollection } from "./records.js";
 import {
   createRetrievalReadBudget,
   RetrievalBudgetError,
@@ -57,6 +61,8 @@ interface AuthorizedScope {
   readonly scope: RetrievalScope;
   readonly governanceGeneration: number;
   readonly label: string;
+  /** Exact request-local C observation for prepared citation confirmation. */
+  readonly collection: VersionedState<StoredCollection>;
 }
 
 interface Candidate {
@@ -277,6 +283,7 @@ export function createRetrievalServices(input: {
         },
         governanceGeneration: loaded.value.generation,
         label: collection.name,
+        collection: loaded,
       };
     }
 
@@ -311,12 +318,33 @@ export function createRetrievalServices(input: {
       for (const authorized of scopes) {
         const scope = authorized.scope;
         if (candidateAdapter === undefined) {
-          for (const term of terms) {
-            const pages = await index.readPostingPages(scope, term);
-            for (const page of pages) {
-              budget.indexEntries(page.entries.length);
-              for (const hint of page.entries) add(hint, scope, term);
+          const maxEntriesPerTerm =
+            limits.postingPageEntries * limits.maxPostingPagesPerTerm;
+          for (let offset = 0; offset < terms.length;) {
+            const remainingEntries =
+              budget.remainingCandidateWork().postingEntries;
+            // Only group an ordered prefix whose worst-case entries fit. One
+            // term still has to reveal its actual pages, as in the prior path.
+            const termCount = Math.min(
+              terms.length - offset,
+              Math.max(1, Math.floor(remainingEntries / maxEntriesPerTerm)),
+            );
+            const postings = await index.readPostingPages(
+              scope,
+              terms.slice(offset, offset + termCount),
+            );
+            let entries = 0;
+            for (const { pages } of postings)
+              for (const page of pages) entries += page.entries.length;
+            // Charge every fetched entry, including duplicates across terms,
+            // before filtering, deduplicating or starting another read wave.
+            budget.indexEntries(entries);
+            for (const { term, pages } of postings) {
+              for (const page of pages) {
+                for (const hint of page.entries) add(hint, scope, term);
+              }
             }
+            offset += termCount;
           }
           continue;
         }
@@ -682,32 +710,37 @@ export function createRetrievalServices(input: {
         return noSources();
       try {
         const scope = requestScope();
+        const collections = new Map<string, AuthorizedScope>();
         for (const collectionId of new Set(
           query.references.map((reference) => reference.collectionId),
         )) {
-          if (
-            (await scope.authorizeCollection(caller, collectionId, "bot")) ===
-            null
-          )
-            return noSources();
+          const authorized = await scope.authorizeCollection(
+            caller,
+            collectionId,
+            "bot",
+          );
+          if (authorized === null) return noSources();
+          collections.set(collectionId, authorized);
         }
         const checked: CheckedPublication[] = [];
         for (const reference of query.references) {
           scope.budget.candidateHead();
-          if (
-            (await scope.repository.readResourceGeneration(
-              "article",
-              reference.articleId,
-            )) !== reference.applicationGeneration
-          )
-            return noSources();
+          const authorized = collections.get(reference.collectionId);
+          // Every reference was authorized above; retain a fail-closed map guard.
+          if (authorized === undefined) return noSources();
           scope.budget.confirmation();
-          const confirmed = await scope.checker.check({
-            articleId: reference.articleId,
-            purpose: "bot",
-            access: caller,
-            applicability,
-          });
+          const confirmed = await scope.checker.check(
+            {
+              articleId: reference.articleId,
+              purpose: "bot",
+              access: caller,
+              applicability,
+            },
+            {
+              collection: authorized.collection,
+              expectedGeneration: reference.applicationGeneration,
+            },
+          );
           if (
             canonicalJson(referenceOf(confirmed)) !== canonicalJson(reference)
           )
