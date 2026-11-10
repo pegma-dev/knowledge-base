@@ -6,10 +6,11 @@ Context Protocol. Hosts compose it with their protected Knowledge Base
 endpoints; the package does not supply a hosted service.
 
 All four Knowledge Base packages are verified published at
-[`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
-This synchronized `0.1.4` source candidate adds an optional aggregate query over
-the existing report workflow; its own review, gates, trusted publication and
-strict verification remain open. Host and actual client acceptance are separate.
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4), including
+the optional aggregate query over the existing report workflow. Source here
+prepares the synchronized **unpublished `0.1.5` patch candidate** for answering
+read batching; its own review, gates, trusted publication and strict verification
+remain open. Host and actual client acceptance are separate.
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent
@@ -70,8 +71,8 @@ advertise report discovery/polling and submission variants on the latter two;
 HTTP uses the same envelopes. Omitting `reports` preserves the exact legacy
 schemas and results, rejecting extension fields.
 
-The verified `0.1.3` release provides that report trio. The unpublished `0.1.4`
-candidate additionally accepts `reports.query`, typed as the optional
+The verified `0.1.3` release provides that report trio. The verified `0.1.4`
+release additionally accepts `reports.query`, typed as the optional
 `Partial<Pick<KnowledgeEvidenceReports, "query">>` extension. The dispatcher
 calls it once for report-aware requirements, passing only the article ID and
 optional owner-status key. It projects the returned governed requirements,
@@ -120,8 +121,10 @@ Read the verified `0.1.3` [wire contract](https://github.com/pegma-dev/knowledge
 [native-client workflow](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/AGENT_WORKFLOW.md#submit-a-report-and-poll-through-the-same-mcp-connection)
 and [report lifecycle](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/EVIDENCE_REPORTS.md)
 for the published report trio. The aggregate query and context/read-confirm pair
-are DEVELOPMENT `0.1.4` additions and require their own verified publication
-before host adoption. Actual client/host acceptance remains open.
+shipped in verified `0.1.4`; see its
+[versioned guide](https://github.com/pegma-dev/knowledge-base/blob/v0.1.4/docs/EVIDENCE_REPORTS.md).
+The new `0.1.5` candidate still requires its own verified publication. Actual
+client/host acceptance remains open.
 
 ## Local verification and release
 
@@ -152,8 +155,9 @@ compiled-test exclusion. All four package versions remain synchronized with
 exact internal dependency pins. Publishing, release tags, trusted-publisher configuration, and
 host activation are separate maintainer operations in the
 [release procedure](https://github.com/pegma-dev/knowledge-base/blob/v0.1.3/docs/RELEASING.md).
-The published-contract links above target verified `v0.1.3`; new aggregate and
-context-pair source retains its separate `0.1.4` release gates.
+The report-trio contract links above retain verified `v0.1.3`; aggregate query
+and context-pair support shipped in verified `v0.1.4`. The `0.1.5` candidate
+retains its separate release gates.
 Source readers can use the
 explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)

@@ -2,10 +2,11 @@
 
 `createKnowledgeEvidenceReports` shipped in the four synchronized, verified
 [`0.1.3` packages](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
-Synchronized `0.1.4` is an **unpublished source candidate** adding the optional
-governed context pair and body-free `query` described below. Its own review,
-current-head CI, trusted publication and strict consumer verification remain
-pending. Hosts must wait for exact verified publication before adopting new APIs;
+The optional governed context pair and body-free `query` described below shipped
+in the qualified [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
+Synchronized `0.1.5` is an **unpublished internal read-batching candidate** with
+its own review, current-head CI, trusted publication and strict consumer
+verification pending. Hosts must wait for exact verified publication before adopting new APIs;
 source tests and local adapter fixtures do not establish host activation,
 actual client acceptance, or a real staging test.
 
@@ -21,23 +22,23 @@ The [public types](../packages/application/src/evidence-reports-types.ts) and
 [implementation](../packages/application/src/evidence-reports.ts) define the
 current source contract:
 
-| Factory option                         | Host responsibility                                                                                                                                                                                      |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `store`, `clock`                       | Supply the real Storage Core Store and trusted clock.                                                                                                                                                    |
-| `collectionName`                       | Choose an explicit, exclusive report namespace, separate from KB article/retrieval collections. Preserve it for retained reports and receipts.                                                           |
-| `storageLayout`                        | Choose the physical-key layout deliberately; the default is `portable-v1`.                                                                                                                               |
-| `confirmationPermission`               | Supply a human-only permission distinct from all three initial agent scopes. The factory creates no assignment or role.                                                                                  |
-| `resolvePrincipal`                     | Resolve the same principal's current authority on every call and verification; return null for known absence and let dependency failures remain unavailable.                                             |
-| `readContext`                          | Read the current authorized `draft`, narrow `requirements`, and optional accepted `evidence` through the public KB application.                                                                          |
-| `authoringContext` (`0.1.4` candidate) | Optionally forward both public `getAuthoringContext` and `confirmAuthoringContext` methods for an operation-local governed read/recheck. The legacy `readContext` option remains required and supported. |
-| `logger`                               | Optionally receive coarse verifier-unavailable categories, without report bodies or raw dependency errors.                                                                                               |
+| Factory option                       | Host responsibility                                                                                                                                                                                      |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store`, `clock`                     | Supply the real Storage Core Store and trusted clock.                                                                                                                                                    |
+| `collectionName`                     | Choose an explicit, exclusive report namespace, separate from KB article/retrieval collections. Preserve it for retained reports and receipts.                                                           |
+| `storageLayout`                      | Choose the physical-key layout deliberately; the default is `portable-v1`.                                                                                                                               |
+| `confirmationPermission`             | Supply a human-only permission distinct from all three initial agent scopes. The factory creates no assignment or role.                                                                                  |
+| `resolvePrincipal`                   | Resolve the same principal's current authority on every call and verification; return null for known absence and let dependency failures remain unavailable.                                             |
+| `readContext`                        | Read the current authorized `draft`, narrow `requirements`, and optional accepted `evidence` through the public KB application.                                                                          |
+| `authoringContext` (`0.1.4` release) | Optionally forward both public `getAuthoringContext` and `confirmAuthoringContext` methods for an operation-local governed read/recheck. The legacy `readContext` option remains required and supported. |
+| `logger`                             | Optionally receive coarse verifier-unavailable categories, without report bodies or raw dependency errors.                                                                                               |
 
 Authenticate before calling the service. Pass the effective credential's scoped
 `AccessContext`, including for replay. Current principal resolution confirms
 that its retained named permissions remain valid; it never replaces a restricted agent context
 with the owner's broader Admin context. Preserve that same effective context
 inside `readContext` and use actual `getDraft`, `getValidationRequirements`, and,
-only when authorized, `getEvidence` reads. The candidate optional pair uses the
+only when authorized, `getEvidence` reads. The optional pair uses the
 same restricted context through the new governed read instead. A report-supplied article, permission
 array, runner name, or `passed` value does not supply authority.
 
@@ -63,9 +64,9 @@ Every write retains fresh before/after guards. Never reuse a read group across
 invocations or replace the restricted effective context with owner/Admin authority.
 The ledger's current-principal resolver is not a host credential/grant verifier.
 
-## Optional governed context and query (`0.1.4` candidate)
+## Optional governed context and query (`0.1.4` release)
 
-The candidate application's
+The application's
 `getAuthoringContext(access, { articleId, includeEvidence?: boolean })` returns
 `{ context, observation }`. It requires `draftRead` and either `draftWrite` or
 `evidenceSubmit`, deriving the collection/kind from the current article. The
@@ -113,7 +114,7 @@ collections still provide no atomic snapshot or receipt consumption. Its target
 metadata is for the trusted dispatcher to match the requested collection/kind;
 the existing wire projection excludes it, the full draft and all private fields.
 
-The candidate dispatcher's report port may optionally include `query`. It uses
+The dispatcher's report port may optionally include `query`. It uses
 that aggregate once for the article-specific requirements mode, retaining the
 old `report`/`ledger`/`status` trio fallback and exactly the same five tools,
 three scopes and wire DTOs. The host must preserve its reviewed current-credential
@@ -152,15 +153,15 @@ The report boundary also retains its existing C1-control rejection, which is
 intentionally stricter than Core's legacy syntax. The legacy MCP schemas are
 unchanged.
 
-| Method                      | Purpose and authority                                                                                             |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `ledger`                    | Body-free current epoch/capacity state; requires current `evidenceSubmit`.                                        |
-| `query` (`0.1.4` candidate) | Governed body-free requirements/ledger/optional owner status; requires current `draftRead` plus `evidenceSubmit`. |
-| `report`                    | Save a pending report and return a bounded acknowledgement/opaque receipt; requires current `evidenceSubmit`.     |
-| `status`                    | Return acknowledgement plus status only to the original submitting principal under current `evidenceSubmit`.      |
-| `list`, `read`              | Staff summaries or the complete private `KnowledgeReportView`.                                                    |
-| `decide`                    | Explicitly confirm, reject, or reassess a report using its exact reviewed binding.                                |
-| `reset`, `drain`            | Authorized bounded ledger retention/recovery.                                                                     |
+| Method                    | Purpose and authority                                                                                             |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `ledger`                  | Body-free current epoch/capacity state; requires current `evidenceSubmit`.                                        |
+| `query` (`0.1.4` release) | Governed body-free requirements/ledger/optional owner status; requires current `draftRead` plus `evidenceSubmit`. |
+| `report`                  | Save a pending report and return a bounded acknowledgement/opaque receipt; requires current `evidenceSubmit`.     |
+| `status`                  | Return acknowledgement plus status only to the original submitting principal under current `evidenceSubmit`.      |
+| `list`, `read`            | Staff summaries or the complete private `KnowledgeReportView`.                                                    |
+| `decide`                  | Explicitly confirm, reject, or reassess a report using its exact reviewed binding.                                |
+| `reset`, `drain`          | Authorized bounded ledger retention/recovery.                                                                     |
 
 Every staff method requires the configured `confirmationPermission` plus
 `draftRead`, `evidenceRead`, and either `evidenceSubmit` or `draftWrite`, under

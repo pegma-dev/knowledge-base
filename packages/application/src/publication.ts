@@ -20,11 +20,18 @@ import {
   KnowledgeBaseNotFoundError,
   KnowledgeBasePrerequisiteError,
 } from "./errors.js";
-import { readGovernanceObservation } from "./governance.js";
+import {
+  governanceConfigurationFrom,
+  governanceObservationFrom,
+  readGovernanceObservation,
+} from "./governance.js";
+import type { StoredCollection } from "./records.js";
 import type {
   ArticlePublicationState,
+  GovernedPublicationRead,
   KnowledgeRepository,
   ResourceVersion,
+  VersionedState,
 } from "./repository.js";
 import {
   canonicalJson,
@@ -74,6 +81,12 @@ export interface CheckedPublication {
   readonly portalBrowseable: boolean;
   /** Maintenance metadata under the same governance fence, never an access grant. */
   readonly enabledUses: readonly ("portal" | "bot")[];
+}
+
+/** A single confirmation's already authorized collection, never a credential. */
+interface AuthorizedPublicationRead {
+  readonly collection: VersionedState<StoredCollection>;
+  readonly expectedGeneration: number;
 }
 
 interface ConfirmationState {
@@ -169,6 +182,7 @@ export function createPublicationChecker(
 ): {
   readonly check: (
     request: PublicationCheckRequest,
+    observed?: AuthorizedPublicationRead,
   ) => Promise<CheckedPublication>;
   readonly recheck: (checked: CheckedPublication) => Promise<void>;
 } {
@@ -213,7 +227,7 @@ export function createPublicationChecker(
   }
 
   return {
-    async check(request) {
+    async check(request, observed) {
       const access = immutable(snapshotData(request.access));
       const articleId = request.articleId;
       requireIdentifier(articleId, "articleId");
@@ -226,8 +240,21 @@ export function createPublicationChecker(
           : snapshotData(request.applicability);
       authorize(access, purpose);
       try {
+        let prepared: GovernedPublicationRead | undefined;
+        if (observed !== undefined) {
+          // Preserve configuration validation before any dependent A/V read.
+          governanceConfigurationFrom(observed.collection);
+          const read = await repository.readGovernedPublicationVersioned(
+            articleId,
+            observed.collection,
+            observed.expectedGeneration,
+          );
+          if (read === null) throw unavailable();
+          prepared = read;
+        }
         const loaded =
-          await repository.readArticlePublicationVersioned(articleId);
+          prepared?.article ??
+          (await repository.readArticlePublicationVersioned(articleId));
         const current = loaded?.value;
         const publication = current?.published;
         const review = current?.publicationReview;
@@ -248,11 +275,18 @@ export function createPublicationChecker(
         )
           throw unavailable();
         const at = clockTime(options);
-        const governance = await readGovernanceObservation(
-          repository,
-          revision.collectionId,
-          at,
-        );
+        const governance =
+          observed === undefined || prepared === undefined
+            ? await readGovernanceObservation(
+                repository,
+                revision.collectionId,
+                at,
+              )
+            : governanceObservationFrom(
+                observed.collection,
+                prepared.validation,
+                at,
+              );
         const policy = governance.context.collection.policy;
         const enabledUses: ("portal" | "bot")[] = [];
         if (policy.portal.enabled) enabledUses.push("portal");

@@ -6,6 +6,12 @@ permission names; the application enforces current permission/resource checks
 using host-resolved Authorization Core contexts. Identity and time types come
 from `@pegma/spine`.
 
+The current verified synchronized release is
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4). Source
+here prepares the unpublished `0.1.5` patch candidate alongside the application
+answering read-batching work. Its own review, current-head gates, trusted
+publication and strict registry verification remain required.
+
 Collections independently enable portal and bot use for an explicit audience.
 Every article inherits its collection policy; there are no article-level access
 overrides. An enabled permission audience names a permission the host resolves.

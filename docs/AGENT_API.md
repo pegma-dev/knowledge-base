@@ -5,11 +5,13 @@ an MCP adapter, and a Web Request/Response adapter. Both transports invoke the
 existing `KnowledgeBaseApplication`; neither introduces
 an authorization engine or another article lifecycle. The KB `0.1.0` packages
 completed manual bootstrap without OIDC provenance. All four `0.1.1` packages
-have since completed verified trusted publication. All four KB packages are now
-verified published at [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3),
-including optional human-reviewed report mode. The synchronized `0.1.4` source
-candidate adds the governed authoring-context pair and optional aggregate report
-query. Its own review, gates, publication and strict verification remain open.
+have since completed verified trusted publication. Optional human-reviewed
+report mode shipped in [`0.1.3`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
+All four KB packages are now verified published at
+[`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4), including
+the governed authoring-context pair and optional aggregate report query. The
+synchronized `0.1.5` internal read-batching candidate remains unpublished; its
+own review, gates, publication and strict verification remain open.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
 [release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
 synthetic transport tests does not establish live host login, protected staging
@@ -110,7 +112,7 @@ HTTP accepts the same versioned envelopes. Clients cannot enable the mode
 through a request flag. When `reports` is omitted, legacy tool schemas,
 accepted inputs and result shapes remain unchanged; extension fields reject.
 
-The unpublished `0.1.4` candidate additionally accepts optional `reports.query`,
+The verified `0.1.4` release additionally accepts optional `reports.query`,
 extending that trio with `Partial<Pick<KnowledgeEvidenceReports, "query">>`.
 The trusted method is `query(access, { articleId, status?: { ledgerEpoch,
 reportId } })`. Its body-free result contains `target: { articleId, generation,
@@ -223,7 +225,7 @@ The [public types](../packages/mcp/src/types.ts) and
 actual native-client/host acceptance remains separate.
 Reducing public-port calls does not establish a D1 query, CPU, physical-row or
 wall-clock allowance. Actual supported host profiles still require measurement;
-this candidate makes no universal Free-tier acceptance claim.
+neither the release nor the `0.1.5` candidate makes a universal Free-tier acceptance claim.
 
 ## HTTP composition
 

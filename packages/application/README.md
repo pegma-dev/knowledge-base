@@ -17,9 +17,13 @@ production activation remain separately gated.
 Links pinned to `v0.1.2` below retain that historical verified release contract.
 The optional report service shipped in the verified
 [`v0.1.3` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
-Governed authoring-context and report-query additions are unpublished `0.1.4`
-candidate source; their guide uses DEVELOPMENT `main` until their reviewed
-release tag exists.
+Governed authoring contexts, report queries and bounded resumable repair shipped
+in the verified
+[`v0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
+Source here prepares the synchronized **unpublished `0.1.5` candidate** for
+answering read batching. Its own review, current-head gates, trusted publication
+and strict registry verification remain required. Backend query and CPU budgets
+require actual host measurements.
 Source readers can use the explicitly moving
 [DEVELOPMENT documentation on main](https://github.com/pegma-dev/knowledge-base/blob/main/docs/HOST_COMPOSITION.md)
 while preparing a release. The versioned contract references remain tag-pinned;
@@ -172,13 +176,13 @@ by the existing component limits, and real host profiles need measured proof.
 
 ## Human-reviewed evidence reports (`0.1.3` release)
 
-New source exports `createKnowledgeEvidenceReports` and its public option,
+The application exports `createKnowledgeEvidenceReports` and its public option,
 input, view, acknowledgement and error types. The factory shipped in verified
-`0.1.3`; the governed context/report-query additions are the unpublished
-synchronized `0.1.4` candidate.
-Its own review, current-head CI, trusted publication, strict consumer
-verification and host acceptance remain pending. The
-[DEVELOPMENT evidence-report guide](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md)
+`0.1.3`; governed authoring-context and report-query support shipped in verified
+`0.1.4`. The new `0.1.5` performance candidate requires its own review,
+current-head CI, trusted publication and strict consumer verification. Host
+acceptance remains separate. The
+[versioned evidence-report guide](https://github.com/pegma-dev/knowledge-base/blob/v0.1.4/docs/EVIDENCE_REPORTS.md)
 describes explicit Store namespace/current-authority ports, human confirmation
 before actual KB qualification, bounded epochs/retention, and the separate
 report-ledger-to-article commit window.
@@ -223,7 +227,7 @@ cursors. Pending/blocked status remains visible until repair converges;
 may lag retirement/revocation, but current authority checks still reject
 ineligible publications. The host owns scheduling and recovery.
 
-The unpublished `0.1.4` candidate accepts optional `maxBatches` on keyed and
+The verified `0.1.4` release accepts optional `maxBatches` on keyed and
 paged repair. It must be a positive integer within the instance's
 `maxMaintenanceBatches`. Explicit `maxBatches: 1` shares one physical Store
 transaction attempt across the article's prerequisites, posting work and
@@ -248,8 +252,8 @@ I/O, host checkpoints, CPU or elapsed time. Prepared read waves preserve all
 required approved proofs and revocation markers, and final current publication,
 audience, source and head checks. Retained history is unchanged. They add no
 authorization cache and do not establish
-Workers Free quota acceptance. The candidate's own gates, trusted release and
-whole-host measurements remain separate.
+Workers Free quota acceptance. The `0.1.5` candidate's own gates, trusted
+release and whole-host measurements remain separate.
 
 ## Storage and limits
 

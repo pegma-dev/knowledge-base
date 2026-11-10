@@ -105,6 +105,11 @@ export interface ArticlePublicationState {
   readonly publishedProvenance?: SourceSnapshot;
   readonly publicationReview?: ReviewSnapshot;
 }
+/** One operation's exact authorized C, current A/V heads and published rows. */
+export interface GovernedPublicationRead {
+  readonly article: VersionedState<ArticlePublicationState>;
+  readonly validation: VersionedState<StoredValidationPolicy>;
+}
 /** Current authoring material only; excludes publication and provenance rows. */
 export interface ArticleAuthoringState {
   readonly articleId: string;
@@ -130,6 +135,11 @@ export interface KnowledgeRepository {
   readArticlePublicationVersioned(
     id: string,
   ): Promise<VersionedState<ArticlePublicationState> | null>;
+  readGovernedPublicationVersioned(
+    id: string,
+    collection: VersionedState<StoredCollection>,
+    expectedGeneration: number,
+  ): Promise<GovernedPublicationRead | null>;
   /** Complete approved proof rows and revocation markers in one prepared wave. */
   readPublicationEvidence(
     id: string,
@@ -408,6 +418,7 @@ export function createKnowledgeRepository(
     kind: ResourceKind,
     id: string,
     keys: readonly string[],
+    preparedScope?: string,
   ): Promise<ReadonlyMap<string, KnowledgeRecord | null>> {
     const unique = [...new Set(keys)];
     for (const key of unique) {
@@ -419,7 +430,7 @@ export function createKnowledgeRepository(
       )
         throw new RepositoryIntegrityError();
     }
-    const scope = await partition(kind, id);
+    const scope = preparedScope ?? (await partition(kind, id));
     const rows = await Promise.all(
       unique.map((key) => records.get({ partition: scope, id: key })),
     );
@@ -852,27 +863,29 @@ export function createKnowledgeRepository(
       version: row.version,
     };
   }
-  async function readPublication(
+  function publicationKeys(pointer: ArticlePointer): readonly string[] {
+    if (pointer.published === undefined) return [];
+    return [
+      "revision:" + pointer.published.revision,
+      pointer.published.approval,
+      "provenance:" + pointer.publishedProvenance,
+      pointer.publicationReview!,
+    ];
+  }
+  function publicationFromRows(
     id: string,
-  ): Promise<VersionedState<ArticlePublicationState> | null> {
-    const row = await getHead("article", id);
-    if (row === null) return null;
-    const pointer = (row.value.data as Head).pointer as ArticlePointer;
+    pointer: ArticlePointer,
+    rows: ReadonlyMap<string, KnowledgeRecord | null>,
+  ): ArticlePublicationState {
     const value: ArticlePublicationState = {
       articleId: id,
       generation: pointer.generation,
       state: pointer.state,
       publicationHeld: pointer.publicationHeld,
     };
-    if (pointer.published === undefined) return { value, version: row.version };
+    if (pointer.published === undefined) return value;
     const revisionKey = "revision:" + pointer.published.revision;
     const provenanceKey = "provenance:" + pointer.publishedProvenance;
-    const rows = await preparedRows("article", id, [
-      revisionKey,
-      pointer.published.approval,
-      provenanceKey,
-      pointer.publicationReview!,
-    ]);
     const revision = planned<ArticleRevision>(rows, revisionKey, "revision");
     const approval = planned<ArticleApproval>(
       rows,
@@ -899,13 +912,99 @@ export function createKnowledgeRepository(
       throw new RepositoryIntegrityError();
     }
     return {
-      value: {
-        ...value,
-        published: { revision, approval },
-        publishedProvenance,
-        publicationReview,
-      },
+      ...value,
+      published: { revision, approval },
+      publishedProvenance,
+      publicationReview,
+    };
+  }
+  async function readPublication(
+    id: string,
+  ): Promise<VersionedState<ArticlePublicationState> | null> {
+    const row = await getHead("article", id);
+    if (row === null) return null;
+    const pointer = (row.value.data as Head).pointer as ArticlePointer;
+    const rows =
+      pointer.published === undefined
+        ? new Map<string, KnowledgeRecord | null>()
+        : await preparedRows("article", id, publicationKeys(pointer));
+    return {
+      value: publicationFromRows(id, pointer, rows),
       version: row.version,
+    };
+  }
+  async function readGovernedPublication(
+    id: string,
+    collection: VersionedState<StoredCollection>,
+    expectedGeneration: number,
+  ): Promise<GovernedPublicationRead | null> {
+    requireGeneration(expectedGeneration, 1);
+    const configured = collection.value.configuration?.validationPolicy;
+    if (configured === undefined) throw new RepositoryIntegrityError();
+    requireIdentifier(configured.id);
+    requireGeneration(configured.version, 1);
+    // The caller has already authorized this exact C. Finish both hashes
+    // before dispatching any A/V head read; no A probe precedes C authority.
+    const [articleScope, validationScope] = await Promise.all([
+      partition("article", id),
+      partition("validation", configured.id),
+    ]);
+    const [articleHead, validationHead] = await Promise.all([
+      records
+        .getVersioned({ partition: articleScope, id: "head" })
+        .then((row) => checkedHead("article", id, articleScope, row)),
+      records
+        .getVersioned({ partition: validationScope, id: "head" })
+        .then((row) =>
+          checkedHead("validation", configured.id, validationScope, row),
+        ),
+    ]);
+    if (articleHead === null || validationHead === null) return null;
+    const articlePointer = (articleHead.value.data as Head).pointer;
+    const validationPointer = (validationHead.value.data as Head).pointer;
+    if (
+      articlePointer.resourceKind !== "article" ||
+      validationPointer.resourceKind !== "validation"
+    )
+      throw new RepositoryIntegrityError();
+    if (
+      articlePointer.generation !== expectedGeneration ||
+      articlePointer.state === "retired" ||
+      articlePointer.publicationHeld ||
+      articlePointer.published === undefined
+    )
+      return null;
+    const policyKey = "policy:" + validationPointer.version;
+    // Scopes and every immutable key are ready. Both groups synchronously
+    // enqueue their public Store reads before the first group is awaited.
+    const [articleRows, validationRows] = await Promise.all([
+      preparedRows(
+        "article",
+        id,
+        publicationKeys(articlePointer),
+        articleScope,
+      ),
+      preparedRows("validation", configured.id, [policyKey], validationScope),
+    ]);
+    const article = publicationFromRows(id, articlePointer, articleRows);
+    const policy = planned<ValidationPolicy>(
+      validationRows,
+      policyKey,
+      "policy",
+    );
+    if (
+      article.published?.revision.collectionId !==
+        collection.value.collection.id ||
+      policy.id !== configured.id ||
+      policy.version !== validationPointer.version
+    )
+      throw new RepositoryIntegrityError();
+    return {
+      article: { value: article, version: articleHead.version },
+      validation: {
+        value: { generation: validationPointer.generation, policy },
+        version: validationHead.version,
+      },
     };
   }
   async function readPublicationEvidence(
@@ -1447,6 +1546,7 @@ export function createKnowledgeRepository(
     limits,
     readArticleVersioned: (id) => read<StoredArticle>("article", id),
     readArticlePublicationVersioned: readPublication,
+    readGovernedPublicationVersioned: readGovernedPublication,
     readPublicationEvidence,
     readArticleAuthoringVersioned: readAuthoring,
     confirmResourceVersions,

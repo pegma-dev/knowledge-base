@@ -1,6 +1,6 @@
 {
   "name": "@pegma/knowledge-base-contracts",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Provider-neutral knowledge collections, revisions, validation, and approval contracts.",
   "license": "MIT",
   "type": "module",

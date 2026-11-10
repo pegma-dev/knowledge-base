@@ -22,7 +22,7 @@ Upgrade tests use the dev-only exact registry alias
 `npm:@pegma/knowledge-base-application@0.1.1` to write real legacy records before
 the candidate reads them. The lockfile integrity pin matches the previously
 verified `0.1.1` artifact; no copied source or branch supplies this writer.
-The four unpublished candidate runtime packages are `0.1.4`, and the Agent Access
+The four unpublished candidate runtime packages are `0.1.5`, and the Agent Access
 protocol-proof pin remains `0.1.1`.
 
 `trace-store.ts` delegates every record operation to the supplied real store.
@@ -92,6 +92,8 @@ retention operations. All four KB `0.1.0` packages completed manual bootstrap
 without OIDC provenance. The four-package KB `0.1.1` trusted release has a
 [historical receipt](../docs/BOOTSTRAP.md#historical-verified-011-release), followed
 by the [historical verified `0.1.2` release](../docs/BOOTSTRAP.md#historical-verified-012-release)
-and current [verified `0.1.3` release](../docs/BOOTSTRAP.md#current-verified-013-release).
-Source `0.1.4` is an unpublished governed context/query candidate with its own gates and
-verified trusted release required; host activation gates remain open.
+and [verified `0.1.3` release](../docs/BOOTSTRAP.md#current-verified-013-release).
+The later [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
+is qualified. Synchronized `0.1.5` is an unpublished internal read-batching
+candidate with its own gates and verified trusted release required; host
+activation gates remain open.
