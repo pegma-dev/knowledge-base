@@ -141,6 +141,7 @@ and list the non-directory ZIP entries. For example, in PowerShell:
 ```powershell
 $archive = 'knowledge-base-v0.1.5-original-artifact-13767614004.zip'
 (Get-Item -LiteralPath $archive).Length
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $archive).Path)
 try {
   $zip.Entries | Where-Object { $_.Name -ne '' } | Select-Object FullName, Length

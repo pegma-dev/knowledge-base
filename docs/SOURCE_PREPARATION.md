@@ -268,8 +268,11 @@ A local candidate run on **2026-11-07** passed with `packedPackages: 4`,
 and five-operation positive/negative checks passed. It retained
 `liveHostsProven: false` and `targetClientAppsProven: 0`. A separate negative
 probe rejected a source override at stage 1 before external commands.
-Current-head Node 22/24 CI and the candidate's remaining review/release gates
-are still required.
+That dated proof does not validate later source changes. The current `0.1.5`
+release has since completed its own gates, review, trusted publication and
+strict verification; see the [release receipt](BOOTSTRAP.md#current-verified-015-release).
+Future changed source requires fresh current-head Node 22/24 CI and review;
+each later release requires its own verified publication.
 
 That gate exercises OAuth and the exact five-tool draft/read/write/requirements/
 evidence flow, shared HTTP/MCP behavior, and rejection cases. The evidence
