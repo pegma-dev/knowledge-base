@@ -465,8 +465,9 @@ for (const [name, createStore] of storeFactories) {
       },
     );
 
-    // Complete Native fixture transport crosses Node/workerd. Only its setup
-    // watchdog is longer; measured query/parameter and SDK limits stay fixed.
+    // Memory/Azurite retain vitest.config.ts's global 180-second watchdog.
+    // The Native Node/workerd fixture retains its 300-second exception;
+    // measured query/parameter and SDK limits stay fixed.
     it(
       "keeps complete approved proofs independent of legal E32/R64 draft history and starts the whole E/R wave",
       async ({ task }) => {
@@ -674,7 +675,7 @@ for (const [name, createStore] of storeFactories) {
           mark("case.finally");
         }
       },
-      name === "Miniflare D1" ? 300_000 : undefined,
+      name === "Miniflare D1" ? 300_000 : 180_000,
     );
   });
 }

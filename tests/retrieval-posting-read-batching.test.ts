@@ -1,7 +1,14 @@
-import { retrievalRecords } from "@pegma/knowledge-base-application";
+import {
+  knowledgeRecords,
+  retrievalRecords,
+} from "@pegma/knowledge-base-application";
+import { createMemoryStore } from "@pegma/storage-core";
 import { describe, expect, it } from "vitest";
 import { admin } from "../test/application-fixtures.js";
-import { storeFactories } from "../test/application-stores.js";
+import {
+  allKnowledgeRows,
+  storeFactories,
+} from "../test/application-stores.js";
 import {
   botCustomer,
   retrievalFixture,
@@ -274,3 +281,133 @@ for (const [name, createStore] of storeFactories) {
     });
   });
 }
+
+describe("posting-entry early exit (memory)", () => {
+  it("stops later term reads at a lowered posting-entry cap while retaining the default eight-term wave", async () => {
+    const terms = [
+      "amber",
+      "birch",
+      "cedar",
+      "delta",
+      "ember",
+      "fable",
+      "grove",
+      "harbor",
+    ];
+    const query = terms.join(" ");
+    const backing = createMemoryStore();
+    const f = retrievalFixture(backing);
+    await f.setupCollection();
+    const guide = {
+      ...retrievalGuides[0]!,
+      id: "article/eight-term-cap",
+      draft: {
+        ...retrievalGuides[0]!.draft,
+        title: query,
+        tags: terms,
+      },
+    };
+    await f.publishGuide(guide);
+    // Inspect the real maintained head outside the measured request. No copied
+    // key codec or invented projection supplies the expected article identity.
+    const articleHead = (await allKnowledgeRows(backing)).find(
+      (row) =>
+        row.kind === "head" &&
+        row.resourceKind === "article" &&
+        row.resourceId === guide.id,
+    );
+    if (articleHead === undefined)
+      throw new Error(
+        "Public publication did not retain its actual article head",
+      );
+
+    f.clearObservations();
+    const firstHead = barrier();
+    const releaseHeads = barrier();
+    const firstPage = barrier();
+    const releasePages = barrier();
+    const heads: ReadTrace[] = [];
+    const pages: ReadTrace[] = [];
+    f.traced.beforeRead(async (trace) => {
+      if (posting(trace)) {
+        heads.push(trace);
+        firstHead.release();
+        await releaseHeads.reached;
+      } else if (page(trace)) {
+        pages.push(trace);
+        firstPage.release();
+        await releasePages.reached;
+      }
+    });
+    const pending = f.app.retrieveAnswerSources(botCustomer, f.botInput(query));
+    try {
+      await firstHead.reached;
+      expect(heads).toHaveLength(8);
+      expect(pages).toEqual([]);
+      releaseHeads.release();
+      await firstPage.reached;
+      expect(pages).toHaveLength(8);
+      releasePages.release();
+      const answer = await pending;
+      expect(
+        answer.sources.map((source) => source.reference.articleId),
+      ).toEqual([guide.id]);
+      expect(
+        await f.app.retrieveAnswerSources(
+          botCustomer,
+          f.botInput([...terms].reverse().join(" ")),
+        ),
+      ).toEqual(answer);
+    } finally {
+      releaseHeads.release();
+      releasePages.release();
+      f.traced.beforeRead(undefined);
+      await pending;
+    }
+    // Both queries above observed all terms; retain only the first query's
+    // ordered keys as the real public-Store oracle for the restricted request.
+    const firstHeads = heads.slice(0, 8);
+    const firstPages = pages.slice(0, 8);
+    expect(new Set(firstHeads.map((read) => read.key.id)).size).toBe(8);
+    expect(new Set(firstPages.map((read) => read.key.id)).size).toBe(8);
+    for (const read of firstPages) {
+      const row = await backing.collection(retrievalRecords).get(read.key);
+      const data = row?.data;
+      if (
+        row?.kind !== "page" ||
+        typeof data !== "object" ||
+        data === null ||
+        !("entries" in data) ||
+        !Array.isArray(data.entries)
+      )
+        throw new Error("Expected the actual maintained posting page");
+      expect(data.entries).toHaveLength(1);
+    }
+
+    const limited = retrievalFixture(backing, {
+      limits: { maxPostingEntries: 1 },
+    });
+    limited.clearObservations();
+    const result = await limited.app.retrieveAnswerSources(
+      botCustomer,
+      limited.botInput(query),
+    );
+    expect(result.outcome).toBe("no_result");
+    expect(result.sources).toEqual([]);
+    // The second real one-entry term reveals exhaustion. No later term may
+    // start after that checkpoint; duplicates still count as fetched entries.
+    expect(limited.traced.reads.filter(posting)).toEqual(
+      firstHeads.slice(0, 2),
+    );
+    expect(limited.traced.reads.filter(page)).toEqual(firstPages.slice(0, 2));
+    expect(
+      limited.traced.reads.filter(
+        (read) =>
+          read.collection === knowledgeRecords.name &&
+          read.key.partition === articleHead.partition,
+      ),
+    ).toEqual([]);
+    expect(limited.traced.enumerations).toEqual([]);
+    expect(limited.traced.transactions).toEqual([]);
+  });
+});

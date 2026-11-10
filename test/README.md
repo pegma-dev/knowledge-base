@@ -54,8 +54,13 @@ between tests or omit awaiting a factory/disposal. The isolation suite uses
 the same article IDs in independently created stores and verifies public
 publication/retrieval/retirement behavior without inspecting storage.
 
-Vitest is bounded to four workers, 180-second tests, and 30-second hooks; D1's
-disposal hook also has a 30-second limit. CI jobs on Node 22/24 each have a
+Vitest is bounded to four workers, a default 180-second test watchdog, and
+30-second hooks; D1's disposal hook also has a 30-second limit. The complete-history
+Miniflare D1 case in `retrieval-confirm-read-plan.test.ts` uses a 300-second total
+fixture watchdog for local construction, transport and readback. That exception
+preserves its measured hard limits of 50 D1 calls and 100 parameters per statement,
+and its at-most-seven-call confirmation target. It is not a production latency or
+whole-host budget qualification. CI jobs on Node 22/24 each have a
 30-minute timeout. The workspace allows only the pinned `workerd` install
 script. These controls bound local native tooling, not production capacity.
 Windows local elapsed time includes Node-to-workerd RPC and setup overhead;

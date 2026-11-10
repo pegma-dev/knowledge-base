@@ -318,17 +318,33 @@ export function createRetrievalServices(input: {
       for (const authorized of scopes) {
         const scope = authorized.scope;
         if (candidateAdapter === undefined) {
-          const postings = await index.readPostingPages(scope, terms);
-          let entries = 0;
-          for (const { pages } of postings)
-            for (const page of pages) entries += page.entries.length;
-          // Charge every fetched entry, including duplicates across terms,
-          // before filtering or deduplicating any hint from this read wave.
-          budget.indexEntries(entries);
-          for (const { term, pages } of postings) {
-            for (const page of pages) {
-              for (const hint of page.entries) add(hint, scope, term);
+          const maxEntriesPerTerm =
+            limits.postingPageEntries * limits.maxPostingPagesPerTerm;
+          for (let offset = 0; offset < terms.length;) {
+            const remainingEntries =
+              budget.remainingCandidateWork().postingEntries;
+            // Only group an ordered prefix whose worst-case entries fit. One
+            // term still has to reveal its actual pages, as in the prior path.
+            const termCount = Math.min(
+              terms.length - offset,
+              Math.max(1, Math.floor(remainingEntries / maxEntriesPerTerm)),
+            );
+            const postings = await index.readPostingPages(
+              scope,
+              terms.slice(offset, offset + termCount),
+            );
+            let entries = 0;
+            for (const { pages } of postings)
+              for (const page of pages) entries += page.entries.length;
+            // Charge every fetched entry, including duplicates across terms,
+            // before filtering, deduplicating or starting another read wave.
+            budget.indexEntries(entries);
+            for (const { term, pages } of postings) {
+              for (const page of pages) {
+                for (const hint of page.entries) add(hint, scope, term);
+              }
             }
+            offset += termCount;
           }
           continue;
         }
@@ -710,6 +726,7 @@ export function createRetrievalServices(input: {
         for (const reference of query.references) {
           scope.budget.candidateHead();
           const authorized = collections.get(reference.collectionId);
+          // Every reference was authorized above; retain a fail-closed map guard.
           if (authorized === undefined) return noSources();
           scope.budget.confirmation();
           const confirmed = await scope.checker.check(

@@ -936,6 +936,7 @@ export function createRetrievalRepository(
       if (!Array.isArray(terms) || terms.length > limits.maxQueryTerms)
         throw new TypeError("Expected bounded normalized lexical terms");
       const selected = [...terms];
+      // Reject duplicate normalized terms rather than silently deduplicating.
       unique(selected);
       // No Store read starts until the complete scope and term-key set is ready.
       // loadPostings validates all heads before issuing its complete page wave.

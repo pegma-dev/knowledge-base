@@ -245,12 +245,12 @@ export async function readGovernanceObservation(
 ): Promise<GovernanceObservation> {
   requireIdentifier(collectionId, "collectionId");
   const collection = await repository.readCollectionVersioned(collectionId);
+  if (collection === null) throw new KnowledgeBaseNotFoundError("collection");
   const configuration = governanceConfigurationFrom(collection);
   // Preserve configuration refusal before dispatching the dependent V read.
   const validation = await repository.readValidationPolicyVersioned(
     configuration.validationPolicy.id,
   );
-  if (collection === null) throw new KnowledgeBaseNotFoundError("collection");
   return governanceObservationFrom(collection, validation, at);
 }
 

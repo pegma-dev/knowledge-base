@@ -94,9 +94,11 @@ provides governed operation-local authoring contexts, optional body-free report
 queries, prepared read waves and bounded resumable repair. Its public release
 retains the original artifact and verification summary, including qualification
 limits. Publication does not establish durable-host or actual-client acceptance.
-The earlier receipt below retains its checkpoint title and links as history.
+The earlier receipt below remains as history under its preserved anchor.
 
-### Current verified `0.1.3` release
+<a id="current-verified-013-release"></a>
+
+### Historical verified `0.1.3` release
 
 All four KB `0.1.3` packages completed exact-registry-byte, cryptographic
 signature/Sigstore, authenticated source-provenance and public-consumer

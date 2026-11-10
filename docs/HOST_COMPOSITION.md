@@ -31,9 +31,9 @@ layout, CAS, admission, and replay design.
 The earlier merged [partial KB-05 source](https://github.com/pegma-dev/knowledge-base/pull/4),
 documented in [source preparation](SOURCE_PREPARATION.md), adds
 shared memory/Azurite/local-D1 conformance and a
-[public synthetic composition](../examples/composition/README.md). The D1
+[public synthetic composition](../examples/composition/README.md). The current D1
 fixture passes a real Miniflare binding directly to the released
-`@pegma/storage-cloudflare-d1@0.4.1` adapter with isolated per-factory cleanup.
+`@pegma/storage-cloudflare-d1@0.4.6` adapter with isolated per-factory cleanup.
 It is local consumer evidence, not a deployed Workers binding or production
 acceptance. The example's resolved contexts and receipt registry stand in for
 trusted host facts; they authenticate no real browser, agent, or staging run.
