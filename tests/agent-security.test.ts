@@ -38,6 +38,20 @@ const read = {
   input: { articleId: "article/export" },
 };
 
+const nativeRequestMetadata = {
+  callId: "fictional-call",
+  threadId: "fictional-thread",
+  sessionId: "fictional-session",
+  itemId: "fictional-item",
+  windowId: "fictional-window",
+  traceparent: "00-11111111111111111111111111111111-2222222222222222-01",
+  tracestate: "fictional=opaque",
+  "x-codex-turn-metadata": {
+    turn_id: "fictional-turn",
+    workspaces: [{ id: "fictional-workspace" }],
+  },
+};
+
 function request(
   body: BodyInit | null = JSON.stringify(read),
   init: RequestInit = {},
@@ -381,6 +395,283 @@ describe("KB agent least-authority security", () => {
 });
 
 describe("KB agent hostile request and transport boundary", () => {
+  it.each([
+    ["native identity and trace fields", nativeRequestMetadata],
+    [
+      "unknown extension JSON",
+      {
+        progressToken: 7,
+        "com.example/client": {
+          enabled: false,
+          values: [null, 1, "fictional"],
+        },
+      },
+    ],
+  ])(
+    "accepts bounded MCP extension metadata from the official SDK: %s",
+    async (_name, metadata) => {
+      const f = agentFixture(createMemoryStore());
+      await f.setupCollection();
+      const client = await f.sdk();
+      const input = {
+        collectionId: "collection/workshop",
+        kind: "explanation" as const,
+      };
+      const expected = await f.call("MCP", "getValidationRequirements", input);
+      const before = await allKnowledgeRows(f.store);
+      const result = await client.callTool({
+        name: knowledgeAgentToolNames.getValidationRequirements,
+        arguments: input,
+        _meta: metadata,
+      });
+      expect(result.isError).toBe(false);
+      const content = result.content;
+      if (
+        !Array.isArray(content) ||
+        content.length !== 1 ||
+        content[0]?.type !== "text"
+      )
+        throw new Error("Expected one complete official SDK text result");
+      expect(JSON.parse(content[0].text)).toEqual(expected);
+      const sent = await f.requests.at(-1)!.json();
+      expect(sent).toMatchObject({
+        method: "tools/call",
+        params: { _meta: metadata, arguments: input },
+      });
+      expect(await allKnowledgeRows(f.store)).toEqual(before);
+      expect(JSON.stringify(result)).not.toContain("fictional-thread");
+    },
+  );
+
+  it.each([
+    null,
+    [],
+    true,
+    1,
+    "not-an-object",
+    { progressToken: null },
+    { progressToken: false },
+    { progressToken: 0.5 },
+    { progressToken: Number.MAX_SAFE_INTEGER + 1 },
+    { progressToken: "x".repeat(129) },
+  ])(
+    "retains MCP metadata object and known progress-token validation: %j",
+    async (metadata) => {
+      const f = agentFixture(createMemoryStore());
+      await f.setupCollection();
+      const before = await allKnowledgeRows(f.store);
+      const response = await f.mcp.handle(
+        request(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 70,
+            method: "tools/call",
+            params: {
+              name: knowledgeAgentToolNames.getValidationRequirements,
+              arguments: {
+                collectionId: "collection/workshop",
+                kind: "explanation",
+              },
+              _meta: metadata,
+            },
+          }),
+          { headers: { Accept: "application/json, text/event-stream" } },
+          agentResource,
+        ),
+      );
+      expect(response?.status).toBe(400);
+      expect(await response!.json()).toEqual({
+        jsonrpc: "2.0",
+        id: 70,
+        error: { code: -32600, message: "Invalid MCP request." },
+      });
+      expect(await allKnowledgeRows(f.store)).toEqual(before);
+    },
+  );
+
+  it("treats authority-looking and prototype-named metadata as inert JSON, not host identity", async () => {
+    const f = agentFixture(createMemoryStore());
+    await f.setupCollection();
+    f.authority.current = {
+      ...agentIdentity(),
+      scopes: [],
+      access: access(author.principalId, []),
+    };
+    const before = await allKnowledgeRows(f.store);
+    const metadata: unknown = JSON.parse(
+      '{"__proto__":{"knowledgeMetadataPolluted":true},"constructor":{"prototype":{"knowledgeMetadataPolluted":true}},"permissions":["knowledge.draft.write"],"access":{"principalId":"fictional/admin","roles":["Admin"]},"clientId":"fictional-other-client"}',
+    );
+    const response = await f.mcp.handle(
+      request(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          id: 71,
+          method: "tools/call",
+          params: {
+            name: knowledgeAgentToolNames.getValidationRequirements,
+            arguments: {
+              collectionId: "collection/workshop",
+              kind: "explanation",
+            },
+            _meta: metadata,
+          },
+        }),
+        { headers: { Accept: "application/json, text/event-stream" } },
+        agentResource,
+      ),
+    );
+    expect(response?.status).toBe(200);
+    const rpc = await response!.json();
+    expect(rpc).toMatchObject({
+      result: { isError: true, content: [{ type: "text" }] },
+    });
+    expect(JSON.stringify(rpc)).toContain("forbidden");
+    const result = await f.call("HTTP", "getValidationRequirements", {
+      collectionId: "collection/workshop",
+      kind: "explanation",
+    });
+    expectPrivateAgentError(result, "forbidden");
+    expect(Object.hasOwn(Object.prototype, "knowledgeMetadataPolluted")).toBe(
+      false,
+    );
+    expect(await allKnowledgeRows(f.store)).toEqual(before);
+  });
+
+  it.each([
+    { limits: { maxRequestBytes: 256 }, metadata: { value: "x".repeat(257) } },
+    { limits: { maxDepth: 4 }, metadata: { nested: { child: { value: 0 } } } },
+    {
+      limits: { maxNodes: 16 },
+      metadata: { values: Array.from({ length: 16 }, () => null) },
+    },
+    { limits: { maxArrayLength: 2 }, metadata: { values: [0, 1, 2] } },
+    {
+      limits: { maxObjectKeys: 4 },
+      metadata: { first: 0, second: 1, third: 2, fourth: 3, fifth: 4 },
+    },
+  ])(
+    "applies the existing complete-message budget to opaque MCP metadata: %j",
+    async ({ limits, metadata }) => {
+      const f = agentFixture(createMemoryStore(), limits);
+      const dispatch = vi.fn(f.dispatcher.dispatch);
+      const mcp = createKnowledgeAgentMcp({
+        ...f.common,
+        dispatcher: { ...f.dispatcher, dispatch },
+        mcpUrl: agentResource,
+      });
+      const response = await mcp.handle(
+        request(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 72,
+            method: "tools/call",
+            params: {
+              name: knowledgeAgentToolNames.getValidationRequirements,
+              arguments: {
+                collectionId: "collection/workshop",
+                kind: "explanation",
+              },
+              _meta: metadata,
+            },
+          }),
+          { headers: { Accept: "application/json, text/event-stream" } },
+          agentResource,
+        ),
+      );
+      await error(response, 413, "capacity");
+      expect(dispatch).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["NaN", "Infinity", "undefined"])(
+    "does not accept non-JSON metadata value %s",
+    async (value) => {
+      const f = agentFixture(createMemoryStore());
+      const source =
+        '{"jsonrpc":"2.0","id":73,"method":"tools/call","params":{"name":"knowledge_v1_get_validation_requirements","arguments":{"collectionId":"collection/workshop","kind":"explanation"},"_meta":{"value":' +
+        value +
+        "}}}";
+      await error(
+        await f.mcp.handle(
+          request(
+            source,
+            { headers: { Accept: "application/json, text/event-stream" } },
+            agentResource,
+          ),
+        ),
+        400,
+        "invalid_request",
+      );
+    },
+  );
+
+  it("keeps extension acceptance inside metadata and leaves envelope and tool arguments closed", async () => {
+    const f = agentFixture(createMemoryStore());
+    await f.setupCollection();
+    const packet = {
+      jsonrpc: "2.0",
+      id: 74,
+      method: "tools/call",
+      params: {
+        name: knowledgeAgentToolNames.getValidationRequirements,
+        arguments: { collectionId: "collection/workshop", kind: "explanation" },
+        _meta: nativeRequestMetadata,
+      },
+    };
+    for (const body of [
+      { ...packet, _meta: nativeRequestMetadata },
+      { ...packet, params: { ...packet.params, authority: "forged" } },
+    ]) {
+      const response = await f.mcp.handle(
+        request(
+          JSON.stringify(body),
+          { headers: { Accept: "application/json, text/event-stream" } },
+          agentResource,
+        ),
+      );
+      expect(response?.status).toBe(400);
+      expect(await response!.json()).toMatchObject({ error: { code: -32600 } });
+    }
+    const client = await f.sdk();
+    const result = await client.callTool({
+      name: packet.params.name,
+      arguments: { ...packet.params.arguments, authority: "forged" },
+      _meta: nativeRequestMetadata,
+    });
+    expect(result.isError).toBe(true);
+    expect(JSON.stringify(result)).toContain("invalid_request");
+  });
+
+  it("does not retain or echo opaque metadata when an actual SDK draft command commits", async () => {
+    const f = agentFixture(createMemoryStore());
+    await f.setupCollection();
+    const client = await f.sdk();
+    const result = await client.callTool({
+      name: knowledgeAgentToolNames.createDraft,
+      arguments: {
+        ...f.command("metadata-draft", 0),
+        articleId: "article/metadata",
+        collectionId: "collection/workshop",
+        draft: draft(),
+      },
+      _meta: {
+        ...nativeRequestMetadata,
+        "com.example/private": "METADATA_ONLY_FICTIONAL_CANARY",
+      },
+    });
+    expect(result.isError).toBe(false);
+    expect(
+      (await f.app.getDraft(author, { articleId: "article/metadata" })).revision
+        .number,
+    ).toBe(1);
+    expect(JSON.stringify(await allKnowledgeRows(f.store))).not.toContain(
+      "METADATA_ONLY_FICTIONAL_CANARY",
+    );
+    expect(JSON.stringify(result)).not.toContain(
+      "METADATA_ONLY_FICTIONAL_CANARY",
+    );
+  });
+
   it("authenticates and admits valid MCP notifications without dispatching domain commands", async () => {
     const f = agentFixture(createMemoryStore());
     await f.setupCollection();

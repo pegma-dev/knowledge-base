@@ -85,6 +85,22 @@ their own current-head gates; historical results do not validate changed
 composition. Production hosts require verified trusted versions of both
 components and their separately retained acceptance.
 
+## Unpublished 0.1.6 candidate
+
+All four source packages are synchronized at `0.1.6` for the MCP extension
+metadata compatibility patch. The adapter accepts bounded opaque `params._meta`
+values used by native clients while retaining known progress-token validation,
+strict tool arguments, current authorization and existing complete-message
+limits. It adds no tool, scope, durable record, credential or migration. The
+generic SDK error-response mapping is unchanged.
+
+The current qualified release remains `0.1.5`; this candidate needs its own
+current-head gates, review, signed-tag preparation, trusted publication and
+strict complete-set registry verification. Existing `0.1.5` receipts and
+tarballs remain unchanged. Hosts and Support Desk consumers must deliberately
+align their exact Knowledge Base graph before adoption; producer qualification
+does not close native-client or real-host acceptance.
+
 ## Repository and development artifact gates
 
 Use Node 22.6.0+ or 24 with `pnpm@10.34.5`. Published package engines remain

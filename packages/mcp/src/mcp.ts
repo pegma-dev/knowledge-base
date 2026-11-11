@@ -52,7 +52,11 @@ const requestId = z.union([
   z.number().int().min(Number.MIN_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER),
 ]);
 const empty = z.object({}).strict();
-const metadata = z.object({ progressToken: requestId.optional() }).strict();
+// MCP reserves _meta for opaque client extensions, not authority. The complete
+// message already passed the shared JSON byte/depth/node/key ceilings.
+const metadata = z
+  .object({ progressToken: requestId.optional() })
+  .catchall(z.unknown());
 const basicParams = z.object({ _meta: metadata.optional() }).strict();
 const featureMap = z.record(
   z.string().max(128),
@@ -349,7 +353,7 @@ export function createKnowledgeAgentMcp(
         maxRequestBodySize: dispatcher.limits.maxRequestBytes,
       });
       const server = new Server(
-        { name: "@pegma/knowledge-base-mcp", version: "0.1.5" },
+        { name: "@pegma/knowledge-base-mcp", version: "0.1.6" },
         {
           capabilities: { tools: {} },
           // Workers prohibit the runtime code generation used by SDK-default AJV.

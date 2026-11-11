@@ -13,6 +13,15 @@ client acceptance remain separate. These source README corrections apply to a
 future release. Published `0.1.5` tarballs, including their bundled README bytes,
 remain unchanged.
 
+The synchronized `0.1.6` source candidate is unpublished. It accepts bounded
+opaque MCP `params._meta` extensions, including native-client correlation and
+standard trace fields, while validating known `progressToken` values. Metadata
+does not establish identity, permissions or evidence and is not stored or
+returned as an application result. Complete-message byte, depth, node and key
+ceilings, strict tool arguments and fresh host authentication remain unchanged.
+The official-SDK regression and packed protocol proof exercise fictional
+extension values; actual requested-client and host acceptance remain separate.
+
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent
 access. The adapter pins `@modelcontextprotocol/sdk` at `1.32.2` and `zod` at
