@@ -834,7 +834,22 @@ async function httpCall(host, token, operation, input) {
 
 async function mcpCall(client, operation, input) {
   const result = await client.callTool(
-    { name: knowledgeAgentToolNames[operation], arguments: input },
+    {
+      name: knowledgeAgentToolNames[operation],
+      arguments: input,
+      // Ordinary opaque metadata, supplied by the official SDK client. These
+      // fictional correlation values confer no identity, scopes or authority.
+      _meta: {
+        callId: "fictional-packed-call",
+        threadId: "fictional-packed-thread",
+        sessionId: "fictional-packed-session",
+        itemId: "fictional-packed-item",
+        windowId: "fictional-packed-window",
+        traceparent: "00-11111111111111111111111111111111-2222222222222222-01",
+        tracestate: "fictional=packed",
+        "com.example/extension": { values: [null, false, 7] },
+      },
+    },
     undefined,
     { timeout: 5_000 },
   );
@@ -1199,6 +1214,7 @@ async function runProof() {
       liveHostsProven: false,
       targetClientAppsProven: 0,
       sdkDiscovery: true,
+      opaqueRequestMetadata: true,
       s256Pkce: true,
       browserSession: true,
       csrfAndOrigin: true,
@@ -1458,6 +1474,7 @@ async function runReportProof() {
       tools: tools.tools.length,
       scopes: host.configuration.scopes.length,
       reportQueued: true,
+      opaqueRequestMetadata: true,
       bodyFreePolling: true,
       humanConfirmed: true,
       originalReceiptCommitted: true,

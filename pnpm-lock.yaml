@@ -24,19 +24,19 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/knowledge-base-application':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:packages/application
       '@pegma/knowledge-base-application-previous':
         specifier: npm:@pegma/knowledge-base-application@0.1.1
         version: '@pegma/knowledge-base-application@0.1.1'
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:packages/contracts
       '@pegma/knowledge-base-core':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:packages/core
       '@pegma/knowledge-base-mcp':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:packages/mcp
       '@pegma/spine':
         specifier: 0.1.2
@@ -81,10 +81,10 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:../contracts
       '@pegma/knowledge-base-core':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:../core
       '@pegma/spine':
         specifier: 0.1.2
@@ -102,7 +102,7 @@ importers:
   packages/core:
     dependencies:
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:../contracts
 
   packages/mcp:
@@ -117,13 +117,13 @@ importers:
         specifier: 0.4.0
         version: 0.4.0
       '@pegma/knowledge-base-application':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:../application
       '@pegma/knowledge-base-contracts':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:../contracts
       '@pegma/knowledge-base-core':
-        specifier: 0.1.5
+        specifier: 0.1.6
         version: link:../core
       zod:
         specifier: 4.6.7

@@ -268,7 +268,7 @@ protectedResourceMetadataUrl, allowedOrigins, authenticate, limit })` returns
 the same `{ handle(request) }` router interface. `mcpUrl` must exactly equal
 `resource`. It uses the HTTP adapter's trusted authentication/admission ports,
 URL/Host/Origin rules, protected-resource challenge, strict UTF-8 reader, and
-response protections. Metadata is host-owned and is never served by this
+response protections. OAuth metadata is host-owned and is never served by this
 package. Configure the same resource on the dispatcher and both transports.
 
 The adapter uses pinned MCP SDK `1.32.2` and Zod `4.6.7`. Each admitted POST
@@ -278,6 +278,18 @@ notification must pass current host admission and authentication. Only tools
 are advertised, using the five names above with useful strict input JSON
 schemas. Client metadata and capability objects are bounded and validated
 before reaching the SDK; they grant no server authority.
+
+The unpublished `0.1.6` source candidate accepts opaque JSON extension fields
+inside `params._meta` on initialize, ping, tools/list, tools/call, and the
+initialized/cancelled notifications. If present, `progressToken` retains its
+existing shape validation: a string of at most 128 characters or a safe integer,
+without a registered-value allowlist. All extension values share the complete
+request's byte, depth, node, array and object-key ceilings described below.
+Other envelope fields and tool arguments remain closed. Metadata does not grant
+identity, scopes, resource access, evidence, review or publication authority;
+those facts still come from separately authenticated host context. The adapter
+does not persist these extensions in KB records, include them in application
+results, or use them to fetch URLs or construct application commands.
 
 Responses use JSON rather than an SSE stream. Authenticated GET and DELETE
 receive 405; an accepted initialized notification receives 202. The pinned
