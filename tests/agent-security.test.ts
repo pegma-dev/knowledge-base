@@ -455,7 +455,7 @@ describe("KB agent hostile request and transport boundary", () => {
     { progressToken: Number.MAX_SAFE_INTEGER + 1 },
     { progressToken: "x".repeat(129) },
   ])(
-    "retains MCP metadata object and known progress-token validation: %j",
+    "retains MCP metadata object and progressToken shape validation (string <=128 characters or safe integer): %j",
     async (metadata) => {
       const f = agentFixture(createMemoryStore());
       await f.setupCollection();

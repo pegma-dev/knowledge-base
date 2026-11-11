@@ -89,10 +89,11 @@ components and their separately retained acceptance.
 
 All four source packages are synchronized at `0.1.6` for the MCP extension
 metadata compatibility patch. The adapter accepts bounded opaque `params._meta`
-values used by native clients while retaining known progress-token validation,
-strict tool arguments, current authorization and existing complete-message
-limits. It adds no tool, scope, durable record, credential or migration. The
-generic SDK error-response mapping is unchanged.
+values used by native clients. An optional `progressToken` must be a string of
+at most 128 characters or a safe integer, without a registered-value allowlist.
+Strict tool arguments, current authorization and existing complete-message
+limits remain unchanged. It adds no tool, scope, durable record, credential or
+migration. The generic SDK error-response mapping is unchanged.
 
 The current qualified release remains `0.1.5`; this candidate needs its own
 current-head gates, review, signed-tag preparation, trusted publication and
