@@ -540,10 +540,6 @@ describe("KB agent hostile request and transport boundary", () => {
   it.each([
     { limits: { maxRequestBytes: 256 }, metadata: { value: "x".repeat(257) } },
     { limits: { maxDepth: 4 }, metadata: { nested: { child: { value: 0 } } } },
-    {
-      limits: { maxNodes: 16 },
-      metadata: { values: Array.from({ length: 16 }, () => null) },
-    },
     { limits: { maxArrayLength: 2 }, metadata: { values: [0, 1, 2] } },
     {
       limits: { maxObjectKeys: 4 },
@@ -583,10 +579,129 @@ describe("KB agent hostile request and transport boundary", () => {
     },
   );
 
+  it("admits the same MCP request with absent or small metadata before rejecting metadata node growth", async () => {
+    const f = agentFixture(createMemoryStore(), { maxNodes: 64 });
+    await f.setupCollection();
+    const dispatch = vi.fn(f.dispatcher.dispatch);
+    const mcp = createKnowledgeAgentMcp({
+      ...f.common,
+      dispatcher: { ...f.dispatcher, dispatch },
+      mcpUrl: agentResource,
+    });
+    const send = (metadata?: unknown) =>
+      mcp.handle(
+        request(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            id: 72,
+            method: "tools/call",
+            params: {
+              name: knowledgeAgentToolNames.getValidationRequirements,
+              arguments: {
+                collectionId: "collection/workshop",
+                kind: "explanation",
+              },
+              ...(metadata === undefined ? {} : { _meta: metadata }),
+            },
+          }),
+          { headers: { Accept: "application/json, text/event-stream" } },
+          agentResource,
+        ),
+      );
+    for (const metadata of [undefined, { first: [null], second: [null] }]) {
+      const response = await send(metadata);
+      expect(response?.status).toBe(200);
+      expect(await response!.json()).toMatchObject({
+        result: { isError: false },
+      });
+    }
+    expect(dispatch).toHaveBeenCalledTimes(2);
+    dispatch.mockClear();
+    // Each array independently fits the existing array ceiling. Their aggregate
+    // graph work exceeds this reduced node budget only when metadata is counted.
+    await error(
+      await send({ first: Array(32).fill(null), second: Array(32).fill(null) }),
+      413,
+      "capacity",
+    );
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      method: "initialize",
+      id: 75,
+      params: {
+        protocolVersion: "2025-11-25",
+        capabilities: {},
+        clientInfo: { name: "fictional-metadata-client", version: "1" },
+      },
+      status: 200,
+    },
+    { method: "ping", id: 76, params: {}, status: 200 },
+    { method: "tools/list", id: 77, params: {}, status: 200 },
+    { method: "notifications/initialized", params: {}, status: 202 },
+    {
+      method: "notifications/cancelled",
+      params: { requestId: 78, reason: "Fictional cancellation." },
+      status: 202,
+    },
+  ])(
+    "accepts bounded shared-schema metadata on $method without invoking the dispatcher",
+    async ({ method, id, params, status }) => {
+      const f = agentFixture(createMemoryStore());
+      const dispatch = vi.fn(f.dispatcher.dispatch);
+      const mcp = createKnowledgeAgentMcp({
+        ...f.common,
+        dispatcher: { ...f.dispatcher, dispatch },
+        mcpUrl: agentResource,
+      });
+      const send = (metadata: unknown) =>
+        mcp.handle(
+          request(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              ...(id === undefined ? {} : { id }),
+              method,
+              params: { ...params, _meta: metadata },
+            }),
+            { headers: { Accept: "application/json, text/event-stream" } },
+            agentResource,
+          ),
+        );
+      const response = await send(nativeRequestMetadata);
+      expect(response?.status).toBe(status);
+      if (status === 202) expect(await response!.text()).toBe("");
+      else {
+        const value: unknown = await response!.json();
+        expect(value).toHaveProperty("result");
+        expect(value).not.toHaveProperty("error");
+        if (method === "initialize")
+          expect(value).toMatchObject({
+            result: { capabilities: { tools: {} } },
+          });
+        if (method === "tools/list")
+          expect(value).toMatchObject({
+            result: {
+              tools: Object.values(knowledgeAgentToolNames).map((name) =>
+                expect.objectContaining({ name }),
+              ),
+            },
+          });
+      }
+      expect((await send({ progressToken: false }))?.status).toBe(400);
+      expect(f.authenticate).toHaveBeenCalledTimes(2);
+      expect(f.limit).toHaveBeenCalledTimes(2);
+      expect(dispatch).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(["NaN", "Infinity", "undefined"])(
-    "does not accept non-JSON metadata value %s",
+    "rejects the whole request as invalid JSON when a metadata-position token is %s",
     async (value) => {
       const f = agentFixture(createMemoryStore());
+      // This pins whole-body JSON parsing before the metadata schema; it is not
+      // a metadata-specific validation oracle.
       const source =
         '{"jsonrpc":"2.0","id":73,"method":"tools/call","params":{"name":"knowledge_v1_get_validation_requirements","arguments":{"collectionId":"collection/workshop","kind":"explanation"},"_meta":{"value":' +
         value +

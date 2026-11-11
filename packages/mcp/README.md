@@ -15,7 +15,8 @@ remain unchanged.
 
 The synchronized `0.1.6` source candidate is unpublished. It accepts bounded
 opaque MCP `params._meta` extensions, including native-client correlation and
-standard trace fields, while validating known `progressToken` values. Metadata
+standard trace fields, while retaining the existing `progressToken` shape
+validation: a string of at most 128 characters or a safe integer. Metadata
 does not establish identity, permissions or evidence and is not stored or
 returned as an application result. Complete-message byte, depth, node and key
 ceilings, strict tool arguments and fresh host authentication remain unchanged.
