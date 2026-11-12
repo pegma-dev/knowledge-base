@@ -37,6 +37,37 @@ const capture = <T>(promise: Promise<T>) =>
     (error: unknown) => ({ error }),
   );
 
+/** Hold completed real Store reads without changing their values or codecs. */
+function afterReadStore(
+  backing: Store,
+  onRead: (
+    collection: string,
+    method: "get" | "getVersioned",
+    key: EntityKey,
+  ) => Promise<void>,
+): Store {
+  return {
+    collection<T>(definition: CollectionDefinition<T>) {
+      const target = backing.collection(definition);
+      return new Proxy(target, {
+        get(object, property) {
+          if (property === "get" || property === "getVersioned")
+            return async (key: EntityKey) => {
+              const saved =
+                property === "get"
+                  ? await object.get(key)
+                  : await object.getVersioned(key);
+              await onRead(definition.name, property, key);
+              return saved;
+            };
+          const value: unknown = Reflect.get(object, property, object);
+          return typeof value === "function" ? value.bind(object) : value;
+        },
+      });
+    },
+  };
+}
+
 async function maximumAsciiReport(
   f: Awaited<ReturnType<typeof evidenceReportsFixture>>,
 ) {
@@ -602,6 +633,130 @@ for (const [backend, createStore] of storeFactories) {
           changedRows = await f.rawRows();
         } finally {
           armed = false;
+          gate.release();
+        }
+        expect(await pending).toMatchObject({
+          error: { code: "ledger_epoch_changed" },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+      },
+    );
+
+    it.each([false, true])(
+      "fences owner status reset after the earlier head snapshot while its report read is pending (drain=%s)",
+      async (drain) => {
+        const gate = reportBarrier();
+        let namespace = "";
+        let headKey: EntityKey | undefined;
+        let reportKey: EntityKey | undefined;
+        let armed = false;
+        let heads = 0;
+        let reports = 0;
+        const backing = afterReadStore(
+          await createStore(),
+          async (collection, method, key) => {
+            if (!armed || collection !== namespace) return;
+            if (method === "getVersioned" && key.id === headKey?.id) heads++;
+            if (method === "get" && key.id === reportKey?.id && ++reports === 2)
+              await gate.wait();
+          },
+        );
+        const f = await evidenceReportsFixture(backing);
+        const packet = await f.report();
+        expect(await f.reports.status(f.agent, f.key(packet.ack))).toEqual({
+          ...packet.ack,
+          status: "pending",
+        });
+        const physical = await f.physicalRows();
+        headKey = physical.find(({ value }) => value.id === "head")!.key;
+        reportKey = physical.find(({ value }) =>
+          value.id.startsWith("report:"),
+        )!.key;
+        namespace = f.namespace;
+        armed = true;
+        const pending = capture(f.reports.status(f.agent, f.key(packet.ack)));
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          armed = false;
+          expect(heads).toBeGreaterThan(0);
+          let state = await f.reports.reset(f.reviewer, {
+            articleId: f.articleId,
+            commandId: "reset-while-owner-status-report-pending",
+            expectedLedgerEpoch: packet.ack.ledgerEpoch,
+          });
+          if (drain)
+            for (let page = 0; state.status === "resetting" && page < 4; page++)
+              state = await f.reports.drain(f.reviewer, {
+                articleId: f.articleId,
+                ledgerEpoch: state.ledgerEpoch,
+              });
+          changedRows = await f.rawRows();
+        } finally {
+          armed = false;
+          gate.release();
+        }
+        expect(await pending).toMatchObject({
+          error: { code: "ledger_epoch_changed" },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+      },
+    );
+
+    it.each([
+      { optimized: false, drain: false },
+      { optimized: false, drain: true },
+      { optimized: true, drain: false },
+      { optimized: true, drain: true },
+    ])(
+      "fences owner query reset during its closing current-authority await (optimized=$optimized, drain=$drain)",
+      async ({ optimized, drain }) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const reports = optimized
+          ? f.freshReports({
+              authoringContext: {
+                getAuthoringContext: f.app.getAuthoringContext,
+                confirmAuthoringContext: f.app.confirmAuthoringContext,
+              },
+            })
+          : f.reports;
+        const packet = await f.report();
+        const query = {
+          articleId: f.articleId,
+          status: {
+            ledgerEpoch: packet.ack.ledgerEpoch,
+            reportId: packet.ack.reportId,
+          },
+        };
+        expect((await reports.query(f.agent, query)).status).toEqual({
+          ...packet.ack,
+          status: "pending",
+        });
+        const gate = reportBarrier();
+        let resolutions = 0;
+        f.hooks.beforeResolve = async (id) => {
+          if (id !== f.agent.principalId || ++resolutions !== 2) return;
+          delete f.hooks.beforeResolve;
+          await gate.wait();
+        };
+        const pending = capture(reports.query(f.agent, query));
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          let state = await reports.reset(f.reviewer, {
+            articleId: f.articleId,
+            commandId: "reset-during-owner-query-current-check",
+            expectedLedgerEpoch: packet.ack.ledgerEpoch,
+          });
+          if (drain)
+            for (let page = 0; state.status === "resetting" && page < 4; page++)
+              state = await reports.drain(f.reviewer, {
+                articleId: f.articleId,
+                ledgerEpoch: state.ledgerEpoch,
+              });
+          changedRows = await f.rawRows();
+        } finally {
+          delete f.hooks.beforeResolve;
           gate.release();
         }
         expect(await pending).toMatchObject({
