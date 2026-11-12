@@ -6,6 +6,11 @@ import {
 } from "@pegma/knowledge-base-application";
 import { knowledgePermissions } from "@pegma/knowledge-base-contracts";
 import type { EvidenceSubmission } from "@pegma/knowledge-base-core";
+import type {
+  CollectionDefinition,
+  EntityKey,
+  Store,
+} from "@pegma/storage-core";
 import { describe, expect, it } from "vitest";
 import { access, at, draft, evidence } from "../test/application-fixtures.js";
 import {
@@ -491,6 +496,116 @@ for (const [backend, createStore] of storeFactories) {
                       /^(ledger_epoch_changed|report_not_found)$/u,
                     ),
           },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+      },
+    );
+
+    it.each([false, true])(
+      "refuses reset after a completed head read while the closing report result is pending (drain=%s)",
+      async (drain) => {
+        const backing = await createStore();
+        const gate = reportBarrier();
+        let namespace = "";
+        let headKey: EntityKey | undefined;
+        let reportKey: EntityKey | undefined;
+        let armed = false;
+        let reports = 0;
+        let heldReportVersion: string | undefined;
+        let lastHeadRead = Promise.resolve();
+        const completedHeadVersions: (string | undefined)[] = [];
+        const delayed: Store = {
+          collection<T>(definition: CollectionDefinition<T>) {
+            const target = backing.collection(definition);
+            return new Proxy(target, {
+              get(object, property) {
+                if (property === "getVersioned")
+                  return async (key: EntityKey) => {
+                    const headRead =
+                      armed &&
+                      definition.name === namespace &&
+                      key.partition === headKey?.partition &&
+                      key.id === headKey?.id;
+                    let finishHead: (() => void) | undefined;
+                    if (headRead)
+                      lastHeadRead = new Promise<void>((resolve) => {
+                        finishHead = resolve;
+                      });
+                    try {
+                      const saved = await object.getVersioned(key);
+                      if (headRead) completedHeadVersions.push(saved?.version);
+                      if (
+                        armed &&
+                        definition.name === namespace &&
+                        key.partition === reportKey?.partition &&
+                        key.id === reportKey?.id &&
+                        ++reports === 2
+                      ) {
+                        heldReportVersion = saved?.version;
+                        await gate.wait();
+                      }
+                      return saved;
+                    } finally {
+                      finishHead?.();
+                    }
+                  };
+                const value: unknown = Reflect.get(object, property, object);
+                return typeof value === "function" ? value.bind(object) : value;
+              },
+            });
+          },
+        };
+        const f = await evidenceReportsFixture(delayed);
+        const packet = await f.report();
+        expect(
+          await f.reports.read(f.reviewer, f.key(packet.ack)),
+        ).toMatchObject(packet.ack);
+        const physical = await f.physicalRows();
+        const head = physical.find(({ value }) => value.id === "head")!;
+        const report = physical.find(({ value }) =>
+          value.id.startsWith("report:"),
+        )!;
+        namespace = f.namespace;
+        headKey = head.key;
+        reportKey = report.key;
+        armed = true;
+        const pending = capture(f.reports.read(f.reviewer, f.key(packet.ack)));
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          armed = false;
+          await lastHeadRead;
+          expect(completedHeadVersions.at(-1)).toBe(head.version);
+          expect(heldReportVersion).toBe(report.version);
+          let state = await f.reports.reset(f.reviewer, {
+            articleId: f.articleId,
+            commandId: "reset-after-completed-head-with-report-pending",
+            expectedLedgerEpoch: packet.ack.ledgerEpoch,
+          });
+          if (drain) {
+            for (let page = 0; state.status === "resetting" && page < 4; page++)
+              state = await f.reports.drain(f.reviewer, {
+                articleId: f.articleId,
+                ledgerEpoch: state.ledgerEpoch,
+              });
+            expect(state.status).toBe("active");
+          }
+          const after = await f.physicalRows();
+          expect(
+            after.find(({ value }) => value.id === "head")?.version,
+          ).not.toBe(head.version);
+          const retained = after.find(
+            ({ value }) => value.id === report.value.id,
+          );
+          if (drain) expect(retained).toBeUndefined();
+          else expect(retained).toEqual(report);
+          changedRows = await f.rawRows();
+        } finally {
+          armed = false;
+          gate.release();
+        }
+        expect(await pending).toMatchObject({
+          error: { code: "ledger_epoch_changed" },
         });
         expect(await f.rawRows()).toEqual(changedRows);
       },

@@ -1553,19 +1553,17 @@ export function createKnowledgeEvidenceReports(
         throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
       if (head.value.status !== "active")
         throw new KnowledgeEvidenceReportsError("ledger_resetting");
-      // Observe both authorities in one closing keyed-read wave. These
-      // separate observations provide no lock; return without another await.
-      const [latestHead, latest] = await Promise.all([
-        headVersion(articleId),
-        observedReport(articleId, epoch, report.reportId),
-      ]);
+      // Observe the report before the final epoch/head read. These separate
+      // observations provide no lock; return without another await.
+      const latest = await observedReport(articleId, epoch, report.reportId);
+      if (latest.version !== observed.version)
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      const latestHead = await headVersion(articleId);
       if (
         latestHead.value.ledgerEpoch !== head.value.ledgerEpoch ||
         latestHead.value.status !== head.value.status
       )
         throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
-      if (latest.version !== observed.version)
-        throw new KnowledgeEvidenceReportsError("report_changed");
       if (latestHead.version !== head.version)
         throw new KnowledgeEvidenceReportsError("ledger_changed");
       return {
