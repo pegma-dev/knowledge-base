@@ -195,6 +195,28 @@ no populated-namespace detection, layout switch or migration is automatic.
 The factory adds no agent scope, MCP tool, role, login, scheduler or provenance
 bridge. Hosts retain exact-publication and activation prerequisites.
 
+### Unpublished 0.1.7 candidate
+
+The candidate adds required `readonly receipt: string` to the existing staff
+`KnowledgeReportView` for pending, confirmed and rejected reads. It returns the
+authenticated canonical receipt from the same current report snapshot as its
+generation, hash and confirmation. Confirmation preserves the receipt,
+reassessment rotates its cycle and ledger reset fences its epoch.
+
+Authorized staff can associate Support test results with the exact report
+receipt and check its revocation when another authorized staff member recorded
+the decision. Existing staff and resource read guards, the trusted verifier and
+owner-only status behavior remain unchanged. The five agent operations, scopes,
+roles and durable report state remain unchanged.
+
+The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
+remains the released graph. Combined `0.1.7` source requires its current-head
+Node 22 and 24 gates, review and complete release verification before adoption.
+Then align all four exact package versions together. Existing external pins and
+the previous application writer at `0.1.1` remain unchanged. The extension
+requires no data migration. Host acceptance and activation remain separately
+gated, and existing release receipts and artifact bytes retain their identities.
+
 ## Bounded retrieval and repair
 
 `listPortalCollections` and `searchPublishedArticles` require current portal

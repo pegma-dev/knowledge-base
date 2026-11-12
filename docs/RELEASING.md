@@ -85,22 +85,35 @@ their own current-head gates; historical results do not validate changed
 composition. Production hosts require verified trusted versions of both
 components and their separately retained acceptance.
 
-## Unpublished 0.1.6 candidate
+## Verified 0.1.6 release
 
-All four source packages are synchronized at `0.1.6` for the MCP extension
-metadata compatibility patch. The adapter accepts bounded opaque `params._meta`
-values used by native clients. An optional `progressToken` must be a string of
-at most 128 characters or a safe integer, without a registered-value allowlist.
-Strict tool arguments, current authorization and existing complete-message
-limits remain unchanged. It adds no tool, scope, durable record, credential or
-migration. The generic SDK error-response mapping is unchanged.
+All four [`0.1.6` packages](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
+completed verified trusted publication for MCP extension metadata compatibility.
+The adapter accepts bounded opaque `params._meta` values used by native clients.
+An optional `progressToken` must be a string of at most 128 characters or a safe
+integer, without a registered-value allowlist. Strict tool arguments, current
+authorization and existing complete-message limits remain unchanged. The
+release adds no tool, scope, durable record, credential or migration. The generic
+SDK error-response mapping is unchanged.
 
-The current qualified release remains `0.1.5`; this candidate needs its own
-current-head gates, review, signed-tag preparation, trusted publication and
-strict complete-set registry verification. Existing `0.1.5` receipts and
-tarballs remain unchanged. Hosts and Support Desk consumers must deliberately
-align their exact Knowledge Base graph before adoption; producer qualification
-does not close native-client or real-host acceptance.
+Existing release receipts, tag links and tarballs retain their original
+identities. Host and native-client acceptance remain separately gated.
+
+## Unpublished 0.1.7 candidate
+
+All four source package versions and exact internal pins are synchronized at
+`0.1.7`. The candidate adds the required `receipt: string` to the existing staff
+`KnowledgeReportView` for its authenticated canonical report receipt. Authorized staff workflows can associate Support
+test results with the exact report receipt and check its revocation when another
+authorized staff member recorded the decision. The existing verifier and
+owner-only status behavior remain unchanged. The candidate adds no tool, scope,
+role or durable state.
+
+The current qualified release remains `0.1.6`. Combined candidate source requires
+current-head Node 22 and 24 gates, review, signed-tag preparation, trusted
+publication and strict complete-set registry verification before adoption.
+Host and native-client acceptance remain separately gated. Read the
+[application upgrade note](../packages/application/README.md#unpublished-017-candidate) for the receipt boundary and synchronized graph.
 
 ## Repository and development artifact gates
 

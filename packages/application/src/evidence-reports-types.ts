@@ -66,6 +66,7 @@ export interface KnowledgeEvidenceContext {
 }
 
 export interface KnowledgeReportView extends KnowledgeReportSummary {
+  readonly receipt: string;
   readonly evidence: EvidenceSubmission;
   readonly report: KnowledgeTestReport;
   readonly reportHash: string;

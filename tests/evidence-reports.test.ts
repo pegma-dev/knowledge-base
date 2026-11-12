@@ -280,6 +280,66 @@ for (const [backend, createStore] of storeFactories) {
       ).toBe(packet.input.report.details);
     });
 
+    it.each(["confirmed", "rejected"] as const)(
+      "returns the canonical %s receipt to different current staff without changing submitter ownership",
+      async (status) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const packet = await f.report();
+        const pending = await f.reports.read(f.reviewer, f.key(packet.ack));
+        expect(pending).toMatchObject({
+          ...packet.ack,
+          status: "pending",
+          submittedBy: f.agent.principalId,
+          confirmation: null,
+        });
+        const decided = await f.decide(packet.ack, status);
+        expect(decided.ack.receipt).toBe(packet.ack.receipt);
+        const request = await f.verificationRequest(
+          decided.ack,
+          packet.input.evidence,
+        );
+        if (status === "confirmed")
+          expect(await f.reports.verifier.verify(request)).toMatchObject({
+            id: decided.ack.receipt,
+            verifiedBy: f.reviewer.principalId,
+          });
+        const otherStaff = access(
+          "staff/second-reviewer",
+          f.reviewer.permissions,
+        );
+        f.principals.set(otherStaff.principalId, otherStaff);
+        f.principals.delete(f.agent.principalId);
+        const beforeRead = await f.rows();
+        const view = await f.reports.read(otherStaff, f.key(decided.ack));
+        expect(view).toMatchObject({
+          ...decided.ack,
+          status,
+          submittedBy: f.agent.principalId,
+          evidence: packet.input.evidence,
+          report: packet.input.report,
+          reportHash: pending.reportHash,
+          confirmation:
+            status === "confirmed"
+              ? { reviewerId: f.reviewer.principalId }
+              : null,
+        });
+        expect(await f.rows()).toEqual(beforeRead);
+        await expect(
+          f.reports.read(otherStaff, {
+            ...f.key(decided.ack),
+            articleId: "article/unrelated",
+          }),
+        ).rejects.toMatchObject({ code: "report_not_found" });
+        await expect(
+          f.reports.status(otherStaff, f.key(decided.ack)),
+        ).rejects.toMatchObject({ code: "report_not_found" });
+        expect(await f.reports.verifier.verify(request)).toBeNull();
+        expect(
+          await f.reports.verifier.verify({ ...request, access: otherStaff }),
+        ).toBeNull();
+      },
+    );
+
     it.each(["confirm", "reassess"] as const)(
       "refuses a stale owner status when a concurrent %s changes the report after its first load",
       async (transition) => {
@@ -388,6 +448,38 @@ for (const [backend, createStore] of storeFactories) {
       expect(await f.reports.status(f.agent, f.key(recovered))).toEqual({
         ...recovered,
         status: "pending",
+      });
+      expect(await f.reports.read(f.reviewer, f.key(recovered))).toMatchObject({
+        ...recovered,
+        status: "pending",
+      });
+      expect(await f.rows()).toEqual(committed);
+    });
+
+    it("reads the canonical receipt after an accepted decision loses its acknowledgement", async () => {
+      const f = await evidenceReportsFixture(await createStore());
+      const packet = await f.report();
+      const { input } = await f.decisionInput(packet.ack);
+      let lost = false;
+      f.observed.intercept(async (trace, commit) => {
+        const result = await commit();
+        if (!lost && trace.collection === f.namespace && result.committed) {
+          lost = true;
+          throw new Error("PRIVATE_DECISION_ACK_CANARY");
+        }
+        return result;
+      });
+      await expect(
+        f.reports.decide(f.reviewer, input, "confirmed"),
+      ).rejects.toMatchObject(unavailable);
+      f.observed.intercept(undefined);
+      const committed = await f.rows();
+      const view = await f.reports.read(f.reviewer, f.key(packet.ack));
+      const recovered = await f.reports.decide(f.reviewer, input, "confirmed");
+      expect(view).toMatchObject({
+        ...recovered,
+        status: "confirmed",
+        confirmation: { reviewerId: f.reviewer.principalId },
       });
       expect(await f.rows()).toEqual(committed);
     });
@@ -862,6 +954,13 @@ for (const [backend, createStore] of storeFactories) {
       const reassessed = await f.decide(old.ack, "pending");
       expect(reassessed.ack.reportId).toBe(old.ack.reportId);
       expect(reassessed.ack.receipt).not.toBe(old.ack.receipt);
+      expect(
+        await f.reports.read(f.reviewer, f.key(reassessed.ack)),
+      ).toMatchObject({
+        ...reassessed.ack,
+        status: "pending",
+        confirmation: null,
+      });
       expect(await f.reports.verifier.verify(stale)).toBeNull();
       const beforeReplay = await f.rows();
       expect(
@@ -875,6 +974,10 @@ for (const [backend, createStore] of storeFactories) {
         f.submit(reassessed.ack, packet.input.evidence),
       ).rejects.toMatchObject(kbEvidenceRefusal);
       const confirmed = await f.decide(reassessed.ack);
+      expect(confirmed.ack.receipt).toBe(reassessed.ack.receipt);
+      expect(
+        await f.reports.read(f.reviewer, f.key(confirmed.ack)),
+      ).toMatchObject({ ...confirmed.ack, status: "confirmed" });
       await f.submit(confirmed.ack, packet.input.evidence);
       expect(await f.reports.verifier.verify(stale)).toBeNull();
     });
@@ -1055,6 +1158,9 @@ for (const [backend, createStore] of storeFactories) {
       expect(state).toMatchObject({ ledgerEpoch: 2, status: "resetting" });
       expect(await f.reports.reset(f.reviewer, resetInput)).toEqual(state);
       expect(await f.reports.verifier.verify(oldRequest)).toBeNull();
+      await expect(
+        f.reports.read(f.reviewer, f.key(old.confirmed.ack)),
+      ).rejects.toMatchObject({ code: "ledger_epoch_changed" });
       await expect(f.reports.report(f.agent, old.input)).rejects.toMatchObject({
         code: "ledger_epoch_changed",
       });
@@ -1384,6 +1490,9 @@ for (const [backend, createStore] of storeFactories) {
         status: "confirmed",
       });
       expect(await retained.report(f.agent, packet.input)).toEqual(packet.ack);
+      expect(
+        await retained.read(f.reviewer, f.key(confirmed.ack)),
+      ).toMatchObject({ ...confirmed.ack, status: "confirmed" });
       const request = await f.verificationRequest(
         confirmed.ack,
         packet.input.evidence,
@@ -1772,6 +1881,7 @@ for (const [backend, createStore] of storeFactories) {
         const view = await f.reports.read(f.reviewer, f.key(ack));
         expect(view).toMatchObject({
           status,
+          receipt: ack.receipt,
           reportGeneration: ack.reportGeneration,
           evidence: retained.report.input.evidence,
           report: retained.report.input.report,

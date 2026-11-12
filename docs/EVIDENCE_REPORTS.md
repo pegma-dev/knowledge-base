@@ -171,7 +171,10 @@ exactly the confirmation permission, `draftRead`, `evidenceRead` and
 either/or requirement supplies the public `getValidationRequirements` read
 prerequisite. Choose `evidenceSubmit` to review without draft-editing authority.
 The full view includes the report/submission, hashes, exact current draft/requirements,
-`reviewBindingHash`, `expectedReportGeneration`, and any confirmation. Keep
+`reviewBindingHash`, `expectedReportGeneration`, and any confirmation. Its `receipt`
+is the canonical acknowledgement receipt for that same report snapshot, including
+pending and rejected reports; reassessment rotates its cycle and reset fences its
+epoch. The field does not change verifier or owner-only status authority. Keep
 these private; the agent's body-free `status` is not a staff listing or report
 download. Render untrusted report text safely and do not fetch submitted links.
 

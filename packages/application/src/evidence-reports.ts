@@ -1546,6 +1546,7 @@ export function createKnowledgeEvidenceReports(
       await active(articleId, epoch);
       return {
         ...summary(report),
+        receipt: acknowledgement(report).receipt,
         evidence: report.evidence,
         report: report.report,
         draft: valueContext.draft,
