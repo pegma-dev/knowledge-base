@@ -1,8 +1,8 @@
 # Application and retrieval host composition
 
 The current verified Knowledge Base release is
-[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
-The `0.1.7` source candidate remains unpublished.
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
+The `0.1.8` source candidate remains unpublished.
 
 ## Status and ownership
 
@@ -219,6 +219,17 @@ ledger state and optional owner-only status under `draftRead` plus
 requirements operation; legacy report trios retain their fallback. It returns
 no draft body, private evidence, report details, reviewer or provenance. See
 [evidence reports](EVIDENCE_REPORTS.md) for composition and exact privacy rules.
+
+The unpublished `0.1.8` report observation capability reuses the real
+evidence-bearing authoring context within one operation. Its private view remains
+provisional until the paired confirmation checks resource versions, current
+actor/reviewer authority, the exact report and final ledger head. Keep the
+original effective caller and the host's current credential, governance,
+Support/source/product and commit/ACK guards. A different staff reader receives
+no submitter-bound verifier authority. The
+[report contract](EVIDENCE_REPORTS.md#optional-report-observations-018-candidate)
+defines the instance-bound, single-use handle and legacy fallback. Real host
+query and CPU profiles remain pending acceptance work.
 
 These are finite current observations across separate partitions, not a global
 snapshot or policy lock. Evidence qualification, exact review/publication and

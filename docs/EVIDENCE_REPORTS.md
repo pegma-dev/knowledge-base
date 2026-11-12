@@ -1,8 +1,8 @@
 # Human-reviewed evidence reports
 
 The current verified Knowledge Base release is
-[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
-The `0.1.7` source candidate remains unpublished.
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
+The `0.1.8` source candidate remains unpublished.
 
 `createKnowledgeEvidenceReports` shipped in the four synchronized, verified
 [`0.1.3` packages](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
@@ -130,6 +130,52 @@ API, SQL or collection layout. All admitted evidence/revocation history remains
 intact. This source change establishes no universal Workers Free 50-query, CPU
 or wall-clock guarantee. Complete host invocations, real authorities, supported
 histories, retries and cold composition require their own measured acceptance.
+
+## Optional report observations (`0.1.8` candidate)
+
+The unpublished `0.1.8` candidate adds `reports.observations` when the factory
+receives the actual `authoringContext` pair. Legacy factories keep this property
+absent. Existing `read`, owner-only `status`, decisions and the verifier retain
+their contracts.
+
+`observe(access, { articleId, ledgerEpoch, reportId })` returns
+`{ view, context, observation }` for a confirmed report. The view has the existing
+`KnowledgeReportView` shape. The context contains the actual governed draft,
+narrow requirements and complete current accepted evidence/revocation history.
+The configured human confirmation permission, draft/evidence reading and either
+evidence-submit or draft-write authority remain required. Current staff authority
+is checked again after all private reads before disclosure.
+
+Treat the returned data as provisional until
+`confirm(access, observation, verification?)` finishes. Its opaque handle belongs
+to that report instance, exact effective actor and one operation. A clone or
+another instance is invalid. A wrong actor cannot consume the original handle.
+An actual confirmation consumes it before awaited work, including failed probes;
+start a fresh observation after failure. Returned data is detached from the
+retained observation, so changing a view cannot change its binding. Keep handles
+out of wire DTOs, storage, command fingerprints and retained receipts.
+
+The confirmation checks the real KB authoring resource versions before its
+closing report read. Fresh actor and reviewer authority are checked in a settled
+read-only wave with the exact report row. The observed reviewer authority and
+report version must still match. The ledger head is the final data await, fencing
+reset, resetting state and changed raw head versions. These separate observations
+establish bounded freshness across collections; they hold no atomic lock.
+
+The result is `{ receipt, attestation }`. Without `verification`, attestation is
+`null`. A trusted host may supply the existing `EvidenceVerificationRequest` for
+the actual original submitter. The method reuses the legacy verifier's receipt,
+whole submission, article, configuration, revocation and freshness predicates
+against the already-observed real context. Current original-owner evidence-submit
+authority remains required. Another staff reader can confirm a private read while
+owner-only status and attestation remain bound to the submitter. Hosts continue
+to obtain privileged current governance through their existing intrinsic port;
+the new context exposes the existing narrow requirements DTO only.
+
+The pair adds no durable row, scope, tool, credential or host session check. Hosts
+retain their current credential, Support/source/product and precommit/ACK fences.
+Query count and CPU acceptance require complete physical host measurements with
+the actual read scheduling and authority callbacks.
 
 ## Submit, review, then qualify evidence
 

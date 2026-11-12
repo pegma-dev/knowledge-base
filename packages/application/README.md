@@ -24,7 +24,7 @@ The synchronized answering read-batching `0.1.5` release has completed verified
 trusted publication; see its
 [release receipt](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5).
 The current verified synchronized release is
-[`0.1.6`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6).
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
 Changed source still requires its own review and current-head gates. Backend
 query and CPU budgets require actual host measurements. These source README
 corrections apply to a future release. Published `0.1.5` tarballs, including
@@ -197,9 +197,9 @@ no populated-namespace detection, layout switch or migration is automatic.
 The factory adds no agent scope, MCP tool, role, login, scheduler or provenance
 bridge. Hosts retain exact-publication and activation prerequisites.
 
-### Unpublished 0.1.7 candidate
+### Verified 0.1.7 release
 
-The candidate adds required `readonly receipt: string` to the existing staff
+The `0.1.7` release adds required `readonly receipt: string` to the existing staff
 `KnowledgeReportView` for pending, confirmed and rejected reads. It returns the
 authenticated canonical receipt from the same current report snapshot as its
 generation, hash and confirmation. Confirmation preserves the receipt,
@@ -215,13 +215,30 @@ and owner-only status remain bound to the original submitter. Staff and resource
 read guards, the five agent operations, scopes, roles and durable report state
 remain unchanged.
 
-The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
-remains the released graph. Combined `0.1.7` source requires its current-head
-Node 22 and 24 gates, review and complete release verification before adoption.
-Then align all four exact package versions together. Existing external pins and
+The verified [`0.1.7` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7)
+is the released graph. Align all four exact package versions together. Existing external pins and
 the previous application writer at `0.1.1` remain unchanged. The extension
 requires no data migration. Host acceptance and activation remain separately
 gated, and existing release receipts and artifact bytes retain their identities.
+
+### Unpublished 0.1.8 report observation candidate
+
+With a real `authoringContext` pair, the report factory exposes optional
+`observations.observe(access, key)` and `observations.confirm(access, handle,
+verification?)`. The first returns the existing private report view, complete
+current evidence-bearing context and an instance-bound, single-use handle. It
+checks current staff authority after its private reads. Treat the data as
+provisional until confirmation finishes. The confirmation rechecks real KB
+resource versions, fresh actor/reviewer authority, the exact report row and the
+final ledger head. Its optional original-owner verification request reuses the
+legacy verifier predicates and returns the same attestation without reloading
+the context. Other staff readers receive no owner-verifier authority.
+
+Keep this pair inside one operation and application/report instance. Handles
+cannot be cloned, serialized, persisted or reused after an attempted confirmation.
+The [source contract](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md#optional-report-observations-018-candidate)
+describes failure and host ownership. This unpublished candidate adds no durable
+state, MCP tool or scope. Actual host query/CPU acceptance is pending.
 
 ## Bounded retrieval and repair
 

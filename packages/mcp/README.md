@@ -8,7 +8,7 @@ endpoints; the package does not supply a hosted service.
 The historical synchronized
 [`0.1.5` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5)
 includes answering read batching and the aggregate report query introduced in
-`0.1.4`. The current verified synchronized release is `0.1.6`, described below.
+`0.1.4`. The current verified synchronized release is `0.1.7`, described below.
 Changed source requires its own review and current-head gates. Host and actual
 client acceptance remain separate. These source README corrections apply to a
 future release. Published `0.1.5` tarballs, including their bundled README bytes,
@@ -24,10 +24,10 @@ ceilings, strict tool arguments and fresh host authentication remain unchanged.
 The official-SDK regression and packed protocol proof exercise fictional
 extension values; actual requested-client and host acceptance remain separate.
 
-The unpublished `0.1.7` candidate synchronizes all four packages for the staff
-report receipt extension. Its combined source requires current-head gates and
-release verification before adoption. See the
-[application upgrade note](https://github.com/pegma-dev/knowledge-base/blob/61dcaaf19f7a0db644709aef8f52a826f3c1b34d/packages/application/README.md#unpublished-017-candidate).
+The verified [`0.1.7` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7)
+synchronizes all four packages for the staff report receipt extension. The
+unpublished `0.1.8` candidate adds an application-only report observation pair;
+the five MCP tools and three scopes remain unchanged.
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent

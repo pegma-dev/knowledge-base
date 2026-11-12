@@ -7,7 +7,7 @@ using host-resolved Authorization Core contexts. Identity and time types come
 from `@pegma/spine`.
 
 The current verified synchronized release is
-[`0.1.6`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6), including
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7), including
 MCP extension metadata compatibility. The historical
 [`0.1.5` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5)
 provided application answering read batching. Changed source still requires

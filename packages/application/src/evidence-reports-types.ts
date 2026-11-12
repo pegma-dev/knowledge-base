@@ -5,6 +5,7 @@ import type {
   IsoTimestamp,
   Logger,
   PrincipalId,
+  VerificationEvidence,
 } from "@pegma/knowledge-base-contracts";
 import type { EvidenceSubmission } from "@pegma/knowledge-base-core";
 import type { Store } from "@pegma/storage-core";
@@ -13,6 +14,7 @@ import type {
   KnowledgeBaseApplication,
   EvidenceDto,
   EvidenceVerifier,
+  EvidenceVerificationRequest,
   ValidationRequirementsDto,
 } from "./types.js";
 
@@ -110,6 +112,41 @@ export interface KnowledgeReportKey extends KnowledgeReportArticleInput {
   readonly reportId: string;
 }
 
+declare const reportObservationBrand: unique symbol;
+/** Single-use, instance-bound read observation. Keep it inside one operation. */
+export interface KnowledgeReportObservation {
+  readonly [reportObservationBrand]: true;
+}
+
+export interface KnowledgeReportObservationRead {
+  /** Provisional private data; await confirm before using it as a current binding. */
+  readonly view: KnowledgeReportView;
+  readonly context: KnowledgeEvidenceContext;
+  readonly observation: KnowledgeReportObservation;
+}
+
+export interface KnowledgeReportObservationConfirmation {
+  readonly receipt: string;
+  /** Present only when the optional original-owner verification request succeeds. */
+  readonly attestation: VerificationEvidence["attestation"] | null;
+}
+
+/** Optional paired reads, available only with the real authoringContext pair. */
+export interface KnowledgeReportObservations {
+  observe(
+    access: AccessContext,
+    input: KnowledgeReportKey,
+  ): Promise<KnowledgeReportObservationRead>;
+  /** Confirms exact KB resources/report/head and current actor/reviewer authority.
+   * The handle is consumed before awaited work, including a failed confirmation.
+   * An optional verification request retains the legacy verifier's owner binding. */
+  confirm(
+    access: AccessContext,
+    observation: KnowledgeReportObservation,
+    verification?: EvidenceVerificationRequest,
+  ): Promise<KnowledgeReportObservationConfirmation>;
+}
+
 export interface SubmitKnowledgeReportInput extends KnowledgeReportArticleInput {
   readonly commandId: string;
   readonly ledgerEpoch: number;
@@ -171,6 +208,7 @@ export interface KnowledgeEvidenceReportsOptions {
 
 export interface KnowledgeEvidenceReports {
   readonly verifier: EvidenceVerifier;
+  readonly observations?: KnowledgeReportObservations;
   query(
     access: AccessContext,
     input: KnowledgeReportQueryInput,

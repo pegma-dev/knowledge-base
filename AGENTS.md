@@ -34,7 +34,9 @@ tests. The approved scope is the [Support Desk enhancement plan](https://github.
   read batching; retain the [historical release receipt](docs/BOOTSTRAP.md#current-verified-015-release).
   All four `0.1.6` packages completed verified trusted publication for MCP metadata
   compatibility. Retain the [current release receipt](docs/BOOTSTRAP.md#current-verified-016-release).
-  The synchronized `0.1.7` source candidate remains unpublished.
+  All four `0.1.7` packages completed verified trusted publication for the staff
+  report-view canonical receipt. Retain the [verified release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
+  The synchronized `0.1.8` source candidate remains unpublished.
   Grouped reads establish no universal query or CPU budget. Host dependency
   adoption and real-host acceptance remain separate.
 - Never implement a database, authorization role model, identity/session/token

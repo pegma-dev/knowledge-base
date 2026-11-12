@@ -1,8 +1,8 @@
 # Agent authoring and test-evidence workflow
 
 The current verified Knowledge Base release is
-[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
-The `0.1.7` source candidate remains unpublished.
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
+The `0.1.8` source candidate remains unpublished.
 
 The [merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 adds optional authoring transports over the existing Knowledge Base

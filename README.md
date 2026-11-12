@@ -29,7 +29,9 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > for answering read batching, including strict registry/provenance and public-consumer
 > verification. All four `0.1.6` packages completed
 > [verified trusted publication](docs/BOOTSTRAP.md#current-verified-016-release)
-> for MCP extension metadata compatibility. The `0.1.7` candidate remains unpublished.
+> for MCP extension metadata compatibility. All four `0.1.7` packages completed
+> [verified trusted publication](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7)
+> for the staff report-view canonical receipt. The `0.1.8` candidate remains unpublished.
 > Host dependency adoption remains separate.
 > Actual two-host existing-login/client acceptance remains open.
 > Host activation remains separately gated; this repository supplies no hosted KB.
@@ -173,7 +175,7 @@ release checkpoint, all four KB packages had `latest: 0.1.5`; Agent Access
 remained at `latest: 0.1.1`; all retained `bootstrap: 0.1.0`. Dist-tags are mutable
 observations. The [retained `0.1.5` receipt](docs/BOOTSTRAP.md#current-verified-015-release)
 binds the original artifact, exact manifest, authenticated original writers and
-strict verification. The [current `0.1.6` receipt](docs/BOOTSTRAP.md#current-verified-016-release)
+strict verification. The [historical `0.1.6` receipt](docs/BOOTSTRAP.md#current-verified-016-release)
 records the later verified metadata compatibility release. Read batching establishes no universal backend query or
 CPU budget. Neither registry publication nor synthetic proof satisfies real
 host acceptance or approves activation.
