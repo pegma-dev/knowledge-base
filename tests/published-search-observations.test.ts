@@ -4,10 +4,13 @@ import {
   KnowledgeBaseAuthorizationError,
   KnowledgeBaseNotFoundError,
   KnowledgeBasePrerequisiteError,
+  RepositoryIntegrityError,
   type KnowledgeRetrievalOptions,
   type PublishedSearchObservationResult,
 } from "@pegma/knowledge-base-application";
 import { knowledgePermissions } from "@pegma/knowledge-base-contracts";
+import { resolveAccess } from "@pegma/authorization-core";
+import { StorageError } from "@pegma/storage-core";
 import type {
   CollectionDefinition,
   EntityKey,
@@ -30,6 +33,30 @@ import {
   storeFactories,
 } from "../test/application-stores.js";
 import { barrier } from "../test/trace-store.js";
+import {
+  botCustomer,
+  retrievalFixture,
+  retrievalGuides,
+} from "../test/retrieval-fixtures.js";
+
+// Exact resolved defaults from PG support-background-service-access.ts.
+// No customer audience, collectionRead, role assignment, or ambient entitlement.
+const authoringReader = resolveAccess(
+  { principalId: "pegma/support-learning-draft" },
+  {
+    version: "pg-background-learning-draft-v1",
+    defaults: [
+      "support.queue.read",
+      "support.learning.read",
+      "support.learning.process",
+      knowledgePermissions.articleRead,
+      knowledgePermissions.draftRead,
+      knowledgePermissions.draftWrite,
+      knowledgePermissions.provenanceRead,
+      knowledgePermissions.provenanceWrite,
+    ],
+  },
+);
 
 interface KeyedRead {
   readonly method: "get" | "getVersioned";
@@ -39,7 +66,16 @@ interface KeyedRead {
 function fixture(backing: Store, retrieval: KnowledgeRetrievalOptions = {}) {
   const f = applicationFixture(backing);
   let scans = 0;
-  let beforeScan: ((ordinal: number) => Promise<void>) | undefined;
+  let scanPasses = 0;
+  const scanPages: {
+    pass: number;
+    requested: number;
+    physicalRows: number;
+    hasCursor: boolean;
+  }[] = [];
+  let beforeScan:
+    | ((ordinal: number, pass: number, input: ScanOptions) => Promise<void>)
+    | undefined;
   const keyedReads: KeyedRead[] = [];
   let beforeRead: ((read: KeyedRead) => Promise<void>) | undefined;
   const observed: Store = {
@@ -62,8 +98,16 @@ function fixture(backing: Store, retrieval: KnowledgeRetrievalOptions = {}) {
           if (property === "scan")
             return async (input: ScanOptions) => {
               scans += 1;
-              await beforeScan?.(scans);
-              return object.scan(input);
+              if (input.cursor === undefined) scanPasses += 1;
+              await beforeScan?.(scans, scanPasses, input);
+              const page = await object.scan(input);
+              scanPages.push({
+                pass: scanPasses,
+                requested: input.limit,
+                physicalRows: page.records.length,
+                hasCursor: page.nextCursor !== null,
+              });
+              return page;
             };
           const value: unknown = Reflect.get(object, property, object);
           return typeof value === "function" ? value.bind(object) : value;
@@ -85,6 +129,8 @@ function fixture(backing: Store, retrieval: KnowledgeRetrievalOptions = {}) {
     backing,
     observers: app.publishedSearchObservations!,
     scans: () => scans,
+    scanPasses: () => scanPasses,
+    scanPages,
     keyedReads,
     beforeRead(handler: typeof beforeRead) {
       beforeRead = handler;
@@ -145,18 +191,45 @@ async function change(
     });
 }
 
+async function seedHistory(
+  f: ReturnType<typeof fixture>,
+  count: number,
+  prefix: string,
+  payload = "",
+) {
+  const sample = (await allKnowledgeRows(f.backing)).find(
+    (row) => row.resourceKind === "collection" && row.kind === "head",
+  );
+  if (sample === undefined)
+    throw new Error("Expected the real collection head");
+  const records = f.backing.collection(knowledgeRecords);
+  for (let offset = 0; offset < count; offset += 4)
+    await Promise.all(
+      Array.from({ length: Math.min(4, count - offset) }, (_, index) =>
+        records.put({
+          ...sample,
+          id: `job:${prefix}:${offset + index}`,
+          kind: "job",
+          data: { task: "collection_changed", fixturePayload: payload },
+        }),
+      ),
+    );
+}
+
 for (const [backend, createStore] of storeFactories) {
   describe(`background published search observations (${backend})`, () => {
     it("completes and confirms a genuinely empty authorized scope without the index", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       expect(result.articles).toEqual([]);
-      expect(f.scans()).toBe(2);
+      expect(f.scanPasses()).toBe(2);
       await expect(
-        f.observers.confirm(customer, result.observation),
+        f.observers.confirm(authoringReader, result.observation),
       ).resolves.toBeUndefined();
-      expect(f.scans()).toBe(4);
+      expect(f.scanPasses()).toBe(4);
     });
 
     it("finds a newly published unindexed guide even when legacy provider search fails", async () => {
@@ -174,12 +247,14 @@ for (const [backend, createStore] of storeFactories) {
         articles: [],
       });
       expect(f.scans()).toBe(0);
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       expect(result.articles.map(({ articleId }) => articleId)).toEqual([
         "article/export",
       ]);
       expect(result.articles[0]?.content).toEqual(draft().content);
-      await f.observers.confirm(customer, result.observation);
+      await f.observers.confirm(authoringReader, result.observation);
     });
 
     it("covers only the exact authorized collection, applicability, and metadata query", async () => {
@@ -199,12 +274,14 @@ for (const [backend, createStore] of storeFactories) {
         tags: ["password"],
       });
       await f.createDraft("article/unpublished");
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       expect(result.articles.map(({ articleId }) => articleId)).toEqual([
         "article/export",
       ]);
       const absent = complete(
-        await f.observers.observe(customer, f.input("quasar")),
+        await f.observers.observe(authoringReader, f.input("quasar")),
       );
       expect(absent.articles).toEqual([]);
     });
@@ -224,7 +301,9 @@ for (const [backend, createStore] of storeFactories) {
       current = (await f.submitEvidence(current)).current;
       await f.publish(current);
       await change(f, "draft");
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       expect(result.articles[0]?.title).toBe(draft().title);
       const serialized = JSON.stringify(result);
       for (const canary of [
@@ -239,7 +318,7 @@ for (const [backend, createStore] of storeFactories) {
       expect(f.privateSources.canPublish).toHaveBeenCalled();
       expect(f.privateSources.isCurrent).toHaveBeenCalled();
       Reflect.set(result.articles[0]!, "title", "Mutated projection");
-      await f.observers.confirm(customer, result.observation);
+      await f.observers.confirm(authoringReader, result.observation);
       expect(
         (
           await f.app.getPublishedArticle(customer, {
@@ -255,7 +334,7 @@ for (const [backend, createStore] of storeFactories) {
       await f.publishedArticle();
       await f.publishedArticle("article/second");
       expect(
-        await f.observers.observe(customer, { ...f.input(), limit: 1 }),
+        await f.observers.observe(authoringReader, { ...f.input(), limit: 1 }),
       ).toEqual({ outcome: "partial", articles: [] });
     });
 
@@ -265,13 +344,13 @@ for (const [backend, createStore] of storeFactories) {
       });
       await f.setupCollection();
       await f.publishedArticle();
-      expect(await f.observers.observe(customer, f.input())).toEqual({
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
         outcome: "partial",
         articles: [],
       });
     });
 
-    it("counts every physical history/nonmatching row before filtering and refuses a scan continuation", async () => {
+    it("counts every physical history/nonmatching row before filtering and holds at the total row cap", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
       const sample = (await allKnowledgeRows(f.backing)).find(
@@ -291,29 +370,34 @@ for (const [backend, createStore] of storeFactories) {
             }),
           ),
         );
-      expect(await f.observers.observe(customer, f.input())).toEqual({
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
         outcome: "partial",
         articles: [],
       });
-      expect(f.scans()).toBe(1);
+      expect(f.scanPasses()).toBe(1);
+      expect(
+        f.scanPages.reduce((total, page) => total + page.physicalRows, 0),
+      ).toBeLessThanOrEqual(256);
+      expect(f.scanPages.every((page) => page.requested <= 8)).toBe(true);
     });
 
     it("reports scan dependency failure as unavailable, never as complete empty", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
       f.beforeScan(async () => {
-        throw new Error("Synthetic backing scan unavailable");
+        throw new StorageError("Synthetic backing scan unavailable");
       });
-      expect(await f.observers.observe(customer, f.input())).toEqual({
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
         outcome: "unavailable",
         articles: [],
       });
     });
 
-    it("rejects missing article permission and wrong collection audience before enumerating", async () => {
+    it("rejects portal-only readers and missing authoring permission before enumerating", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
       for (const denied of [
+        customer,
         outsider,
         access(customer.principalId, ["workshop.customer"]),
       ])
@@ -330,10 +414,10 @@ for (const [backend, createStore] of storeFactories) {
         const f = fixture(await createStore());
         await f.setupCollection();
         await f.publishedArticle();
-        f.beforeScan(async (ordinal) => {
-          if (ordinal === 2) await change(f, kind);
+        f.beforeScan(async (_ordinal, pass, input) => {
+          if (pass === 2 && input.cursor === undefined) await change(f, kind);
         });
-        expect(await f.observers.observe(customer, f.input())).toEqual({
+        expect(await f.observers.observe(authoringReader, f.input())).toEqual({
           outcome: "unavailable",
           articles: [],
         });
@@ -346,13 +430,15 @@ for (const [backend, createStore] of storeFactories) {
         const f = fixture(await createStore());
         await f.setupCollection();
         await f.publishedArticle();
-        const result = complete(await f.observers.observe(customer, f.input()));
+        const result = complete(
+          await f.observers.observe(authoringReader, f.input()),
+        );
         await change(f, kind);
         await expect(
-          f.observers.confirm(customer, result.observation),
+          f.observers.confirm(authoringReader, result.observation),
         ).rejects.toBeInstanceOf(KnowledgeBasePrerequisiteError);
         await expect(
-          f.observers.confirm(customer, result.observation),
+          f.observers.confirm(authoringReader, result.observation),
         ).rejects.toBeInstanceOf(TypeError);
       },
     );
@@ -360,12 +446,15 @@ for (const [backend, createStore] of storeFactories) {
     it("rejects a new publication during confirmation's final async fence", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
-      const result = complete(await f.observers.observe(customer, f.input()));
-      f.beforeScan(async (ordinal) => {
-        if (ordinal === 4) await change(f, "publish");
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
+      f.beforeScan(async (_ordinal, pass, input) => {
+        if (pass === 4 && input.cursor === undefined)
+          await change(f, "publish");
       });
       await expect(
-        f.observers.confirm(customer, result.observation),
+        f.observers.confirm(authoringReader, result.observation),
       ).rejects.toBeInstanceOf(KnowledgeBasePrerequisiteError);
     });
 
@@ -373,7 +462,9 @@ for (const [backend, createStore] of storeFactories) {
       const f = fixture(await createStore());
       await f.setupCollection();
       await f.publishedArticle();
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       const head = (await allKnowledgeRows(f.backing)).find(
         (row) => row.resourceId === "article/export" && row.kind === "head",
       );
@@ -389,7 +480,7 @@ for (const [backend, createStore] of storeFactories) {
         true,
       );
       await expect(
-        f.observers.confirm(customer, result.observation),
+        f.observers.confirm(authoringReader, result.observation),
       ).rejects.toBeInstanceOf(KnowledgeBasePrerequisiteError);
     });
 
@@ -407,12 +498,14 @@ for (const [backend, createStore] of storeFactories) {
       ]);
       current = (await f.submitEvidence(current)).current;
       await f.publish(current);
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       f.trust.sourceCurrent = false;
       await expect(
-        f.observers.confirm(customer, result.observation),
+        f.observers.confirm(authoringReader, result.observation),
       ).rejects.toBeInstanceOf(KnowledgeBasePrerequisiteError);
-      expect(await f.observers.observe(customer, f.input())).toEqual({
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
         outcome: "unavailable",
         articles: [],
       });
@@ -421,7 +514,9 @@ for (const [backend, createStore] of storeFactories) {
     it("binds the opaque single-use token to the instance and actor, and rechecks current permission", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       const foreign = createKnowledgeBaseApplication({
         store: f.backing,
         clock: { now: () => at(600_000) },
@@ -430,39 +525,41 @@ for (const [backend, createStore] of storeFactories) {
         [f.observers, structuredClone(result.observation)],
         [foreign, result.observation],
       ] as const)
-        await expect(observer.confirm(customer, token)).rejects.toBeInstanceOf(
-          TypeError,
-        );
+        await expect(
+          observer.confirm(authoringReader, token),
+        ).rejects.toBeInstanceOf(TypeError);
       await expect(
         f.observers.confirm(
-          access("customer/different", customer.permissions),
+          access("customer/different", authoringReader.permissions),
           result.observation,
         ),
       ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
       await expect(
         f.observers.confirm(
-          access(customer.principalId, []),
+          access(authoringReader.principalId, []),
           result.observation,
         ),
       ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
-      await f.observers.confirm(customer, result.observation);
+      await f.observers.confirm(authoringReader, result.observation);
       await expect(
-        f.observers.confirm(customer, result.observation),
+        f.observers.confirm(authoringReader, result.observation),
       ).rejects.toBeInstanceOf(TypeError);
     });
 
     it("consumes the token before the first awaited re-observation", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
-      const result = complete(await f.observers.observe(customer, f.input()));
+      const result = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
       const pause = barrier();
-      f.beforeScan(async (ordinal) => {
-        if (ordinal === 3) await pause.wait();
+      f.beforeScan(async (_ordinal, pass, input) => {
+        if (pass === 3 && input.cursor === undefined) await pause.wait();
       });
-      const pending = f.observers.confirm(customer, result.observation);
+      const pending = f.observers.confirm(authoringReader, result.observation);
       await pause.reached;
       await expect(
-        f.observers.confirm(customer, result.observation),
+        f.observers.confirm(authoringReader, result.observation),
       ).rejects.toBeInstanceOf(TypeError);
       pause.release();
       await expect(pending).resolves.toBeUndefined();
@@ -473,18 +570,18 @@ for (const [backend, createStore] of storeFactories) {
         limits: { maxRequestPhysicalGets: 2 },
       });
       await f.setupCollection();
-      expect(await f.observers.observe(customer, f.input())).toEqual({
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
         outcome: "partial",
         articles: [],
       });
       await expect(
-        f.observers.observe(customer, { ...f.input(), limit: 6 }),
+        f.observers.observe(authoringReader, { ...f.input(), limit: 6 }),
       ).rejects.toBeInstanceOf(TypeError);
       await expect(
-        f.observers.observe(customer, { ...f.input(), query: "the" }),
+        f.observers.observe(authoringReader, { ...f.input(), query: "the" }),
       ).rejects.toBeInstanceOf(TypeError);
       await expect(
-        f.observers.observe(customer, {
+        f.observers.observe(authoringReader, {
           ...f.input(),
           applicability: { ...draft().applicability, productVersion: "" },
         }),
@@ -492,11 +589,421 @@ for (const [backend, createStore] of storeFactories) {
     });
   });
 
+  describe(`comparison query and catalogue limits (${backend})`, () => {
+    it("rejects configured query ceilings and explicit null limit before any I/O", async () => {
+      const store = await createStore();
+      const characters = fixture(store, { limits: { maxQueryCharacters: 3 } });
+      const terms = fixture(store, { limits: { maxQueryTerms: 1 } });
+      const normal = fixture(store);
+      await expect(
+        characters.observers.observe(
+          authoringReader,
+          characters.input("export"),
+        ),
+      ).rejects.toBeInstanceOf(TypeError);
+      await expect(
+        terms.observers.observe(
+          authoringReader,
+          terms.input("export workspace"),
+        ),
+      ).rejects.toBeInstanceOf(TypeError);
+      await expect(
+        normal.observers.observe(
+          authoringReader,
+          JSON.parse(
+            JSON.stringify({
+              ...normal.input(),
+              limit: null,
+            }),
+          ),
+        ),
+      ).rejects.toBeInstanceOf(TypeError);
+      for (const f of [characters, terms, normal]) {
+        expect(f.keyedReads).toEqual([]);
+        expect(f.scanPages).toEqual([]);
+        expect(f.scans()).toBe(0);
+      }
+    });
+
+    it("bounds each large private/history payload page while completing the observed cycles", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      await seedHistory(
+        f,
+        16,
+        "large-private",
+        "PRIVATE_LARGE_HISTORY_CANARY" + "x".repeat(399_000),
+      );
+      const observed = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
+      expect(observed.articles).toEqual([]);
+      expect(JSON.stringify(observed)).not.toContain(
+        "PRIVATE_LARGE_HISTORY_CANARY",
+      );
+      expect(f.scanPasses()).toBe(2);
+      expect(f.scanPages.length).toBeGreaterThan(2);
+      expect(
+        f.scanPages.every(
+          (page) => page.requested <= 8 && page.physicalRows <= 8,
+        ),
+      ).toBe(true);
+      for (const pass of [1, 2])
+        expect(
+          f.scanPages.filter((page) => page.pass === pass).at(-1)?.hasCursor,
+        ).toBe(false);
+    });
+
+    it("honors the exact 256-row terminal contract and never probes a possible 257th row", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      const initialRows = (await allKnowledgeRows(f.backing)).length;
+      await seedHistory(f, 256 - initialRows, "boundary");
+      expect((await allKnowledgeRows(f.backing)).length).toBe(256);
+      const result = await f.observers.observe(authoringReader, f.input());
+      const firstPass = f.scanPages.filter((page) => page.pass === 1);
+      expect(firstPass.reduce((sum, page) => sum + page.physicalRows, 0)).toBe(
+        256,
+      );
+      if (result.outcome === "complete") {
+        expect(result.articles).toEqual([]);
+        expect(firstPass.at(-1)?.hasCursor).toBe(false);
+        expect(
+          f.scanPages.filter((page) => page.pass === 2).at(-1)?.hasCursor,
+        ).toBe(false);
+      } else {
+        // A backend's speculative full-page cursor cannot establish that an
+        // additional physical record is absent within the hard row allowance.
+        expect(result).toEqual({ outcome: "partial", articles: [] });
+        expect(firstPass.at(-1)?.hasCursor).toBe(true);
+      }
+      await seedHistory(f, 1, "overflow");
+      const before = f.scanPages.length;
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
+        outcome: "partial",
+        articles: [],
+      });
+      const overflow = f.scanPages.slice(before);
+      expect(overflow.reduce((sum, page) => sum + page.physicalRows, 0)).toBe(
+        256,
+      );
+      expect(overflow.every((page) => page.requested <= 8)).toBe(true);
+      expect(overflow.at(-1)?.hasCursor).toBe(true);
+    });
+
+    it("shares the original physical-work budget across every scan page and early overflow", async () => {
+      const f = fixture(await createStore(), {
+        limits: { maxRequestPhysicalGets: 12 },
+      });
+      await f.setupCollection();
+      await seedHistory(f, 32, "work-budget");
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
+        outcome: "partial",
+        articles: [],
+      });
+      const actualWork =
+        f.keyedReads.length +
+        f.scanPages.reduce(
+          (sum, page) => sum + Math.max(1, page.physicalRows),
+          0,
+        );
+      expect(actualWork).toBeLessThanOrEqual(12);
+      expect(f.scanPages.every((page) => page.requested <= 8)).toBe(true);
+      expect(f.scanPasses()).toBe(1);
+    });
+
+    it("keeps dependency holds content-free but exposes integrity and programming faults to background operators", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      f.beforeScan(async () => {
+        throw new StorageError("Synthetic dependency unavailable");
+      });
+      expect(await f.observers.observe(authoringReader, f.input())).toEqual({
+        outcome: "unavailable",
+        articles: [],
+      });
+      f.beforeScan(async () => {
+        throw new RepositoryIntegrityError();
+      });
+      await expect(
+        f.observers.observe(authoringReader, f.input()),
+      ).rejects.toBeInstanceOf(RepositoryIntegrityError);
+      f.beforeScan(async () => {
+        throw new TypeError("Synthetic background programming fault");
+      });
+      await expect(
+        f.observers.observe(authoringReader, f.input()),
+      ).rejects.toBeInstanceOf(TypeError);
+      f.beforeScan(undefined);
+      const observed = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
+      f.beforeScan(async () => {
+        throw new RepositoryIntegrityError();
+      });
+      await expect(
+        f.observers.confirm(authoringReader, observed.observation),
+      ).rejects.toBeInstanceOf(RepositoryIntegrityError);
+      await expect(
+        f.observers.confirm(authoringReader, observed.observation),
+      ).rejects.toBeInstanceOf(TypeError);
+      f.beforeScan(undefined);
+      await f.publishedArticle();
+      f.beforeRead(async () => {
+        throw new RepositoryIntegrityError();
+      });
+      await expect(
+        f.observers.readArticle(authoringReader, {
+          articleId: "article/export",
+        }),
+      ).rejects.toBeInstanceOf(RepositoryIntegrityError);
+      await expect(
+        f.app.getPublishedArticle(customer, { articleId: "article/export" }),
+      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      await expect(
+        f.observers.readScope(authoringReader, {
+          collectionId: "collection/workshop",
+        }),
+      ).rejects.toBeInstanceOf(RepositoryIntegrityError);
+    });
+  });
+
+  describe(`authoring published reads (${backend})`, () => {
+    it("compares private audience publications with exact intrinsic permissions and no audience grant", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      await f.publishedArticle();
+      expect(authoringReader.permissions).not.toContain("workshop.customer");
+      expect(authoringReader.permissions).not.toContain(
+        knowledgePermissions.botRead,
+      );
+      expect(authoringReader.permissions).not.toContain(
+        knowledgePermissions.collectionRead,
+      );
+      expect(authoringReader.roles).toEqual([]);
+      expect(authoringReader.entitlements).toEqual([]);
+      const current = await f.observers.readArticle(authoringReader, {
+        articleId: "article/export",
+      });
+      expect(current.title).toBe(draft().title);
+      expect(current.content).toEqual(draft().content);
+      expect(f.scans()).toBe(0);
+      await expect(
+        f.app.getPublishedArticle(authoringReader, {
+          articleId: current.articleId,
+        }),
+      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      await expect(
+        f.app.getPublishedArticle(customer, { articleId: current.articleId }),
+      ).resolves.toEqual(current);
+      const compared = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
+      expect(compared.articles).toEqual([current]);
+      await f.observers.confirm(authoringReader, compared.observation);
+    });
+
+    it("admits bot-only authoring comparisons while preserving independent portal and bot readers", async () => {
+      const f = retrievalFixture(await createStore());
+      const collectionId = "collection/bot-only";
+      await f.setupCollection(collectionId, false);
+      await f.publishGuide(retrievalGuides[0], collectionId);
+      const observers = f.app.publishedSearchObservations!;
+      const scope = await observers.readScope(authoringReader, {
+        collectionId,
+      });
+      const current = await observers.readArticle(authoringReader, {
+        articleId: retrievalGuides[0]!.id,
+      });
+      expect(current.collectionId).toBe(scope.collectionId);
+      const compared = complete(
+        await observers.observe(authoringReader, {
+          ...f.portalInput(),
+          collectionId,
+        }),
+      );
+      expect(compared.articles).toEqual([current]);
+      await observers.confirm(authoringReader, compared.observation);
+      await expect(
+        f.app.getPublishedArticle(customer, { articleId: current.articleId }),
+      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      expect(
+        await f.app.searchPublishedArticles(customer, {
+          ...f.portalInput(),
+          collectionId,
+        }),
+      ).toEqual({ outcome: "no_result", articles: [] });
+      const answer = await f.app.retrieveAnswerSources(botCustomer, {
+        ...f.botInput(),
+        collectionIds: [collectionId],
+      });
+      expect(answer.sources).toHaveLength(1);
+      expect(answer.sources[0]?.citation).not.toHaveProperty("portalArticle");
+      expect(
+        (
+          await f.app.retrieveAnswerSources(authoringReader, {
+            ...f.botInput(),
+            collectionIds: [collectionId],
+          })
+        ).sources,
+      ).toEqual([]);
+    });
+
+    it("refuses portal-only and draft-only callers without changing their ordinary reads", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      await f.publishedArticle();
+      await expect(
+        f.app.getPublishedArticle(customer, { articleId: "article/export" }),
+      ).resolves.toEqual(
+        expect.objectContaining({ articleId: "article/export" }),
+      );
+      const draftOnly = access("staff/draft-only", [
+        knowledgePermissions.draftRead,
+      ]);
+      await expect(
+        f.app.getDraft(draftOnly, { articleId: "article/export" }),
+      ).resolves.toEqual(
+        expect.objectContaining({ articleId: "article/export" }),
+      );
+      for (const caller of [customer, draftOnly]) {
+        await expect(
+          f.observers.readScope(caller, {
+            collectionId: "collection/workshop",
+          }),
+        ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
+        await expect(
+          f.observers.readArticle(caller, {
+            articleId: "article/export",
+          }),
+        ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
+        expect(await f.observers.observe(caller, f.input())).toEqual({
+          outcome: "unavailable",
+          articles: [],
+        });
+      }
+      expect(f.scans()).toBe(0);
+    });
+
+    it("rechecks revoked articleRead and draftRead without treating an observation as authority", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      await f.publishedArticle();
+      const observed = complete(
+        await f.observers.observe(authoringReader, f.input()),
+      );
+      for (const permission of [
+        knowledgePermissions.articleRead,
+        knowledgePermissions.draftRead,
+      ]) {
+        const revoked = resolveAccess(
+          { principalId: authoringReader.principalId },
+          {
+            version: "pg-background-learning-draft-revoked",
+            defaults: authoringReader.permissions.filter(
+              (value) => value !== permission,
+            ),
+          },
+        );
+        await expect(
+          f.observers.readScope(revoked, {
+            collectionId: "collection/workshop",
+          }),
+        ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
+        await expect(
+          f.observers.readArticle(revoked, {
+            articleId: "article/export",
+          }),
+        ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
+        await expect(
+          f.observers.confirm(revoked, observed.observation),
+        ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
+      }
+      await f.observers.confirm(authoringReader, observed.observation);
+    });
+
+    it("returns the approved publication while a new private draft exists, then refuses retirement", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      await f.publishedArticle();
+      await change(f, "draft");
+      const current = await f.observers.readArticle(authoringReader, {
+        articleId: "article/export",
+      });
+      expect(current.title).toBe(draft().title);
+      expect(JSON.stringify(current)).not.toContain("UNAPPROVED_DRAFT_CANARY");
+      await f.createDraft("article/draft-only");
+      for (const articleId of ["article/missing", "article/draft-only"])
+        await expect(
+          f.observers.readArticle(authoringReader, { articleId }),
+        ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      await change(f, "withdraw");
+      await expect(
+        f.observers.readArticle(authoringReader, {
+          articleId: "article/export",
+        }),
+      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      expect(f.scans()).toBe(0);
+    });
+
+    it("refuses a publication held by actual evidence revocation", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      await f.publishedArticle();
+      const current = await f.app.getDraft(author, {
+        articleId: "article/export",
+      });
+      const proof = (
+        await f.app.getEvidence(admin, {
+          articleId: current.articleId,
+        })
+      ).evidence[0]!;
+      await f.app.revokeEvidence(admin, {
+        ...f.command("authoring-proof-withdrawal", current.generation),
+        articleId: current.articleId,
+        articleRevision: proof.articleRevision,
+        evidenceId: proof.id,
+        evidenceVersion: proof.version,
+        evidenceHash: proof.hash,
+        reason: "Synthetic exact proof withdrawal",
+      });
+      await expect(
+        f.observers.readArticle(authoringReader, {
+          articleId: current.articleId,
+        }),
+      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      expect(f.scans()).toBe(0);
+    });
+
+    it("keeps current private-source eligibility as a publication read gate", async () => {
+      const f = fixture(await createStore());
+      await f.setupCollection();
+      let current = await f.createDraft();
+      current = await f.setSources(current, [
+        {
+          id: "source/authoring",
+          system: "synthetic",
+          resourceId: "row/private",
+          version: "1",
+        },
+      ]);
+      current = (await f.submitEvidence(current)).current;
+      await f.publish(current);
+      await f.observers.readArticle(authoringReader, {
+        articleId: current.articleId,
+      });
+      f.trust.sourceCurrent = false;
+      await expect(
+        f.observers.readArticle(authoringReader, {
+          articleId: current.articleId,
+        }),
+      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      expect(f.scans()).toBe(0);
+    });
+  });
+
   describe(`keyed published scope (${backend})`, () => {
-    const intrinsic = access("service/learning-draft", [
-      knowledgePermissions.articleRead,
-      "workshop.customer",
-    ]);
+    const intrinsic = authoringReader;
 
     it("reads the actual scope with intrinsic authority and no collectionRead or enumeration", async () => {
       const f = fixture(await createStore());
@@ -504,6 +1011,9 @@ for (const [backend, createStore] of storeFactories) {
       expect(intrinsic.permissions).not.toContain(
         knowledgePermissions.collectionRead,
       );
+      expect(intrinsic.permissions).not.toContain("workshop.customer");
+      expect(intrinsic.roles).toEqual([]);
+      expect(intrinsic.entitlements).toEqual([]);
       const state = await f.observers.readScope(intrinsic, {
         collectionId: "collection/workshop",
       });
@@ -552,13 +1062,22 @@ for (const [backend, createStore] of storeFactories) {
         }),
       ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
       await f.setupCollection("collection/closed", false);
+      const preview = await f.authoringApp.previewCollectionPolicy(admin, {
+        collectionId: "collection/closed",
+        uses: { portal: { enabled: false }, bot: { enabled: false } },
+      });
+      await f.authoringApp.updateCollectionPolicy(admin, {
+        ...f.command("close-all-scope-channels", preview.generation),
+        collectionId: "collection/closed",
+        preview: preview.preview,
+      });
       await expect(
         f.observers.readScope(intrinsic, { collectionId: "collection/closed" }),
       ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
       expect(f.scans()).toBe(0);
     });
 
-    it("rechecks current named permission and resolved role audience on every call", async () => {
+    it("rechecks current authoring permission without an ambient audience role", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
       const request = { collectionId: "collection/workshop" };
@@ -569,7 +1088,7 @@ for (const [backend, createStore] of storeFactories) {
       };
       await expect(
         f.observers.readScope(withdrawnRole, request),
-      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
+      ).rejects.toBeInstanceOf(KnowledgeBaseAuthorizationError);
       await expect(
         f.observers.readScope(
           access(intrinsic.principalId, ["workshop.customer"]),
@@ -588,7 +1107,7 @@ for (const [backend, createStore] of storeFactories) {
       expect(f.scans()).toBe(0);
     });
 
-    it("changes generation and scopeHash on a current audience change and denies the prior audience", async () => {
+    it("binds customer audience changes without requiring that audience for staff authoring", async () => {
       const f = fixture(await createStore());
       await f.setupCollection();
       const request = { collectionId: "collection/workshop" };
@@ -608,16 +1127,8 @@ for (const [backend, createStore] of storeFactories) {
         ...request,
         preview: preview.preview,
       });
-      await expect(
-        f.observers.readScope(intrinsic, request),
-      ).rejects.toBeInstanceOf(KnowledgeBaseNotFoundError);
-      const after = await f.observers.readScope(
-        access(intrinsic.principalId, [
-          knowledgePermissions.articleRead,
-          "workshop.next",
-        ]),
-        request,
-      );
+      const after = await f.observers.readScope(intrinsic, request);
+      expect(intrinsic.permissions).not.toContain("workshop.next");
       expect(after.generation).toBeGreaterThan(before.generation);
       expect(after.scopeHash).not.toBe(before.scopeHash);
       expect(f.scans()).toBe(0);
@@ -714,10 +1225,7 @@ for (const [backend, createStore] of storeFactories) {
         preview: preview.preview,
         approvePublic: true,
       });
-      const state = await f.observers.readScope(
-        access("portal/approved", [knowledgePermissions.articleRead]),
-        request,
-      );
+      const state = await f.observers.readScope(intrinsic, request);
       expect(Object.keys(state).sort()).toEqual([
         "collectionId",
         "generation",
@@ -751,7 +1259,9 @@ for (const [backend, createStore] of storeFactories) {
       const f = fixture(await createStore());
       await f.setupCollection();
       f.beforeRead(async () => {
-        throw new Error("Synthetic current scope dependency unavailable");
+        throw new StorageError(
+          "Synthetic current scope dependency unavailable",
+        );
       });
       await expect(
         f.observers.readScope(intrinsic, {

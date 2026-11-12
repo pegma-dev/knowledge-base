@@ -1,10 +1,9 @@
-import { hasPermission, type AccessContext } from "@pegma/authorization-core";
+import type { AccessContext } from "@pegma/authorization-core";
 import {
   knowledgePermissions,
   type Applicability,
-  type CollectionUse,
 } from "@pegma/knowledge-base-contracts";
-import type { Store } from "@pegma/storage-core";
+import { StorageError, type ScanPage, type Store } from "@pegma/storage-core";
 import {
   KnowledgeBaseAuthorizationError,
   KnowledgeBaseNotFoundError,
@@ -21,7 +20,12 @@ import type {
   PublishedSearchObservations,
   PublishedSearchScopeState,
 } from "./published-search-observations-types.js";
-import { knowledgeRecords, type StoredCollection } from "./records.js";
+import {
+  knowledgeRecords,
+  maximumRecordNativeBytes,
+  type KnowledgeRecord,
+  type StoredCollection,
+} from "./records.js";
 import {
   createKnowledgeRepository,
   type VersionedState,
@@ -52,6 +56,13 @@ import type {
 // The authoritative layout has no per-collection membership index. This
 // background-only fallback charges every physical KB record, not just matches.
 const maximumPhysicalRows = 256;
+// Bound native payload materialization independently from total physical work.
+// Decoder/backend allocation overhead still needs actual host measurement.
+const maximumPageNativeBytes = 7_200_000;
+const maximumPageRows = Math.min(
+  8,
+  Math.floor(maximumPageNativeBytes / maximumRecordNativeBytes),
+);
 
 class PartialObservationError extends Error {}
 
@@ -76,7 +87,10 @@ function inputSnapshot<T>(input: T, fields: readonly string[]): T {
   return value;
 }
 
-function searchInput(request: SearchPublishedArticlesInput, maximum: number) {
+function searchInput(
+  request: SearchPublishedArticlesInput,
+  limits: KnowledgeRetrievalLimits,
+) {
   const input = inputSnapshot(request, [
     "collectionId",
     "query",
@@ -84,7 +98,16 @@ function searchInput(request: SearchPublishedArticlesInput, maximum: number) {
     "limit",
   ]);
   requireIdentifier(input.collectionId, "collectionId");
+  if (
+    typeof input.query !== "string" ||
+    input.query.length > limits.maxQueryCharacters
+  )
+    throw new TypeError(
+      "Published comparison exceeds its query character limit",
+    );
   const terms = normalizeQuery(input.query);
+  if (terms.length > limits.maxQueryTerms)
+    throw new TypeError("Published comparison exceeds its query term limit");
   if (terms.length === 0)
     throw new TypeError("Published comparison requires a lexical search term");
   const applicability: Applicability = inputSnapshot(input.applicability, [
@@ -102,28 +125,40 @@ function searchInput(request: SearchPublishedArticlesInput, maximum: number) {
     requireIdentifier(applicability.buildId!, "applicability.buildId");
   if (Object.hasOwn(applicability, "locale"))
     requireIdentifier(applicability.locale!, "applicability.locale");
-  const limit = input.limit ?? maximum;
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maximum)
+  const limit = input.limit === undefined ? limits.maxResults : input.limit;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > limits.maxResults)
     throw new TypeError(
       "Published comparison result limit exceeds its ceiling",
     );
   return { input, terms, limit };
 }
 
-function authorize(access: AccessContext, use?: CollectionUse): void {
+function authorize(access: AccessContext): void {
   requireIdentifier(access.principalId, "principalId");
   requirePermission(access, knowledgePermissions.articleRead);
-  if (
-    use !== undefined &&
-    (!use.enabled ||
-      (use.audience.kind === "permission" &&
-        !hasPermission(access, use.audience.permission)))
-  )
-    throw new KnowledgeBaseNotFoundError("collection");
+  requirePermission(access, knowledgePermissions.draftRead);
 }
 
 function unavailable(): KnowledgeBasePrerequisiteError {
   return new KnowledgeBasePrerequisiteError("published_search_observation");
+}
+
+function isUnavailable(error: unknown): boolean {
+  return (
+    error instanceof KnowledgeBaseAuthorizationError ||
+    error instanceof KnowledgeBaseNotFoundError ||
+    error instanceof KnowledgeBasePrerequisiteError ||
+    error instanceof RepositoryConflictError ||
+    error instanceof StorageError
+  );
+}
+
+function isPartial(error: unknown): boolean {
+  return (
+    error instanceof PartialObservationError ||
+    error instanceof RetrievalBudgetError ||
+    error instanceof RepositoryCapacityError
+  );
 }
 
 /** Reuse current publication authority; never trust a search-provider empty list. */
@@ -155,7 +190,9 @@ export function createPublishedSearchObservations(
   ): Promise<PublishedSearchScopeState> {
     const current = collection.value.collection;
     const policy = current.policy;
-    authorize(access, policy.portal);
+    authorize(access);
+    if (!policy.portal.enabled && !policy.bot.enabled)
+      throw new KnowledgeBaseNotFoundError("collection");
     const policyHash = await fingerprint(policy);
     if (
       [policy.portal, policy.bot].some(
@@ -184,48 +221,70 @@ export function createPublishedSearchObservations(
   }
 
   async function catalogue(budget: RetrievalReadBudget) {
-    const limit = Math.min(
-      maximumPhysicalRows,
-      budget.remainingCandidateWork().physicalRows,
-    );
-    if (limit < 1) throw new PartialObservationError();
-    const page = await records.scan({ limit });
-    if (!Array.isArray(page.records) || page.records.length > limit)
-      throw new RepositoryIntegrityError();
-    // Charge all physical records, including private/history/nonmatching rows,
-    // before filtering or deduplication. An empty page still costs a read.
-    budget.accountExternal({
-      keyedReads: 0,
-      physicalRows: Math.max(1, page.records.length),
-      pagesRead: 1,
-      postingEntries: 0,
-    });
-    if (page.nextCursor !== null) {
-      if (typeof page.nextCursor !== "string" || page.nextCursor.length === 0)
-        throw new RepositoryIntegrityError();
-      // Following pages cannot supply a single terminal membership observation.
-      throw new PartialObservationError();
-    }
     const membership: string[] = [];
     const keys = new Set<string>();
     const articleIds: string[] = [];
-    for (const row of page.records) {
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    let physicalRows = 0;
+    let pages = 0;
+    for (;;) {
+      const limit = Math.min(
+        maximumPageRows,
+        maximumPhysicalRows - physicalRows,
+        budget.remainingCandidateWork().physicalRows,
+      );
+      // Empty continuation pages consume work too. Never make an unbounded
+      // series of empty probes or fetch a possible 257th physical record.
+      if (limit < 1 || pages >= maximumPhysicalRows)
+        throw new PartialObservationError();
+      let page: ScanPage<KnowledgeRecord> | undefined = await records.scan({
+        limit,
+        ...(cursor === undefined ? {} : { cursor }),
+      });
+      if (!Array.isArray(page.records) || page.records.length > limit)
+        throw new RepositoryIntegrityError();
+      // Charge all physical records before filtering/deduplication, including
+      // every private/history/nonmatching row. An empty page costs one read.
+      budget.accountExternal({
+        keyedReads: 0,
+        physicalRows: Math.max(1, page.records.length),
+        pagesRead: 1,
+        postingEntries: 0,
+      });
+      physicalRows += page.records.length;
+      pages += 1;
+      for (const row of page.records) {
+        if (
+          row.key.partition !== row.value.partition ||
+          row.key.id !== row.value.id ||
+          typeof row.version !== "string" ||
+          row.version.length === 0
+        )
+          throw new RepositoryIntegrityError();
+        const key = canonicalJson(row.key);
+        if (keys.has(key)) throw new RepositoryIntegrityError();
+        keys.add(key);
+        membership.push(canonicalJson([row.key, row.version]));
+        if (row.value.resourceKind !== "article" || row.value.kind !== "head")
+          continue;
+        if (row.value.id !== "head") throw new RepositoryIntegrityError();
+        requireIdentifier(row.value.resourceId, "articleId");
+        articleIds.push(row.value.resourceId);
+      }
+      const next = page.nextCursor;
+      // Retain only bounded keys/versions/head IDs, never prior page payloads.
+      page = undefined;
+      if (next === null) break;
       if (
-        row.key.partition !== row.value.partition ||
-        row.key.id !== row.value.id ||
-        typeof row.version !== "string" ||
-        row.version.length === 0
+        typeof next !== "string" ||
+        next.length === 0 ||
+        next.length > 16_384 ||
+        cursors.has(next)
       )
         throw new RepositoryIntegrityError();
-      const key = canonicalJson(row.key);
-      if (keys.has(key)) throw new RepositoryIntegrityError();
-      keys.add(key);
-      membership.push(canonicalJson([row.key, row.version]));
-      if (row.value.resourceKind !== "article" || row.value.kind !== "head")
-        continue;
-      if (row.value.id !== "head") throw new RepositoryIntegrityError();
-      requireIdentifier(row.value.resourceId, "articleId");
-      articleIds.push(row.value.resourceId);
+      cursors.add(next);
+      cursor = next;
     }
     if (new Set(articleIds).size !== articleIds.length)
       throw new RepositoryIntegrityError();
@@ -239,7 +298,7 @@ export function createPublishedSearchObservations(
     access: AccessContext,
     request: SearchPublishedArticlesInput,
   ) {
-    const { input, terms, limit } = searchInput(request, limits.maxResults);
+    const { input, terms, limit } = searchInput(request, limits);
     authorize(access);
     const budget = readBudget();
     const repository = createKnowledgeRepository(budget.store, services.limits);
@@ -248,7 +307,6 @@ export function createPublishedSearchObservations(
       input.collectionId,
     );
     if (collection === null) throw new KnowledgeBaseNotFoundError("collection");
-    const policy = collection.value.collection.policy;
     const observedScope = await scopeState(access, collection);
     const initial = await catalogue(budget);
     const matches: {
@@ -278,7 +336,7 @@ export function createPublishedSearchObservations(
       const checked = await publications.check({
         access,
         articleId,
-        purpose: "portal",
+        purpose: "authoring",
         applicability: input.applicability,
       });
       if (checked.article.collectionId !== input.collectionId)
@@ -307,12 +365,12 @@ export function createPublishedSearchObservations(
     );
     if (latestCollection?.version !== collection.version)
       throw new RepositoryConflictError();
-    // Last awaited read: closes new/missed membership and every persisted head
-    // change across the preceding checks, including nonmatching publications.
+    // Compare a second completed bounded scan cycle after source/head checks.
+    // These observations are not an atomic cross-partition snapshot or lock.
     const final = await catalogue(budget);
     if (initial.membership !== final.membership)
       throw new RepositoryConflictError();
-    authorize(access, policy.portal);
+    authorize(access);
     return {
       input,
       articles,
@@ -346,7 +404,7 @@ export function createPublishedSearchObservations(
         );
         if (latest?.version !== collection.version)
           throw new RepositoryConflictError();
-        authorize(access, collection.value.collection.policy.portal);
+        authorize(access);
         return state;
       } catch (error) {
         if (
@@ -354,7 +412,38 @@ export function createPublishedSearchObservations(
           error instanceof KnowledgeBaseNotFoundError
         )
           throw error;
-        throw new KnowledgeBasePrerequisiteError("published_search_scope");
+        if (isUnavailable(error) || isPartial(error))
+          throw new KnowledgeBasePrerequisiteError("published_search_scope");
+        throw error;
+      }
+    },
+
+    async readArticle(access, request) {
+      access = snapshotData(access);
+      const input = inputSnapshot(request, ["articleId"]);
+      requireIdentifier(input.articleId, "articleId");
+      authorize(access);
+      try {
+        const repository = createKnowledgeRepository(
+          readBudget().store,
+          services.limits,
+        );
+        const publications = createPublicationChecker(repository, services);
+        const checked = await publications.check({
+          access,
+          articleId: input.articleId,
+          purpose: "authoring",
+        });
+        return checked.article;
+      } catch (error) {
+        if (
+          error instanceof KnowledgeBaseAuthorizationError ||
+          error instanceof KnowledgeBaseNotFoundError
+        )
+          throw error;
+        if (isUnavailable(error) || isPartial(error))
+          throw new KnowledgeBasePrerequisiteError("published_search_article");
+        throw error;
       }
     },
 
@@ -362,7 +451,7 @@ export function createPublishedSearchObservations(
       access = snapshotData(access);
       // Invalid requests throw; dependency, authority and capacity outcomes do
       // not disclose any confirmed subset, candidate count or private material.
-      const { input } = searchInput(request, limits.maxResults);
+      const { input } = searchInput(request, limits);
       try {
         const result = await read(access, input);
         const observation = Object.freeze({}) as PublishedSearchObservation;
@@ -379,15 +468,12 @@ export function createPublishedSearchObservations(
           observation,
         };
       } catch (error) {
-        return {
-          outcome:
-            error instanceof PartialObservationError ||
-            error instanceof RetrievalBudgetError ||
-            error instanceof RepositoryCapacityError
-              ? "partial"
-              : "unavailable",
-          articles: [],
-        };
+        if (isPartial(error)) return { outcome: "partial", articles: [] };
+        if (isUnavailable(error))
+          return { outcome: "unavailable", articles: [] };
+        // Background operators must see integrity/programming faults. No
+        // article subset or private diagnostic fields are returned in DTOs.
+        throw error;
       }
     },
     async confirm(access, observation) {
@@ -414,8 +500,9 @@ export function createPublishedSearchObservations(
           captured.articles !== current.serialized
         )
           throw unavailable();
-      } catch {
-        throw unavailable();
+      } catch (error) {
+        if (isUnavailable(error) || isPartial(error)) throw unavailable();
+        throw error;
       }
     },
   });

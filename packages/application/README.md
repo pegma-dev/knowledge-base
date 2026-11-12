@@ -304,72 +304,103 @@ changed-source gates and whole-host measurements remain separate.
 
 ## Background published comparisons
 
-The optional `publishedSearchObservations` capability is for bounded deferred
-comparison work in a host queue or timer. Do not invoke it in portal search,
-answering, or another inline request path. Existing `searchPublishedArticles`
-retains its indexed, lossy `results`/`no_result` behavior; an empty search result
-is not proof that a comparison scope is complete. No route, MCP tool, credential
-scope, or publication permission is added.
+`publishedSearchObservations` is a bounded staff-authoring capability for a host
+queue, timer, or deferred checker. Do not invoke its catalogue work in portal
+search, answering, or another inline request path. It requires current
+`draftRead` **and** `articleRead`, the permissions already held by the intrinsic
+learning-draft service. It needs no customer audience permission, ambient role,
+`collectionRead`, `botRead`, `indexManage`, or administrative grant. At least one
+collection channel must be enabled. Private permission audiences and bot-only
+collections remain valid staff comparison targets.
 
-`observe(access, { collectionId, query, applicability, limit })` requires
-`articleRead` and the collection's current portal audience. A `complete` result
-contains all matching approved `PublishedArticleDto` values, an opaque
-observation, and its actual `scopeState`, including a genuinely empty array when
-no matches exist. The scope
-is the exact collection/applicability tuple and normalized lexical query over
-approved titles, summaries, and tags. It is not a semantic or global duplicate
-search. A result limit that would omit a match returns `partial` with no articles.
-Dependency/authority failure returns `unavailable` with no articles. Invalid
-input throws. The optional property preserves structural legacy applications;
-its absence cannot be replaced by caller-provided empty comparison results.
+This is a separate use from customer browsing and answering. Existing
+`searchPublishedArticles` and `getPublishedArticle` retain their portal checks;
+bot retrieval retains its independent bot permission and audience. The shared
+publication checker uses an internal authoring purpose with the same exact
+approval, policy, retained evidence, source eligibility, and current-resource
+fences. A staff read never creates a portal browse permission. No route, MCP
+tool, credential scope, permission name, publication capability, or schema is
+added.
+
+`observe(access, { collectionId, query, applicability, limit })` returns a
+`complete` result containing matching approved `PublishedArticleDto` values, an
+opaque observation, and the actual `scopeState`. An authorized scope with no
+matches may have an empty array. Matching uses the exact collection and
+applicability tuple and normalized lexical terms from approved titles,
+summaries, and tags; it is not a semantic or global duplicate search. Instance
+query character/term limits are checked before I/O. Explicit `null` limits and
+other invalid input throw rather than becoming defaults. A result limit that
+would omit a match yields `partial` with no articles.
 
 The authoritative layout has no per-collection membership index. This background
-fallback therefore reads one terminal page of **all physical KB records**, with
-a fixed ceiling of 256 rows, and charges every history, private, duplicate, and
-nonmatching row before filtering. It never follows a continuation to claim a
-complete snapshot. A continuation, physical-work/confirmation/content bound, or
-result overflow yields `partial`; errors never become complete empty results.
-Current article publications and source eligibility are checked through the
-same authority path as published reads. Only approved safe content is projected;
-private provenance, proof history, and storage versions stay inside the service.
+fallback therefore scans **all physical KB records**, using actual backend
+continuations in pages of at most eight records. The page count is also bounded;
+every history, private, duplicate, and nonmatching row is charged before
+filtering, and an empty page still costs read work. The existing per-record
+native estimate and fixed 7.2 MB page allowance bound materialized native payload
+independently from the total row count. Only bounded keys, opaque versions, and
+head IDs survive between pages; full page payloads are released before advancing.
+This is not a measured heap, CPU, or backend allocation guarantee.
 
-After the asynchronous authority/source checks, a second terminal page must
-have the identical full physical key/version set. This detects new, changed,
-withdrawn, and missed candidates; unrelated writes conservatively invalidate
-the observation too. Existing downward-only retrieval read, head, confirmation,
-result, and content limits also apply. Large or actively changing stores may
-remain partial/unavailable and require a later host-owned background strategy.
-This bounded fallback is not a general corpus-scan request capability or a
-claim of production query/CPU acceptance.
+Each scan pass has a hard 256-physical-row limit and shares the original request
+read allowance with all publication checks and the second pass. Reaching the
+row/work/page bound with a continuation yields `partial`; no possible 257th row
+is fetched as a probe. Consequently an adapter that emits a speculative cursor
+at exactly 256 rows can conservatively hold, even when its next page would be
+empty. A terminal `null` cursor is required for completion. A full page alone
+never proves that no rows remain. There is no new collection, projection index,
+query filter, or adapter API.
 
-`readScope(access, { collectionId })` is a separate keyed authority read. It
-returns only `{ collectionId, generation, scopeHash }` under the same current
-`articleRead`, portal audience, and public-policy approval checks; it requires
-neither `collectionRead` nor an administrative permission. It reads no articles
-and never enumerates records. The hash binds the actual collection generation,
-opaque backend head version, and current policy digest, without returning policy,
-audience, approval, or staff metadata. A second versioned collection read fences
-the asynchronous hash/approval checks. Missing, closed, unauthorized, changed,
-or unavailable scope cannot return invented fresh state. Existing keyed-read
-bounds apply.
+After current publication/source and collection-version checks, a second
+completed bounded pass must return the same physical key/version membership.
+Observed changes, including unrelated writes, invalidate the comparison.
+These completed scan cycles and resource checks provide bounded observations
+and change detection, not an atomic cross-partition snapshot or a guarantee
+against concurrent/future membership changes. Large or actively changing stores
+can remain held and need a later host-owned background strategy. No universal
+query/CPU or Workers Free acceptance is claimed.
 
-Complete `observe` results compute the same `PublishedSearchScopeState` from the
-collection already read for that operation. Hosts can bind it into their private
-comparison receipt and use fresh `readScope` calls for later policy/authority
-checks, including an empty comparison result, without `collectionRead` or another
-scan. Keep it outside model payloads. This keyed state is collection authority,
-not a fresh catalogue search: a new article alone need not change it, and it
-does not establish current or future absence of additional matches.
+`readScope(access, { collectionId })` performs only bounded keyed collection
+reads under the same authoring permissions. It returns
+`{ collectionId, generation, scopeHash }`, derived from the actual collection
+generation, opaque backend head version, and current policy digest. A second
+versioned collection read fences asynchronous hashing/public-approval validation.
+It returns no policy, audience, approval actor, or staff metadata. Complete
+`observe` results compute the same `PublishedSearchScopeState` from their already
+read collection. Bind it into the private comparison receipt and recheck it for
+later policy/authority checks, including an empty result, without another scan.
+Keep it outside model payloads. This state is collection authority, not a fresh
+catalogue search; a new article alone need not change it, and it proves no current
+or future absence of additional matches.
+
+`readArticle(access, { articleId })` returns only the current approved
+`PublishedArticleDto` through the same authoring publication checker. It uses
+keyed reads and no enumeration, including for a bot-only or private-audience
+collection. Current private draft text, proof history, and provenance are not
+projected. Missing, retired, held, source-ineligible, or policy-invalid
+publications cannot produce an article. This method supports later checks of
+retained comparison resources without switching to a customer portal read.
 
 Keep the opaque observation in RAM for one bounded background operation on the
-same application instance. `confirm(access, observation)` consumes it before
-its first await, rechecks the same actor's fresh authority, repeats current
-scope/publication/source checks, and rejects any changed membership/version
-set or approved projection. A clone, another instance/actor, reuse, partial
-recheck, or dependency failure cannot confirm it. The host owns scheduling,
-operation deadlines, and fresh access resolution. Neither observation nor
-confirmation locks articles, guarantees future absence of duplicates, or
-provides an atomic cross-article publication fence.
+same application instance. `confirm(access, observation)` consumes it before its
+first await, rechecks the same actor's current authoring permissions, repeats
+current scope/publication/source checks and the bounded membership comparison,
+and rejects changed observations. A clone, another instance/actor, reuse,
+partial recheck, or dependency failure cannot confirm it. The host owns operation
+deadlines and fresh access resolution. Neither method grants review/publication
+authority or locks articles.
+
+Known capacity/work limits return content-free `partial`; ordinary authority or
+storage availability failures return content-free `unavailable` from `observe`.
+Keyed reads and confirmation throw on refusal. Integrity and unexpected
+programming faults remain visible to background operators instead of becoming
+normal unavailability. No article subset or private diagnostic fields are added
+to failure DTOs; hosts must keep operational logs safe.
+
+The current factory always constructs this capability. Its type stays optional
+for structural legacy applications and wrappers; it is not a configurable
+factory opt-out. A missing legacy port cannot be replaced by caller-supplied
+empty comparison results.
 
 ## Storage and limits
 

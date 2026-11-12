@@ -30,6 +30,8 @@ export type PublishedSearchObservationResult =
 
 /**
  * Bounded background comparison work, never portal/request-path retrieval.
+ * Requires current draftRead and articleRead. Staff authoring does not inherit
+ * customer portal/bot audiences; at least one collection channel must be enabled.
  * Complete covers the exact collection, applicability and approved-metadata
  * lexical query only. It establishes no global duplicate absence or lock.
  */
@@ -39,6 +41,11 @@ export interface PublishedSearchObservations {
     access: AccessContext,
     input: { readonly collectionId: string },
   ): Promise<PublishedSearchScopeState>;
+  /** Keyed current approved publication under the same staff authoring authority. */
+  readArticle(
+    access: AccessContext,
+    input: { readonly articleId: string },
+  ): Promise<PublishedArticleDto>;
   observe(
     access: AccessContext,
     input: SearchPublishedArticlesInput,
