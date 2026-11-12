@@ -417,6 +417,85 @@ for (const [backend, createStore] of storeFactories) {
       },
     );
 
+    it.each(["reset", "drain", "append"] as const)(
+      "fences a %s committed after the prior head guard and before report re-observation",
+      async (mutation) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const packet = await f.report();
+        expect(
+          await f.reports.read(f.reviewer, f.key(packet.ack)),
+        ).toMatchObject(packet.ack);
+        const physical = await f.physicalRows();
+        const head = physical.find(({ value }) => value.id === "head")!;
+        const report = physical.find(({ value }) =>
+          value.id.startsWith("report:"),
+        )!;
+        const gate = reportBarrier();
+        let heads = 0;
+        let reports = 0;
+        f.observed.beforeRead(async ({ collection, key }) => {
+          if (collection !== f.namespace) return;
+          if (key.id === head.key.id && ++heads === 3) await gate.wait();
+          if (key.id === report.key.id && ++reports === 2) await gate.wait();
+        });
+        const pending = capture(f.reports.read(f.reviewer, f.key(packet.ack)));
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          f.observed.beforeRead(undefined);
+          expect(reports).toBe(2);
+          if (mutation === "append") {
+            const next = await f.report();
+            expect(next.ack.reportId).not.toBe(packet.ack.reportId);
+          } else {
+            let state = await f.reports.reset(f.reviewer, {
+              articleId: f.articleId,
+              commandId: "reset-after-staff-read-head-guard",
+              expectedLedgerEpoch: packet.ack.ledgerEpoch,
+            });
+            if (mutation === "drain") {
+              for (
+                let page = 0;
+                state.status === "resetting" && page < 4;
+                page++
+              )
+                state = await f.reports.drain(f.reviewer, {
+                  articleId: f.articleId,
+                  ledgerEpoch: state.ledgerEpoch,
+                });
+              expect(state.status).toBe("active");
+            }
+          }
+          const after = await f.physicalRows();
+          expect(
+            after.find(({ value }) => value.id === "head")?.version,
+          ).not.toBe(head.version);
+          const retained = after.find(
+            ({ value }) => value.id === report.value.id,
+          );
+          if (mutation === "drain") expect(retained).toBeUndefined();
+          else expect(retained).toEqual(report);
+          changedRows = await f.rawRows();
+        } finally {
+          f.observed.beforeRead(undefined);
+          gate.release();
+        }
+        expect(await pending).toMatchObject({
+          error: {
+            code:
+              mutation === "append"
+                ? "ledger_changed"
+                : mutation === "reset"
+                  ? "ledger_epoch_changed"
+                  : expect.stringMatching(
+                      /^(ledger_epoch_changed|report_not_found)$/u,
+                    ),
+          },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+      },
+    );
+
     it.each(["confirm", "reassess"] as const)(
       "refuses a stale owner status when a concurrent %s changes the report after its first load",
       async (transition) => {

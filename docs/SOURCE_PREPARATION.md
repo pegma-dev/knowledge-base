@@ -1,5 +1,9 @@
 # KB-05 source preparation
 
+The current verified Knowledge Base release is
+[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 ## Scope and readiness
 
 KB-05 source preparation has two separately reviewed source slices. The earlier
@@ -58,7 +62,7 @@ The optional human-report `0.1.3` release is now
 features subsequently shipped in the qualified
 [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 Synchronized `0.1.5` has completed verified trusted publication for answering
-read batching; see its [current receipt](BOOTSTRAP.md#current-verified-015-release).
+read batching; see its [retained receipt](BOOTSTRAP.md#current-verified-015-release).
 Changed source still requires its own review and current-head gates.
 
 | Evidence area    | This source slice                                                                   | Separate remaining proof                                                                                              |
@@ -268,9 +272,9 @@ A local candidate run on **2026-11-07** passed with `packedPackages: 4`,
 and five-operation positive/negative checks passed. It retained
 `liveHostsProven: false` and `targetClientAppsProven: 0`. A separate negative
 probe rejected a source override at stage 1 before external commands.
-That dated proof does not validate later source changes. The current `0.1.5`
+That dated proof does not validate later source changes. The historical `0.1.5`
 release has since completed its own gates, review, trusted publication and
-strict verification; see the [release receipt](BOOTSTRAP.md#current-verified-015-release).
+strict verification; see the [retained release receipt](BOOTSTRAP.md#current-verified-015-release).
 Future changed source requires fresh current-head Node 22/24 CI and review;
 each later release requires its own verified publication.
 
@@ -310,7 +314,7 @@ The KB `0.1.3` trusted release completed complete-set registry
 integrity/signature/provenance verification and released-consumer proof; its
 [receipt](BOOTSTRAP.md#current-verified-013-release) is separate from these
 historical source records. The later `0.1.4` and answering read-batching `0.1.5`
-releases are also qualified; see the [current receipt](BOOTSTRAP.md#current-verified-015-release).
+releases are also qualified; see the [retained receipt](BOOTSTRAP.md#current-verified-015-release).
 Changed source retains its own review and current-head gates.
 Manual bootstrap is not OIDC provenance.
 Agent Access has its own publication history:

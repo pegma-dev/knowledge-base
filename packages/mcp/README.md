@@ -27,7 +27,7 @@ extension values; actual requested-client and host acceptance remain separate.
 The unpublished `0.1.7` candidate synchronizes all four packages for the staff
 report receipt extension. Its combined source requires current-head gates and
 release verification before adoption. See the
-[application upgrade note](https://github.com/pegma-dev/knowledge-base/blob/v0.1.7/packages/application/README.md#unpublished-017-candidate).
+[application upgrade note](https://github.com/pegma-dev/knowledge-base/blob/61dcaaf19f7a0db644709aef8f52a826f3c1b34d/packages/application/README.md#unpublished-017-candidate).
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent

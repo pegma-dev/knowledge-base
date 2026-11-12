@@ -1,11 +1,15 @@
 # Human-reviewed evidence reports
 
+The current verified Knowledge Base release is
+[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 `createKnowledgeEvidenceReports` shipped in the four synchronized, verified
 [`0.1.3` packages](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.3).
 The optional governed context pair and body-free `query` described below shipped
 in the qualified [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 Synchronized `0.1.5` has completed verified trusted publication for answering
-read batching; see the [current release receipt](BOOTSTRAP.md#current-verified-015-release).
+read batching; see the [retained release receipt](BOOTSTRAP.md#current-verified-015-release).
 Changed source still requires its own review and current-head gates. Source
 tests and local adapter fixtures do not establish host activation, actual
 client acceptance, or a real staging test.

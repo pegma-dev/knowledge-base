@@ -1548,12 +1548,26 @@ export function createKnowledgeEvidenceReports(
         context: valueContext,
       });
       await staff(access);
-      await active(articleId, epoch);
-      // Re-observe the report after the context, authority and epoch awaits.
-      // A concurrent decision must not disclose its retired receipt binding.
-      const latest = await observedReport(articleId, epoch, report.reportId);
+      const head = await headVersion(articleId);
+      if (head.value.ledgerEpoch !== epoch)
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (head.value.status !== "active")
+        throw new KnowledgeEvidenceReportsError("ledger_resetting");
+      // Observe both authorities in one closing keyed-read wave. These
+      // separate observations provide no lock; return without another await.
+      const [latestHead, latest] = await Promise.all([
+        headVersion(articleId),
+        observedReport(articleId, epoch, report.reportId),
+      ]);
+      if (
+        latestHead.value.ledgerEpoch !== head.value.ledgerEpoch ||
+        latestHead.value.status !== head.value.status
+      )
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
       if (latest.version !== observed.version)
         throw new KnowledgeEvidenceReportsError("report_changed");
+      if (latestHead.version !== head.version)
+        throw new KnowledgeEvidenceReportsError("ledger_changed");
       return {
         ...summary(report),
         receipt: acknowledgement(report).receipt,
