@@ -1536,7 +1536,12 @@ export function createKnowledgeEvidenceReports(
       const articleId = scalar(input.articleId);
       const epoch = positive(input.ledgerEpoch);
       await active(articleId, epoch);
-      const report = await load(articleId, epoch, scalar(input.reportId));
+      const observed = await observedReport(
+        articleId,
+        epoch,
+        scalar(input.reportId),
+      );
+      const report = observed.value;
       const valueContext = await context(access, articleId, true);
       const reviewBindingHash = await knowledgeDigest({
         report,
@@ -1544,6 +1549,11 @@ export function createKnowledgeEvidenceReports(
       });
       await staff(access);
       await active(articleId, epoch);
+      // Re-observe the report after the context, authority and epoch awaits.
+      // A concurrent decision must not disclose its retired receipt binding.
+      const latest = await observedReport(articleId, epoch, report.reportId);
+      if (latest.version !== observed.version)
+        throw new KnowledgeEvidenceReportsError("report_changed");
       return {
         ...summary(report),
         receipt: acknowledgement(report).receipt,

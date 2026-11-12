@@ -23,6 +23,8 @@ in the verified
 The synchronized answering read-batching `0.1.5` release has completed verified
 trusted publication; see its
 [release receipt](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5).
+The current verified synchronized release is
+[`0.1.6`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6).
 Changed source still requires its own review and current-head gates. Backend
 query and CPU budgets require actual host measurements. These source README
 corrections apply to a future release. Published `0.1.5` tarballs, including
@@ -203,11 +205,15 @@ authenticated canonical receipt from the same current report snapshot as its
 generation, hash and confirmation. Confirmation preserves the receipt,
 reassessment rotates its cycle and ledger reset fences its epoch.
 
-Authorized staff can associate Support test results with the exact report
-receipt and check its revocation when another authorized staff member recorded
-the decision. Existing staff and resource read guards, the trusted verifier and
-owner-only status behavior remain unchanged. The five agent operations, scopes,
-roles and durable report state remain unchanged.
+The read refuses observed concurrent report or ledger changes before returning
+the view. A host can associate the receipt with Support test results after
+refreshing the governed KB context and checking the exact accepted evidence and
+revocation DTOs through authorized `getEvidence` or an evidence-bearing
+`getAuthoringContext` read. This supports a different authorized staff member
+without changing existing KB evidence acceptance. Actual receipt verification
+and owner-only status remain bound to the original submitter. Staff and resource
+read guards, the five agent operations, scopes, roles and durable report state
+remain unchanged.
 
 The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
 remains the released graph. Combined `0.1.7` source requires its current-head

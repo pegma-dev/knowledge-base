@@ -5,9 +5,10 @@ adapts the authorized application API to bounded agent commands and the Model
 Context Protocol. Hosts compose it with their protected Knowledge Base
 endpoints; the package does not supply a hosted service.
 
-All four Knowledge Base packages are verified published at
-[`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), including
-answering read batching and the aggregate report query introduced in `0.1.4`.
+The historical synchronized
+[`0.1.5` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5)
+includes answering read batching and the aggregate report query introduced in
+`0.1.4`. The current verified synchronized release is `0.1.6`, described below.
 Changed source requires its own review and current-head gates. Host and actual
 client acceptance remain separate. These source README corrections apply to a
 future release. Published `0.1.5` tarballs, including their bundled README bytes,
@@ -26,7 +27,7 @@ extension values; actual requested-client and host acceptance remain separate.
 The unpublished `0.1.7` candidate synchronizes all four packages for the staff
 report receipt extension. Its combined source requires current-head gates and
 release verification before adoption. See the
-[application upgrade note](../application/README.md#unpublished-017-candidate).
+[application upgrade note](https://github.com/pegma-dev/knowledge-base/blob/v0.1.7/packages/application/README.md#unpublished-017-candidate).
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent

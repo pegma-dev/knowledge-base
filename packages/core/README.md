@@ -5,8 +5,10 @@ transitions. It requires no Support
 Desk, GitHub, model, framework, database, or provider SDK.
 
 The current verified synchronized release is
-[`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), including
-the application answering read-batching patch. Changed source still requires
+[`0.1.6`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6), including
+MCP extension metadata compatibility. The historical
+[`0.1.5` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5)
+provided application answering read batching. Changed source still requires
 its own review and current-head gates; host acceptance remains separate.
 These source README corrections apply to a future release. Published `0.1.5`
 tarballs, including their bundled README bytes, remain unchanged.

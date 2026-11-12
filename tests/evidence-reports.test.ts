@@ -340,6 +340,83 @@ for (const [backend, createStore] of storeFactories) {
       },
     );
 
+    it.each(["confirmed", "pending"] as const)(
+      "refuses a stale staff receipt when a concurrent %s decision changes the report while its context loads",
+      async (transition) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const packet = await f.report();
+        const original =
+          transition === "pending"
+            ? (await f.decide(packet.ack)).ack
+            : packet.ack;
+        const before = await f.reports.read(f.reviewer, f.key(original));
+        expect(before).toMatchObject(original);
+        const gate = reportBarrier();
+        f.hooks.afterContext = () => gate.wait();
+        const pending = capture(f.reports.read(f.reviewer, f.key(original)));
+        let latest = original;
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          delete f.hooks.afterContext;
+          latest = (await f.decide(original, transition)).ack;
+          changedRows = await f.rawRows();
+        } finally {
+          delete f.hooks.afterContext;
+          gate.release();
+        }
+        expect(await pending).toMatchObject({
+          error: { code: "report_changed" },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+        const current = await f.reports.read(f.reviewer, f.key(latest));
+        expect(current).toMatchObject({ ...latest, status: transition });
+        if (transition === "pending")
+          expect(current.receipt).not.toBe(before.receipt);
+      },
+    );
+
+    it.each([false, true])(
+      "fences a staff receipt read during reset, with drained report rows: %s",
+      async (drain) => {
+        const f = await evidenceReportsFixture(await createStore());
+        const packet = await f.report();
+        expect(
+          await f.reports.read(f.reviewer, f.key(packet.ack)),
+        ).toMatchObject(packet.ack);
+        const gate = reportBarrier();
+        f.hooks.afterContext = () => gate.wait();
+        const pending = capture(f.reports.read(f.reviewer, f.key(packet.ack)));
+        let changedRows = await f.rawRows();
+        try {
+          await gate.reached(pending);
+          delete f.hooks.afterContext;
+          let state = await f.reports.reset(f.reviewer, {
+            articleId: f.articleId,
+            commandId: "reset-during-staff-receipt-read",
+            expectedLedgerEpoch: packet.ack.ledgerEpoch,
+          });
+          if (drain) {
+            for (let page = 0; state.status === "resetting" && page < 4; page++)
+              state = await f.reports.drain(f.reviewer, {
+                articleId: f.articleId,
+                ledgerEpoch: state.ledgerEpoch,
+              });
+            expect(state.status).toBe("active");
+            expect(await f.rows()).toHaveLength(1);
+          }
+          changedRows = await f.rawRows();
+        } finally {
+          delete f.hooks.afterContext;
+          gate.release();
+        }
+        expect(await pending).toMatchObject({
+          error: { code: "ledger_epoch_changed" },
+        });
+        expect(await f.rawRows()).toEqual(changedRows);
+      },
+    );
+
     it.each(["confirm", "reassess"] as const)(
       "refuses a stale owner status when a concurrent %s changes the report after its first load",
       async (transition) => {

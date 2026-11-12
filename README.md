@@ -5,7 +5,7 @@ Hosts own their users, storage, authorization policy, interfaces, and deployment
 Knowledge Base owns collection policy, immutable article revisions, validation,
 and exact publication approval. It requires no GitHub connection or AI provider.
 
-> Development status as of 2026-11-10: KB-01 through KB-03 provide contracts, pure domain
+> Development status as of 2026-11-12: KB-01 through KB-03 provide contracts, pure domain
 > transitions, authorized application/persistence, and bounded retrieval/repair.
 > [Merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5) adds
 > the optional five-operation HTTP/MCP adapter and authenticated protocol proof.
@@ -27,7 +27,10 @@ and exact publication approval. It requires no GitHub connection or AI provider.
 > All four `0.1.5` packages completed
 > [verified trusted publication](docs/BOOTSTRAP.md#current-verified-015-release)
 > for answering read batching, including strict registry/provenance and public-consumer
-> verification. Host dependency adoption remains separate.
+> verification. All four `0.1.6` packages completed
+> [verified trusted publication](docs/BOOTSTRAP.md#current-verified-016-release)
+> for MCP extension metadata compatibility. The `0.1.7` candidate remains unpublished.
+> Host dependency adoption remains separate.
 > Actual two-host existing-login/client acceptance remains open.
 > Host activation remains separately gated; this repository supplies no hosted KB.
 
@@ -168,9 +171,10 @@ publishers are configured through the CLI. Agent Access's verified trusted
 are complete; prior exact receipts remain historical evidence. At the `0.1.5`
 release checkpoint, all four KB packages had `latest: 0.1.5`; Agent Access
 remained at `latest: 0.1.1`; all retained `bootstrap: 0.1.0`. Dist-tags are mutable
-observations. The [current receipt](docs/BOOTSTRAP.md#current-verified-015-release)
+observations. The [retained `0.1.5` receipt](docs/BOOTSTRAP.md#current-verified-015-release)
 binds the original artifact, exact manifest, authenticated original writers and
-strict verification. Read batching establishes no universal backend query or
+strict verification. The [current `0.1.6` receipt](docs/BOOTSTRAP.md#current-verified-016-release)
+records the later verified metadata compatibility release. Read batching establishes no universal backend query or
 CPU budget. Neither registry publication nor synthetic proof satisfies real
 host acceptance or approves activation.
 
