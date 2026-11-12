@@ -22,6 +22,7 @@ import type {
 } from "@pegma/knowledge-base-core";
 import type { Store } from "@pegma/storage-core";
 import type { KnowledgeEvidenceContext } from "./evidence-reports-types.js";
+import type { PublishedSearchObservations } from "./published-search-observations-types.js";
 
 import type { KnowledgeRepositoryLimits } from "./repository.js";
 import type {
@@ -348,6 +349,8 @@ export interface KnowledgeAuthoringContextRead {
 }
 
 export interface KnowledgeBaseApplication extends KnowledgeRetrievalApplication {
+  /** Optional bounded background comparison observations; never inline portal search. */
+  readonly publishedSearchObservations?: PublishedSearchObservations;
   createCollection(
     access: AccessContext,
     input: CreateCollectionInput,
