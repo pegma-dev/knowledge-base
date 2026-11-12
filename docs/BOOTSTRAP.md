@@ -104,7 +104,9 @@ its manifest SHA-256 is
 The release adds the canonical receipt to the staff report view. Its original
 package bytes and prior release receipts retain their identities.
 
-### Current verified `0.1.6` release
+<a id="current-verified-016-release"></a>
+
+### Historical verified `0.1.6` release
 
 All four synchronized KB `0.1.6` packages completed exact-registry-byte, native
 signature, authenticated source-provenance and clean-consumer verification at
@@ -524,11 +526,11 @@ must name this repository's exact `publish.yml` workflow and environment and
 explicitly permit direct publishing. Time new configurations to the prepared
 trusted release so their first-use expiry does not strand the release.
 
-The synchronized current KB release is `0.1.7` with exact internal dependency
+The synchronized current verified KB release is `0.1.7` with exact internal dependency
 pins. Any changed source needs its own review and current-head gates before a
 new release. The historical first advertised trusted release is `0.1.1`; its
 receipt and those for `0.1.2` through `0.1.5` remain above alongside the
-retained verified `0.1.6` receipt and the `0.1.7` release below.
+retained verified `0.1.6` receipt and the `0.1.7` release.
 A previously manually published version cannot be
 republished through OIDC to add provenance. Run the full review/Node 22/24 gate
 for the newly reviewed commit, create its approved signed annotated version tag

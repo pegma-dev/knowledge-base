@@ -163,6 +163,45 @@ for (const [backend, createStore] of storeFactories) {
       });
     });
 
+    it.each(["pending", "rejected", "missing confirmation"] as const)(
+      "refuses observe-time %s reports without writes or a synthesized handle",
+      async (state) => {
+        const f = await prepared(createStore);
+        if (state === "missing confirmation") {
+          const saved = (await f.physicalRows()).find(
+            (row) =>
+              row.value.id ===
+              `report:${f.confirmed.ack.ledgerEpoch}:${f.confirmed.ack.reportId}`,
+          )!;
+          const report = JSON.parse(saved.value.payload);
+          expect(report.status).toBe("confirmed");
+          expect(report.confirmation).not.toBeNull();
+          // No public transition can create this invalid confirmed state.
+          // Corrupt a real encoded row through the existing fault fixture.
+          expect(
+            await f.replaceRow(saved, {
+              ...saved.value,
+              payload: JSON.stringify({ ...report, confirmation: null }),
+            }),
+          ).toBe(true);
+        } else {
+          const pending = await f.decide(f.confirmed.ack, "pending");
+          if (state === "rejected") await f.decide(pending.ack, "rejected");
+        }
+        const rows = await f.rawRows();
+        const writes = f.observed.transactions.length;
+        await expect(
+          f.observations.observe(f.owner, f.key(f.confirmed.ack)),
+        ).rejects.toMatchObject(
+          state === "missing confirmation"
+            ? { code: "report_ledger_unavailable", stage: "report_decode" }
+            : { code: "report_not_verifiable" },
+        );
+        expect(await f.rawRows()).toEqual(rows);
+        expect(f.observed.transactions).toHaveLength(writes);
+      },
+    );
+
     it("allows a different current staff reader without impersonating the report submitter", async () => {
       const f = await prepared(createStore);
       const observed = await f.observations.observe(

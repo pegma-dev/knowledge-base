@@ -105,8 +105,8 @@ identities. Host and native-client acceptance remain separately gated.
 
 ## Verified 0.1.7 release
 
-All four source package versions and exact internal pins are synchronized at
-`0.1.7`. The release adds the required `receipt: string` to the existing staff
+All four released package versions and exact internal pins were synchronized at
+`0.1.7`. The release added the required `receipt: string` to the existing staff
 `KnowledgeReportView` for its authenticated canonical report receipt. The read
 refuses observed concurrent report or ledger changes before returning the view.
 A host can associate the receipt with Support test results after refreshing the
