@@ -1,8 +1,8 @@
 # Fictional Knowledge Base composition
 
 The current verified Knowledge Base release is
-[`0.1.6`](../../docs/BOOTSTRAP.md#current-verified-016-release).
-The `0.1.7` source candidate remains unpublished.
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
+The `0.1.8` source candidate remains unpublished.
 
 This runnable Node example uses public package entry points and Storage Core's
 real memory Store. It demonstrates authoring, bound synthetic verification

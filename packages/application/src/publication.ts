@@ -47,7 +47,7 @@ import type {
   SourceSnapshot,
 } from "./types.js";
 
-export type PublicationPurpose = "portal" | "bot" | "index";
+export type PublicationPurpose = "portal" | "bot" | "index" | "authoring";
 
 export interface PublicationCheckRequest {
   readonly articleId: string;
@@ -131,7 +131,10 @@ function authorize(access: AccessContext, purpose: PublicationPurpose): void {
   }
   if (
     !hasPermission(access, knowledgePermissions.articleRead) ||
-    (purpose === "bot" && !hasPermission(access, knowledgePermissions.botRead))
+    (purpose === "bot" &&
+      !hasPermission(access, knowledgePermissions.botRead)) ||
+    (purpose === "authoring" &&
+      !hasPermission(access, knowledgePermissions.draftRead))
   )
     throw unavailable();
 }
@@ -175,7 +178,7 @@ async function publishedEvidence(
   return evidence;
 }
 
-/** One authority path for portal reads, customer bot retrieval, and private indexing. */
+/** One proof path for portal, bot, private indexing, and staff authoring reads. */
 export function createPublicationChecker(
   repository: KnowledgeRepository,
   options: KnowledgeBaseServiceOptions,
@@ -231,7 +234,7 @@ export function createPublicationChecker(
       const access = immutable(snapshotData(request.access));
       const articleId = request.articleId;
       requireIdentifier(articleId, "articleId");
-      if (!["portal", "bot", "index"].includes(request.purpose))
+      if (!["portal", "bot", "index", "authoring"].includes(request.purpose))
         throw new TypeError("Unknown publication purpose");
       const purpose = request.purpose;
       const applicability =
@@ -291,7 +294,10 @@ export function createPublicationChecker(
         const enabledUses: ("portal" | "bot")[] = [];
         if (policy.portal.enabled) enabledUses.push("portal");
         if (policy.bot.enabled) enabledUses.push("bot");
-        const use = purpose === "index" ? undefined : policy[purpose];
+        const use =
+          purpose === "index" || purpose === "authoring"
+            ? undefined
+            : policy[purpose];
         if (use === undefined ? enabledUses.length === 0 : !allows(use, access))
           throw unavailable();
         if (
@@ -404,6 +410,11 @@ export function createPublicationChecker(
         confirmations.set(checked, state);
         return checked;
       } catch (error) {
+        if (
+          purpose === "authoring" &&
+          error instanceof RepositoryIntegrityError
+        )
+          throw error;
         if (purpose === "index" && error instanceof RepositoryCapacityError)
           throw error;
         if (isUnavailable(error)) throw unavailable();
@@ -416,6 +427,11 @@ export function createPublicationChecker(
       try {
         await confirm(state);
       } catch (error) {
+        if (
+          state.purpose === "authoring" &&
+          error instanceof RepositoryIntegrityError
+        )
+          throw error;
         if (
           state.purpose === "index" &&
           error instanceof RepositoryCapacityError

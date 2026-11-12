@@ -16,6 +16,7 @@ import {
 import { defineCollection, type EntityKey } from "@pegma/storage-core";
 import type {
   EvidenceVerifier,
+  EvidenceVerificationRequest,
   KnowledgeAuthoringContextObservation,
 } from "./types.js";
 import type {
@@ -28,6 +29,10 @@ import type {
   KnowledgeEvidenceReportStorageLayout,
   KnowledgeEvidenceReportsOptions,
   KnowledgeEvidenceReports,
+  KnowledgeReportView,
+  KnowledgeReportObservation,
+  KnowledgeReportObservationConfirmation,
+  KnowledgeReportObservations,
 } from "./evidence-reports-types.js";
 import {
   KnowledgeEvidenceReportsError,
@@ -728,18 +733,17 @@ export function createKnowledgeEvidenceReports(
   function now(): string {
     return stored("clock_read", () => timestamp(options.clock.now()));
   }
-  async function current(
-    access: AccessContext,
-    permission: string,
-  ): Promise<AccessContext> {
-    const caller = callerContext(access);
+  async function resolvePrincipal(id: string): Promise<AccessContext | null> {
     const resolved = await ledgerIo("principal_resolve", () =>
-      options.resolvePrincipal(caller.principalId),
+      options.resolvePrincipal(id),
     );
-    const authority =
-      resolved === null
-        ? null
-        : stored("principal_resolve", () => callerContext(resolved));
+    return resolved === null
+      ? null
+      : stored("principal_resolve", () => callerContext(resolved));
+  }
+  async function currentAuthority(access: AccessContext, permission: string) {
+    const caller = callerContext(access);
+    const authority = await resolvePrincipal(caller.principalId);
     if (
       authority === null ||
       authority.principalId !== caller.principalId ||
@@ -750,11 +754,14 @@ export function createKnowledgeEvidenceReports(
       throw new KnowledgeEvidenceReportsError("forbidden");
     // A current owner/Admin context establishes continued authority; it never
     // replaces the original credential's restricted effective permissions.
-    return caller;
+    return { caller, authority };
   }
-  async function staff(access: AccessContext): Promise<AccessContext> {
-    access = await current(access, confirmationPermission);
+  async function current(access: AccessContext, permission: string) {
+    return (await currentAuthority(access, permission)).caller;
+  }
+  function staffPermissions(access: AccessContext): void {
     for (const permission of [
+      confirmationPermission,
       knowledgePermissions.draftRead,
       knowledgePermissions.evidenceRead,
     ])
@@ -767,7 +774,23 @@ export function createKnowledgeEvidenceReports(
       !hasPermission(access, knowledgePermissions.draftWrite)
     )
       throw new KnowledgeEvidenceReportsError("forbidden");
+  }
+  async function staff(access: AccessContext): Promise<AccessContext> {
+    access = await current(access, confirmationPermission);
+    staffPermissions(access);
     return access;
+  }
+  async function staffAuthority(access: AccessContext) {
+    const resolved = await currentAuthority(access, confirmationPermission);
+    staffPermissions(resolved.caller);
+    return resolved;
+  }
+  async function reviewerAuthority(id: string): Promise<AccessContext> {
+    const reviewer = await resolvePrincipal(id);
+    if (reviewer === null || reviewer.principalId !== id)
+      throw new KnowledgeEvidenceReportsError("forbidden");
+    staffPermissions(reviewer);
+    return reviewer;
   }
   async function headVersion(articleId: string) {
     const saved = await ledgerIo("head_read", () =>
@@ -1041,6 +1064,219 @@ export function createKnowledgeEvidenceReports(
           Date.parse(report.confirmation.confirmedAt) <= now))
     );
   }
+  async function verificationIdentityMatches(
+    report: ReportRecord,
+    request: EvidenceVerificationRequest,
+  ): Promise<boolean> {
+    return (
+      acknowledgement(report).receipt === request.receipt &&
+      report.status === "confirmed" &&
+      report.confirmation !== null &&
+      request.access.principalId === report.submittedBy &&
+      (await knowledgeDigest(request.submission)) === report.submissionHash &&
+      request.configuration.trustedAttesterIds.includes(
+        report.confirmation.reviewerId,
+      )
+    );
+  }
+  async function verificationContextMatches(
+    report: ReportRecord,
+    request: EvidenceVerificationRequest,
+    value: KnowledgeEvidenceContext,
+  ): Promise<boolean> {
+    return (
+      (await valid(report, request.article, value, now())) &&
+      request.configuration.expectedStagingBuildId ===
+        value.requirements.expectedStagingBuildId &&
+      (await knowledgeDigest(request.configuration.validationPolicy)) ===
+        (await knowledgeDigest(value.requirements.validationPolicy))
+    );
+  }
+  function fulfilled<T>(result: PromiseSettledResult<T>): T {
+    if (result.status === "rejected") throw result.reason;
+    return result.value;
+  }
+  interface ReportObservationState {
+    readonly access: AccessContext;
+    readonly reviewer: AccessContext;
+    readonly head: Awaited<ReturnType<typeof headVersion>>;
+    readonly report: Awaited<ReturnType<typeof observedReport>>;
+    readonly context: KnowledgeEvidenceContext;
+    readonly contextObservation: KnowledgeAuthoringContextObservation;
+  }
+  const reportObservations = new WeakMap<object, ReportObservationState>();
+  const observations = Object.freeze<KnowledgeReportObservations>({
+    async observe(access, value) {
+      const input = exactObject(requestData(value), [
+        "articleId",
+        "ledgerEpoch",
+        "reportId",
+      ]);
+      const articleId = scalar(input.articleId);
+      const epoch = positive(input.ledgerEpoch);
+      const reportId = scalar(input.reportId);
+      const initial = await staffAuthority(access);
+      access = initial.caller;
+      // Start only independent read observations together. Every result settles
+      // before a refusal; error precedence is head, report, context.
+      const reportRead = observedReport(articleId, epoch, reportId);
+      const results = await Promise.allSettled([
+        headVersion(articleId),
+        reportRead,
+        observeContext(access, articleId, true),
+      ]);
+      const head = fulfilled(results[0]);
+      if (head.value.ledgerEpoch !== epoch)
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (head.value.status !== "active")
+        throw new KnowledgeEvidenceReportsError("ledger_resetting");
+      const observed = fulfilled(results[1]);
+      const context = fulfilled(results[2]);
+      const report = observed.value;
+      if (
+        report.status !== "confirmed" ||
+        report.confirmation === null ||
+        context.observation === undefined ||
+        !(await valid(
+          report,
+          context.value.draft.revision,
+          context.value,
+          now(),
+        ))
+      )
+        throw new KnowledgeEvidenceReportsError("report_not_verifiable");
+      const reviewBindingHash = await knowledgeDigest({
+        report,
+        context: context.value,
+      });
+      const view: KnowledgeReportView = {
+        ...summary(report),
+        receipt: acknowledgement(report).receipt,
+        evidence: report.evidence,
+        report: report.report,
+        draft: context.value.draft,
+        reportHash: report.reportHash,
+        submissionHash: report.submissionHash,
+        governanceHash: report.governanceHash,
+        requirements: context.value.requirements,
+        reviewBindingHash,
+        expectedReportGeneration: report.reportGeneration,
+        confirmation: report.confirmation,
+      };
+      // Private data is disclosed only after another current staff observation.
+      // Report/context currency is provisional until this handle is confirmed.
+      // Resolve the initial reviewer here, alongside the closing actor, after
+      // the private reads/hashes. The later confirm still resolves both afresh.
+      const actorRead = staffAuthority(access);
+      const reviewerRead =
+        report.confirmation.reviewerId === access.principalId
+          ? actorRead.then((value) => value.authority)
+          : reviewerAuthority(report.confirmation.reviewerId);
+      const authorities = await Promise.allSettled([actorRead, reviewerRead]);
+      fulfilled(authorities[0]);
+      const reviewer = fulfilled(authorities[1]);
+      staffPermissions(reviewer);
+      const observation = Object.freeze({}) as KnowledgeReportObservation;
+      reportObservations.set(observation, {
+        access,
+        reviewer,
+        head,
+        report: observed,
+        context: context.value,
+        contextObservation: context.observation,
+      });
+      return { ...snapshotData({ view, context: context.value }), observation };
+    },
+    async confirm(access, observation, verification) {
+      access = callerContext(access);
+      const captured =
+        observation !== null && typeof observation === "object"
+          ? reportObservations.get(observation)
+          : undefined;
+      if (captured === undefined)
+        throw new KnowledgeEvidenceReportsError("invalid_request");
+      if (
+        serializeAccessContext(access) !==
+        serializeAccessContext(captured.access)
+      )
+        throw new KnowledgeEvidenceReportsError("forbidden");
+      // No await precedes consumption. Cloned/foreign handles and a different
+      // actor cannot consume the original handle; every actual attempt does.
+      reportObservations.delete(observation);
+      verification =
+        verification === undefined ? undefined : requestData(verification);
+      const report = captured.report.value;
+      let attestation: KnowledgeReportObservationConfirmation["attestation"] =
+        null;
+      if (
+        !(await valid(
+          report,
+          captured.context.draft.revision,
+          captured.context,
+          now(),
+        ))
+      )
+        throw new KnowledgeEvidenceReportsError("report_not_verifiable");
+      if (verification !== undefined) {
+        let matches = false;
+        try {
+          const owner = callerContext(verification.access);
+          matches =
+            owner.principalId === access.principalId &&
+            hasPermission(owner, knowledgePermissions.evidenceSubmit) &&
+            owner.permissions.every((grant) => hasPermission(access, grant)) &&
+            (await verificationIdentityMatches(report, verification)) &&
+            (await verificationContextMatches(
+              report,
+              verification,
+              captured.context,
+            ));
+        } catch (error) {
+          if (error instanceof KnowledgeEvidenceReportsUnavailableError)
+            throw error;
+        }
+        if (!matches || report.confirmation === null)
+          throw new KnowledgeEvidenceReportsError("report_not_verifiable");
+        attestation = {
+          id: acknowledgement(report).receipt,
+          verifiedBy: report.confirmation.reviewerId,
+          verifiedAt: report.confirmation.confirmedAt,
+        };
+      }
+      // This exact KB resource check must complete before the closing report
+      // read. Fresh actor/reviewer observations then share one read-only wave.
+      await confirmContext(access, captured.contextObservation);
+      const actorRead = staffAuthority(access);
+      const reviewerRead =
+        captured.reviewer.principalId === access.principalId
+          ? actorRead.then((value) => value.authority)
+          : reviewerAuthority(captured.reviewer.principalId);
+      const results = await Promise.allSettled([
+        actorRead,
+        reviewerRead,
+        observedReport(report.articleId, report.ledgerEpoch, report.reportId),
+      ]);
+      fulfilled(results[0]);
+      const reviewer = fulfilled(results[1]);
+      staffPermissions(reviewer);
+      if (
+        serializeAccessContext(reviewer) !==
+        serializeAccessContext(captured.reviewer)
+      )
+        throw new KnowledgeEvidenceReportsError("forbidden");
+      if (fulfilled(results[2]).version !== captured.report.version)
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      // The head is the final data await. No cross-collection lock is promised.
+      const head = await headVersion(report.articleId);
+      if (head.value.ledgerEpoch !== report.ledgerEpoch)
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (head.value.status !== "active")
+        throw new KnowledgeEvidenceReportsError("ledger_resetting");
+      if (head.version !== captured.head.version)
+        throw new KnowledgeEvidenceReportsError("ledger_changed");
+      return { receipt: acknowledgement(report).receipt, attestation };
+    },
+  });
   async function replay(
     articleId: string,
     epoch: number,
@@ -1191,15 +1427,8 @@ export function createKnowledgeEvidenceReports(
           load(request.article.articleId, epoch, reportId),
         ]);
         if (
-          report.receiptGeneration !== cycle ||
-          report.status !== "confirmed" ||
           report.confirmation === null ||
-          request.access.principalId !== report.submittedBy ||
-          (await knowledgeDigest(request.submission)) !==
-            report.submissionHash ||
-          !request.configuration.trustedAttesterIds.includes(
-            report.confirmation.reviewerId,
-          )
+          !(await verificationIdentityMatches(report, request))
         )
           return null;
         const confirmation = report.confirmation;
@@ -1219,13 +1448,7 @@ export function createKnowledgeEvidenceReports(
         )
           return null;
         const value = await context(reviewer, report.articleId);
-        if (
-          !(await valid(report, request.article, value, now())) ||
-          request.configuration.expectedStagingBuildId !==
-            value.requirements.expectedStagingBuildId ||
-          (await knowledgeDigest(request.configuration.validationPolicy)) !==
-            (await knowledgeDigest(value.requirements.validationPolicy))
-        )
+        if (!(await verificationContextMatches(report, request, value)))
           return null;
         await current(request.access, knowledgePermissions.evidenceSubmit);
         await staff(reviewer);
@@ -1267,6 +1490,7 @@ export function createKnowledgeEvidenceReports(
   };
   return Object.freeze({
     verifier,
+    ...(authoringContext === undefined ? {} : { observations }),
     async query(access, input) {
       input = requestData(input);
       access = await current(access, knowledgePermissions.evidenceSubmit);

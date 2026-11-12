@@ -12,7 +12,7 @@ in [`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 All four synchronized `0.1.5` packages have completed verified trusted
 publication for answering read batching; see the
 [retained receipt](BOOTSTRAP.md#current-verified-015-release). The current verified
-release is [`0.1.6`](BOOTSTRAP.md#current-verified-016-release). The `0.1.7` candidate
+release is [`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7). The `0.1.8` candidate
 remains unpublished. Changed source
 requires its own review and current-head gates.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the

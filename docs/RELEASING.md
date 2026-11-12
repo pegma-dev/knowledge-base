@@ -66,7 +66,7 @@ Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
 packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
 manual commands/stdout, exact identities, preparation runs/artifacts, and
-independently retained digests. The qualified release versions are KB `0.1.6`
+independently retained digests. The qualified release versions are KB `0.1.7`
 and Agent Access `0.1.1`. The manual `0.1.0` bootstraps and their dated dist-tag
 observations remain historical integrity receipts without OIDC provenance.
 
@@ -103,24 +103,35 @@ signature, source-provenance and clean-consumer verification.
 Existing release receipts, tag links and tarballs retain their original
 identities. Host and native-client acceptance remain separately gated.
 
-## Unpublished 0.1.7 candidate
+## Verified 0.1.7 release
 
-All four source package versions and exact internal pins are synchronized at
-`0.1.7`. The candidate adds the required `receipt: string` to the existing staff
+All four released package versions and exact internal pins were synchronized at
+`0.1.7`. The release added the required `receipt: string` to the existing staff
 `KnowledgeReportView` for its authenticated canonical report receipt. The read
 refuses observed concurrent report or ledger changes before returning the view.
 A host can associate the receipt with Support test results after refreshing the
 governed KB context and checking exact accepted evidence and revocation DTOs
 through authorized public reads. Actual receipt verification and owner-only
 status remain bound to the original submitter. These host association checks
-leave existing KB evidence acceptance unchanged. The candidate adds no tool,
+leave existing KB evidence acceptance unchanged. The release adds no tool,
 scope, role or durable state.
 
-The current qualified release remains `0.1.6`. Combined candidate source requires
-current-head Node 22 and 24 gates, review, signed-tag preparation, trusted
-publication and strict complete-set registry verification before adoption.
-Host and native-client acceptance remain separately gated. Read the
-[application upgrade note](../packages/application/README.md#unpublished-017-candidate) for the receipt boundary and synchronized graph.
+The [qualified `0.1.7` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7) completed trusted
+publication and strict complete-set registry and consumer verification. Host and
+native-client acceptance remain separate. Read the
+[application upgrade note](../packages/application/README.md#verified-017-release)
+for the receipt boundary and synchronized graph.
+
+## Unpublished 0.1.8 candidate
+
+All four source versions and internal pins are synchronized at `0.1.8`. The
+optional operation-local [report observation pair](EVIDENCE_REPORTS.md#optional-report-observations-018-candidate)
+reuses the real governed context and confirms its resources, report, ledger and
+current authorities. It adds no wire operation, scope, durable row or migration.
+The candidate requires current-head Node 22 and 24 gates, configured review,
+signed-tag preparation, trusted publication and complete-set registry verification
+before public adoption. Host query and CPU profiles remain measured acceptance
+work.
 
 ## Repository and development artifact gates
 

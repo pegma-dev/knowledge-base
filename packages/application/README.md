@@ -24,7 +24,7 @@ The synchronized answering read-batching `0.1.5` release has completed verified
 trusted publication; see its
 [release receipt](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5).
 The current verified synchronized release is
-[`0.1.6`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6).
+[`0.1.7`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7).
 Changed source still requires its own review and current-head gates. Backend
 query and CPU budgets require actual host measurements. These source README
 corrections apply to a future release. Published `0.1.5` tarballs, including
@@ -197,9 +197,9 @@ no populated-namespace detection, layout switch or migration is automatic.
 The factory adds no agent scope, MCP tool, role, login, scheduler or provenance
 bridge. Hosts retain exact-publication and activation prerequisites.
 
-### Unpublished 0.1.7 candidate
+### Verified 0.1.7 release
 
-The candidate adds required `readonly receipt: string` to the existing staff
+The `0.1.7` release adds required `readonly receipt: string` to the existing staff
 `KnowledgeReportView` for pending, confirmed and rejected reads. It returns the
 authenticated canonical receipt from the same current report snapshot as its
 generation, hash and confirmation. Confirmation preserves the receipt,
@@ -215,13 +215,30 @@ and owner-only status remain bound to the original submitter. Staff and resource
 read guards, the five agent operations, scopes, roles and durable report state
 remain unchanged.
 
-The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
-remains the released graph. Combined `0.1.7` source requires its current-head
-Node 22 and 24 gates, review and complete release verification before adoption.
-Then align all four exact package versions together. Existing external pins and
+The verified [`0.1.7` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.7)
+is the released graph. Align all four exact package versions together. Existing external pins and
 the previous application writer at `0.1.1` remain unchanged. The extension
 requires no data migration. Host acceptance and activation remain separately
 gated, and existing release receipts and artifact bytes retain their identities.
+
+### Unpublished 0.1.8 report observation candidate
+
+With a real `authoringContext` pair, the report factory exposes optional
+`observations.observe(access, key)` and `observations.confirm(access, handle,
+verification?)`. The first returns the existing private report view, complete
+current evidence-bearing context and an instance-bound, single-use handle. It
+checks current staff authority after its private reads. Treat the data as
+provisional until confirmation finishes. The confirmation rechecks real KB
+resource versions, fresh actor/reviewer authority, the exact report row and the
+final ledger head. Its optional original-owner verification request reuses the
+legacy verifier predicates and returns the same attestation without reloading
+the context. Other staff readers receive no owner-verifier authority.
+
+Keep this pair inside one operation and application/report instance. Handles
+cannot be cloned, serialized, persisted or reused after an attempted confirmation.
+The [source contract](https://github.com/pegma-dev/knowledge-base/blob/main/docs/EVIDENCE_REPORTS.md#optional-report-observations-018-candidate)
+describes failure and host ownership. This unpublished candidate adds no durable
+state, MCP tool or scope. Actual host query/CPU acceptance is pending.
 
 ## Bounded retrieval and repair
 
@@ -284,6 +301,106 @@ audience, source and head checks. Retained history is unchanged. They add no
 authorization cache and do not establish
 Workers Free quota acceptance. The `0.1.5` trusted release is complete;
 changed-source gates and whole-host measurements remain separate.
+
+## Background published comparisons
+
+`publishedSearchObservations` is a bounded staff-authoring capability for a host
+queue, timer, or deferred checker. Do not invoke its catalogue work in portal
+search, answering, or another inline request path. It requires current
+`draftRead` **and** `articleRead`, the permissions already held by the intrinsic
+learning-draft service. It needs no customer audience permission, ambient role,
+`collectionRead`, `botRead`, `indexManage`, or administrative grant. At least one
+collection channel must be enabled. Private permission audiences and bot-only
+collections remain valid staff comparison targets.
+
+This is a separate use from customer browsing and answering. Existing
+`searchPublishedArticles` and `getPublishedArticle` retain their portal checks;
+bot retrieval retains its independent bot permission and audience. The shared
+publication checker uses an internal authoring purpose with the same exact
+approval, policy, retained evidence, source eligibility, and current-resource
+fences. A staff read never creates a portal browse permission. No route, MCP
+tool, credential scope, permission name, publication capability, or schema is
+added.
+
+`observe(access, { collectionId, query, applicability, limit })` returns a
+`complete` result containing matching approved `PublishedArticleDto` values, an
+opaque observation, and the actual `scopeState`. An authorized scope with no
+matches may have an empty array. Matching uses the exact collection and
+applicability tuple and normalized lexical terms from approved titles,
+summaries, and tags; it is not a semantic or global duplicate search. Instance
+query character/term limits are checked before I/O. Explicit `null` limits and
+other invalid input throw rather than becoming defaults. A result limit that
+would omit a match yields `partial` with no articles.
+
+The authoritative layout has no per-collection membership index. This background
+fallback therefore scans **all physical KB records**, using actual backend
+continuations in pages of at most eight records. The page count is also bounded;
+every history, private, duplicate, and nonmatching row is charged before
+filtering, and an empty page still costs read work. The existing per-record
+native estimate and fixed 7.2 MB page allowance bound materialized native payload
+independently from the total row count. Only bounded keys, opaque versions, and
+head IDs survive between pages; full page payloads are released before advancing.
+This is not a measured heap, CPU, or backend allocation guarantee.
+
+Each scan pass has a hard 256-physical-row limit and shares the original request
+read allowance with all publication checks and the second pass. Reaching the
+row/work/page bound with a continuation yields `partial`; no possible 257th row
+is fetched as a probe. Consequently an adapter that emits a speculative cursor
+at exactly 256 rows can conservatively hold, even when its next page would be
+empty. A terminal `null` cursor is required for completion. A full page alone
+never proves that no rows remain. There is no new collection, projection index,
+query filter, or adapter API.
+
+After current publication/source and collection-version checks, a second
+completed bounded pass must return the same physical key/version membership.
+Observed changes, including unrelated writes, invalidate the comparison.
+These completed scan cycles and resource checks provide bounded observations
+and change detection, not an atomic cross-partition snapshot or a guarantee
+against concurrent/future membership changes. Large or actively changing stores
+can remain held and need a later host-owned background strategy. No universal
+query/CPU or Workers Free acceptance is claimed.
+
+`readScope(access, { collectionId })` performs only bounded keyed collection
+reads under the same authoring permissions. It returns
+`{ collectionId, generation, scopeHash }`, derived from the actual collection
+generation, opaque backend head version, and current policy digest. A second
+versioned collection read fences asynchronous hashing/public-approval validation.
+It returns no policy, audience, approval actor, or staff metadata. Complete
+`observe` results compute the same `PublishedSearchScopeState` from their already
+read collection. Bind it into the private comparison receipt and recheck it for
+later policy/authority checks, including an empty result, without another scan.
+Keep it outside model payloads. This state is collection authority, not a fresh
+catalogue search; a new article alone need not change it, and it proves no current
+or future absence of additional matches.
+
+`readArticle(access, { articleId })` returns only the current approved
+`PublishedArticleDto` through the same authoring publication checker. It uses
+keyed reads and no enumeration, including for a bot-only or private-audience
+collection. Current private draft text, proof history, and provenance are not
+projected. Missing, retired, held, source-ineligible, or policy-invalid
+publications cannot produce an article. This method supports later checks of
+retained comparison resources without switching to a customer portal read.
+
+Keep the opaque observation in RAM for one bounded background operation on the
+same application instance. `confirm(access, observation)` consumes it before its
+first await, rechecks the same actor's current authoring permissions, repeats
+current scope/publication/source checks and the bounded membership comparison,
+and rejects changed observations. A clone, another instance/actor, reuse,
+partial recheck, or dependency failure cannot confirm it. The host owns operation
+deadlines and fresh access resolution. Neither method grants review/publication
+authority or locks articles.
+
+Known capacity/work limits return content-free `partial`; ordinary authority or
+storage availability failures return content-free `unavailable` from `observe`.
+Keyed reads and confirmation throw on refusal. Integrity and unexpected
+programming faults remain visible to background operators instead of becoming
+normal unavailability. No article subset or private diagnostic fields are added
+to failure DTOs; hosts must keep operational logs safe.
+
+The current factory always constructs this capability. Its type stays optional
+for structural legacy applications and wrappers; it is not a configurable
+factory opt-out. A missing legacy port cannot be replaced by caller-supplied
+empty comparison results.
 
 ## Storage and limits
 
