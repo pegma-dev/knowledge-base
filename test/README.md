@@ -1,5 +1,9 @@
 # Public KB conformance fixtures
 
+The current verified Knowledge Base release is
+[`0.1.6`](../docs/BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 The application/storage/review and retrieval/bounds/maintenance/regression
 suites under `tests/` share `application-stores.ts`. They target Storage Core's
 real memory store, its released Azure Tables adapter connected to local
@@ -22,7 +26,7 @@ Upgrade tests use the dev-only exact registry alias
 `npm:@pegma/knowledge-base-application@0.1.1` to write real legacy records before
 the candidate reads them. The lockfile integrity pin matches the previously
 verified `0.1.1` artifact; no copied source or branch supplies this writer.
-The current four-package verified KB release is `0.1.5`, and the Agent Access
+The current four-package verified KB release is `0.1.6`, and the Agent Access
 protocol-proof pin remains `0.1.1`. Tests exercise the current working tree;
 changed-source gates are separate from immutable published-release evidence.
 
@@ -101,5 +105,5 @@ by the [historical verified `0.1.2` release](../docs/BOOTSTRAP.md#historical-ver
 and [verified `0.1.3` release](../docs/BOOTSTRAP.md#current-verified-013-release).
 The later [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
 is qualified. Synchronized `0.1.5` has also completed verified trusted publication
-for answering read batching; see the [current receipt](../docs/BOOTSTRAP.md#current-verified-015-release).
+for answering read batching; see the [retained receipt](../docs/BOOTSTRAP.md#current-verified-015-release).
 Changed-source and host activation gates remain open.

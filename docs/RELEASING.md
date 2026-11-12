@@ -41,13 +41,13 @@ authoring-context reads, report queries and bounded resumable repair.
 The [historical local receipt](BOOTSTRAP.md#current-verified-014-release) retains
 that release's separate publication boundary under its preserved anchor.
 
-The current verified release is
+The historical verified release is
 [`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), the
 synchronized answering read-batching patch at signed source
 `6dae20df8dace50ad961d9c5fe8d28c90bf4918f`. All four registry packages completed
 exact-byte, signature/source-provenance and public-consumer qualification. The
 [final attempt-5 verification job](https://github.com/pegma-dev/knowledge-base/actions/runs/42821672972/job/129895026059)
-and [current receipt](BOOTSTRAP.md#current-verified-015-release) bind the unchanged
+and [retained receipt](BOOTSTRAP.md#current-verified-015-release) bind the unchanged
 original artifact and manifest. Original writer attempts 1 through 4 remain
 failed records; the final publisher uploaded zero packages and skipped four
 identical versions. The earlier gates/preparation were carried, not rerun in
@@ -66,7 +66,7 @@ Changed source still needs all current-head gates before release preparation.
 No source merge configures publishers, creates a tag/release, or publishes npm
 packages. The [maintainer bootstrap ledger](BOOTSTRAP.md) retains the actual
 manual commands/stdout, exact identities, preparation runs/artifacts, and
-independently retained digests. The qualified release versions are KB `0.1.5`
+independently retained digests. The qualified release versions are KB `0.1.6`
 and Agent Access `0.1.1`. The manual `0.1.0` bootstraps and their dated dist-tag
 observations remain historical integrity receipts without OIDC provenance.
 
@@ -85,22 +85,42 @@ their own current-head gates; historical results do not validate changed
 composition. Production hosts require verified trusted versions of both
 components and their separately retained acceptance.
 
-## Unpublished 0.1.6 candidate
+## Verified 0.1.6 release
 
-All four source packages are synchronized at `0.1.6` for the MCP extension
-metadata compatibility patch. The adapter accepts bounded opaque `params._meta`
-values used by native clients. An optional `progressToken` must be a string of
-at most 128 characters or a safe integer, without a registered-value allowlist.
-Strict tool arguments, current authorization and existing complete-message
-limits remain unchanged. It adds no tool, scope, durable record, credential or
-migration. The generic SDK error-response mapping is unchanged.
+All four [`0.1.6` packages](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
+completed verified trusted publication for MCP extension metadata compatibility.
+The adapter accepts bounded opaque `params._meta` values used by native clients.
+An optional `progressToken` must be a string of at most 128 characters or a safe
+integer, without a registered-value allowlist. Strict tool arguments, current
+authorization and existing complete-message limits remain unchanged. The
+release adds no tool, scope, durable record, credential or migration. The generic
+SDK error-response mapping is unchanged.
 
-The current qualified release remains `0.1.5`; this candidate needs its own
-current-head gates, review, signed-tag preparation, trusted publication and
-strict complete-set registry verification. Existing `0.1.5` receipts and
-tarballs remain unchanged. Hosts and Support Desk consumers must deliberately
-align their exact Knowledge Base graph before adoption; producer qualification
-does not close native-client or real-host acceptance.
+The [verified release receipt](BOOTSTRAP.md#current-verified-016-release) binds
+the signed source, original prepared artifact and complete-set registry,
+signature, source-provenance and clean-consumer verification.
+
+Existing release receipts, tag links and tarballs retain their original
+identities. Host and native-client acceptance remain separately gated.
+
+## Unpublished 0.1.7 candidate
+
+All four source package versions and exact internal pins are synchronized at
+`0.1.7`. The candidate adds the required `receipt: string` to the existing staff
+`KnowledgeReportView` for its authenticated canonical report receipt. The read
+refuses observed concurrent report or ledger changes before returning the view.
+A host can associate the receipt with Support test results after refreshing the
+governed KB context and checking exact accepted evidence and revocation DTOs
+through authorized public reads. Actual receipt verification and owner-only
+status remain bound to the original submitter. These host association checks
+leave existing KB evidence acceptance unchanged. The candidate adds no tool,
+scope, role or durable state.
+
+The current qualified release remains `0.1.6`. Combined candidate source requires
+current-head Node 22 and 24 gates, review, signed-tag preparation, trusted
+publication and strict complete-set registry verification before adoption.
+Host and native-client acceptance remain separately gated. Read the
+[application upgrade note](../packages/application/README.md#unpublished-017-candidate) for the receipt boundary and synchronized graph.
 
 ## Repository and development artifact gates
 

@@ -5,15 +5,16 @@ adapts the authorized application API to bounded agent commands and the Model
 Context Protocol. Hosts compose it with their protected Knowledge Base
 endpoints; the package does not supply a hosted service.
 
-All four Knowledge Base packages are verified published at
-[`0.1.5`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5), including
-answering read batching and the aggregate report query introduced in `0.1.4`.
+The historical synchronized
+[`0.1.5` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5)
+includes answering read batching and the aggregate report query introduced in
+`0.1.4`. The current verified synchronized release is `0.1.6`, described below.
 Changed source requires its own review and current-head gates. Host and actual
 client acceptance remain separate. These source README corrections apply to a
 future release. Published `0.1.5` tarballs, including their bundled README bytes,
 remain unchanged.
 
-The synchronized `0.1.6` source candidate is unpublished. It accepts bounded
+The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6) accepts bounded
 opaque MCP `params._meta` extensions, including native-client correlation and
 standard trace fields, while retaining the existing `progressToken` shape
 validation: a string of at most 128 characters or a safe integer. Metadata
@@ -22,6 +23,11 @@ returned as an application result. Complete-message byte, depth, node and key
 ceilings, strict tool arguments and fresh host authentication remain unchanged.
 The official-SDK regression and packed protocol proof exercise fictional
 extension values; actual requested-client and host acceptance remain separate.
+
+The unpublished `0.1.7` candidate synchronizes all four packages for the staff
+report receipt extension. Its combined source requires current-head gates and
+release verification before adoption. See the
+[application upgrade note](https://github.com/pegma-dev/knowledge-base/blob/61dcaaf19f7a0db644709aef8f52a826f3c1b34d/packages/application/README.md#unpublished-017-candidate).
 
 The contracts, core, and application packages remain independent of MCP, HTTP,
 provider SDKs, and login flows. Hosts choose this adapter when exposing agent

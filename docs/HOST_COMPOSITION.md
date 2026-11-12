@@ -1,5 +1,9 @@
 # Application and retrieval host composition
 
+The current verified Knowledge Base release is
+[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 ## Status and ownership
 
 This documents the KB-02/KB-03 application and KB-04 transport host boundaries.
@@ -19,7 +23,7 @@ human-reviewed report packages subsequently completed
 The governed authoring-context/report-query features shipped in the qualified
 [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 All four answering read-batching `0.1.5` packages have completed
-[qualified trusted publication](BOOTSTRAP.md#current-verified-015-release), including
+[retained qualified trusted publication](BOOTSTRAP.md#current-verified-015-release), including
 strict registry/provenance and public-consumer verification. Internal read-wave
 changes preserve the public ports and do not establish a universal Workers Free
 call/CPU allowance or live-host acceptance. Publication does not update either

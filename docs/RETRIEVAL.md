@@ -1,5 +1,9 @@
 # KB-03 bounded retrieval
 
+The current verified Knowledge Base release is
+[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 ## Design status
 
 This design was recorded before durable retrieval operations and synchronized
@@ -15,7 +19,7 @@ qualified [`0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases
 includes governed authoring contexts, optional report queries and the bounded
 repair mode described below. Synchronized `0.1.5` has completed verified trusted
 publication for answering read batching; see its
-[current receipt](BOOTSTRAP.md#current-verified-015-release). Source tests and
+[retained receipt](BOOTSTRAP.md#current-verified-015-release). Source tests and
 repository gates, not this document, determine changed-source completion.
 KB-04's optional HTTP/MCP adapter source is
 [merged](https://github.com/pegma-dev/knowledge-base/pull/5). Real-host acceptance

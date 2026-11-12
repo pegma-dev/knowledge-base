@@ -1,5 +1,9 @@
 # Declared collections and durable layout
 
+The current verified Knowledge Base release is
+[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 ## Design status
 
 The authoritative layout was written before KB-02 durable operations. The
@@ -15,7 +19,7 @@ source is [merged](https://github.com/pegma-dev/knowledge-base/pull/5). The
 [verified `0.1.3` release](BOOTSTRAP.md#current-verified-013-release) is complete,
 as is the later [`0.1.4` trusted release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 The synchronized `0.1.5` answering read-batching release has completed verified
-trusted publication; see its [current receipt](BOOTSTRAP.md#current-verified-015-release).
+trusted publication; see its [retained receipt](BOOTSTRAP.md#current-verified-015-release).
 Changed-source gates, real-host acceptance, and production readiness remain separate. The earlier
 `0.1.1` release has a separate
 [historical receipt](BOOTSTRAP.md#historical-verified-011-release), as does

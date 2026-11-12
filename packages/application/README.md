@@ -23,6 +23,8 @@ in the verified
 The synchronized answering read-batching `0.1.5` release has completed verified
 trusted publication; see its
 [release receipt](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.5).
+The current verified synchronized release is
+[`0.1.6`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6).
 Changed source still requires its own review and current-head gates. Backend
 query and CPU budgets require actual host measurements. These source README
 corrections apply to a future release. Published `0.1.5` tarballs, including
@@ -194,6 +196,32 @@ Choose default `portable-v1` encoded physical keys for a new ledger. Select
 no populated-namespace detection, layout switch or migration is automatic.
 The factory adds no agent scope, MCP tool, role, login, scheduler or provenance
 bridge. Hosts retain exact-publication and activation prerequisites.
+
+### Unpublished 0.1.7 candidate
+
+The candidate adds required `readonly receipt: string` to the existing staff
+`KnowledgeReportView` for pending, confirmed and rejected reads. It returns the
+authenticated canonical receipt from the same current report snapshot as its
+generation, hash and confirmation. Confirmation preserves the receipt,
+reassessment rotates its cycle and ledger reset fences its epoch.
+
+The read refuses observed concurrent report or ledger changes before returning
+the view. A host can associate the receipt with Support test results after
+refreshing the governed KB context and checking the exact accepted evidence and
+revocation DTOs through authorized `getEvidence` or an evidence-bearing
+`getAuthoringContext` read. This supports a different authorized staff member
+without changing existing KB evidence acceptance. Actual receipt verification
+and owner-only status remain bound to the original submitter. Staff and resource
+read guards, the five agent operations, scopes, roles and durable report state
+remain unchanged.
+
+The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6)
+remains the released graph. Combined `0.1.7` source requires its current-head
+Node 22 and 24 gates, review and complete release verification before adoption.
+Then align all four exact package versions together. Existing external pins and
+the previous application writer at `0.1.1` remain unchanged. The extension
+requires no data migration. Host acceptance and activation remain separately
+gated, and existing release receipts and artifact bytes retain their identities.
 
 ## Bounded retrieval and repair
 

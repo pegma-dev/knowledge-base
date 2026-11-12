@@ -1352,6 +1352,16 @@ export function createKnowledgeEvidenceReports(
       // Re-resolve only after the awaited resource observations, preserving the
       // original credential's restricted permissions through final disclosure.
       await current(access, knowledgePermissions.evidenceSubmit);
+      // Close the epoch after every resource and current-authority await.
+      // These separate observations provide no cross-row lock.
+      const closingHead = await headVersion(articleId);
+      if (
+        closingHead.value.ledgerEpoch !== latestHead.value.ledgerEpoch ||
+        closingHead.value.status !== latestHead.value.status
+      )
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (closingHead.version !== latestHead.version)
+        throw new KnowledgeEvidenceReportsError("ledger_changed");
       return {
         target: {
           articleId,
@@ -1360,7 +1370,7 @@ export function createKnowledgeEvidenceReports(
           kind: first.draft.revision.kind,
         },
         requirements: first.requirements,
-        ledger: state(articleId, latestHead.value),
+        ledger: state(articleId, closingHead.value),
         ...(latestReport === undefined
           ? {}
           : {
@@ -1465,14 +1475,17 @@ export function createKnowledgeEvidenceReports(
       ]);
       const articleId = scalar(input.articleId);
       const epoch = positive(input.ledgerEpoch);
-      await active(articleId, epoch);
+      const head = await headVersion(articleId);
+      if (head.value.ledgerEpoch !== epoch)
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (head.value.status !== "active")
+        throw new KnowledgeEvidenceReportsError("ledger_resetting");
       const report = await load(articleId, epoch, scalar(input.reportId));
       if (report.submittedBy !== access.principalId)
         throw new KnowledgeEvidenceReportsError("report_not_found");
       await current(access, knowledgePermissions.evidenceSubmit);
-      await active(articleId, epoch);
-      // Finite final observation after authority/head awaits. A concurrent
-      // human decision rotates this generation/cycle; do not return old status.
+      // Compare the report before closing the epoch as the final await.
+      // A concurrent human decision must not return an old generation/cycle.
       const latest = await load(articleId, epoch, report.reportId);
       if (
         latest.reportGeneration !== report.reportGeneration ||
@@ -1480,6 +1493,13 @@ export function createKnowledgeEvidenceReports(
         latest.status !== report.status ||
         latest.reportHash !== report.reportHash
       )
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      const closingHead = await headVersion(articleId);
+      if (closingHead.value.ledgerEpoch !== epoch)
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (closingHead.value.status !== "active")
+        throw new KnowledgeEvidenceReportsError("ledger_resetting");
+      if (closingHead.version !== head.version)
         throw new KnowledgeEvidenceReportsError("report_changed");
       return { ...acknowledgement(latest), status: latest.status };
     },
@@ -1536,16 +1556,39 @@ export function createKnowledgeEvidenceReports(
       const articleId = scalar(input.articleId);
       const epoch = positive(input.ledgerEpoch);
       await active(articleId, epoch);
-      const report = await load(articleId, epoch, scalar(input.reportId));
+      const observed = await observedReport(
+        articleId,
+        epoch,
+        scalar(input.reportId),
+      );
+      const report = observed.value;
       const valueContext = await context(access, articleId, true);
       const reviewBindingHash = await knowledgeDigest({
         report,
         context: valueContext,
       });
       await staff(access);
-      await active(articleId, epoch);
+      const head = await headVersion(articleId);
+      if (head.value.ledgerEpoch !== epoch)
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (head.value.status !== "active")
+        throw new KnowledgeEvidenceReportsError("ledger_resetting");
+      // Observe the report before the final epoch/head read. These separate
+      // observations provide no lock; return without another await.
+      const latest = await observedReport(articleId, epoch, report.reportId);
+      if (latest.version !== observed.version)
+        throw new KnowledgeEvidenceReportsError("report_changed");
+      const latestHead = await headVersion(articleId);
+      if (
+        latestHead.value.ledgerEpoch !== head.value.ledgerEpoch ||
+        latestHead.value.status !== head.value.status
+      )
+        throw new KnowledgeEvidenceReportsError("ledger_epoch_changed");
+      if (latestHead.version !== head.version)
+        throw new KnowledgeEvidenceReportsError("ledger_changed");
       return {
         ...summary(report),
+        receipt: acknowledgement(report).receipt,
         evidence: report.evidence,
         report: report.report,
         draft: valueContext.draft,

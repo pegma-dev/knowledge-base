@@ -1,6 +1,6 @@
 {
   "name": "@pegma/knowledge-base-core",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Pure knowledge article, validation, and publication transitions.",
   "license": "MIT",
   "type": "module",
@@ -29,7 +29,7 @@
     "directory": "packages/core"
   },
   "dependencies": {
-    "@pegma/knowledge-base-contracts": "0.1.6"
+    "@pegma/knowledge-base-contracts": "0.1.7"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

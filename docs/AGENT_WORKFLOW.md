@@ -1,5 +1,9 @@
 # Agent authoring and test-evidence workflow
 
+The current verified Knowledge Base release is
+[`0.1.6`](BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 The [merged KB-04 source](https://github.com/pegma-dev/knowledge-base/pull/5)
 adds optional authoring transports over the existing Knowledge Base
 application. [KB-05 release-preparation source](https://github.com/pegma-dev/knowledge-base/pull/6)
@@ -11,7 +15,7 @@ Governed context reads and an optional aggregate report query shipped in
 [`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 All four synchronized `0.1.5` packages have completed verified trusted
 publication for answering read batching; see the
-[current receipt](BOOTSTRAP.md#current-verified-015-release). Changed source
+[retained receipt](BOOTSTRAP.md#current-verified-015-release). Changed source
 requires its own review and current-head gates. This document
 describes the composition and retained acceptance contract, not a live service
 or a client-compatibility claim. The exact wire contract is in
@@ -216,7 +220,7 @@ trusted `0.1.1` release closed the public producer prerequisite at
 [release ledger](BOOTSTRAP.md#verified-agent-access-prerequisite) records exact
 identities, the successful attempt-2 workflow, and strict verification stdout.
 KB `0.1.4` and the answering read-batching `0.1.5` release have since completed
-verified trusted publication; see the [current KB receipt](BOOTSTRAP.md#current-verified-015-release).
+verified trusted publication; see the [retained KB receipt](BOOTSTRAP.md#current-verified-015-release).
 Changed source still requires its own gates. Both verified trusted dependencies precede production host
 assembly. Branches, copied source, local paths, and unpublished production
 tarballs cannot substitute for them.

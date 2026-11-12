@@ -11,7 +11,9 @@ The governed authoring-context pair and optional aggregate report query shipped
 in [`0.1.4`](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4).
 All four synchronized `0.1.5` packages have completed verified trusted
 publication for answering read batching; see the
-[current receipt](BOOTSTRAP.md#current-verified-015-release). Changed source
+[retained receipt](BOOTSTRAP.md#current-verified-015-release). The current verified
+release is [`0.1.6`](BOOTSTRAP.md#current-verified-016-release). The `0.1.7` candidate
+remains unpublished. Changed source
 requires its own review and current-head gates.
 Agent Access's verified public `0.1.1` producer prerequisite is closed; see the
 [release receipt](BOOTSTRAP.md#verified-agent-access-prerequisite). Passing
@@ -279,7 +281,7 @@ are advertised, using the five names above with useful strict input JSON
 schemas. Client metadata and capability objects are bounded and validated
 before reaching the SDK; they grant no server authority.
 
-The unpublished `0.1.6` source candidate accepts opaque JSON extension fields
+The verified [`0.1.6` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.6) accepts opaque JSON extension fields
 inside `params._meta` on initialize, ping, tools/list, tools/call, and the
 initialized/cancelled notifications. If present, `progressToken` retains its
 existing shape validation: a string of at most 128 characters or a safe integer,

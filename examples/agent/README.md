@@ -1,5 +1,9 @@
 # Packed local agent protocol proof
 
+The current verified Knowledge Base release is
+[`0.1.6`](../../docs/BOOTSTRAP.md#current-verified-016-release).
+The `0.1.7` source candidate remains unpublished.
+
 Run `pnpm run agent:proof` from the repository after
 `pnpm install --frozen-lockfile`, on Node 22.6+ or Node 24. npm must be
 available. The proof needs public npm registry access and binds an
@@ -21,7 +25,7 @@ real browser login, real staging execution, verified KB publication, or host act
 Real host/client acceptance and activation remain open.
 
 All four answering read-batching `0.1.5` packages have completed verified trusted
-publication; see the [current receipt](../../docs/BOOTSTRAP.md#current-verified-015-release).
+publication; see the [retained receipt](../../docs/BOOTSTRAP.md#current-verified-015-release).
 This proof packs the current working tree for source qualification and does not
 re-verify the immutable published `0.1.5` artifacts. The separate
 [qualified `0.1.4` release](https://github.com/pegma-dev/knowledge-base/releases/tag/v0.1.4)
